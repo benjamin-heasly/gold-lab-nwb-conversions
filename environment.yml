@@ -7,6 +7,8 @@ dependencies:
   - pynwb=2.3.2
   - pip:
     - neuroconv[plexon,phy]==0.2.4
-    - neo==0.12.0 # want 0.12.1, when abailable, to use less memory parsing .plx file headers
+    - neo==0.12.0 # want 0.12.1, when available, to use less memory parsing .plx file headers
     - spikeinterface[full,widgets]==0.97.1
     - probeinterface==0.2.16
+    - nwbwidgets==0.10.2
+    - jupyter==1.0.0
