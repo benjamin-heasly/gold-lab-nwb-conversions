@@ -7,3 +7,11 @@
 #   - word whose timeline corresponds to "trial"
 #   - words corresponding to correct and incorrect
 #   - other FIRA/SPM stuff
+
+# # Here are the trials that the first tutorial mentioned, taken from the second!
+# nwbfile.add_trial_column(name='correct', description='whether the trial was correct')
+# nwbfile.add_trial(start_time=1.0, stop_time=5.0, correct=True)
+# nwbfile.add_trial(start_time=6.0, stop_time=10.0, correct=False)
+
+# trials_frame = nwbfile.trials.to_dataframe()
+# print(trials_frame)
