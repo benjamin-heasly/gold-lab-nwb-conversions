@@ -154,12 +154,39 @@ def add_digital_events(
     (strobe_timestamps, _, strobed_labels) = plexon_reader.read_events(strobe_channel_id)
 
     strobed_ints = [int(label) for label in strobed_labels]
-    word_series = TimeSeries(
-        name=f"Strobed words on {strobe_channel_id}",
+    strobed_words = TimeSeries(
+        name=f"strobed_words",
         description=f"Strobed word timestamps from Plexon event channel {strobe_channel_id}",
         timestamps=strobe_timestamps + starting_time,
         data=strobed_ints,
         unit="digital",
         continuity="instantaneous"
     )
-    nwb_file.add_acquisition(word_series)
+    nwb_file.add_acquisition(strobed_words)
+
+
+def add_trials(
+    nwb_file: NWBFile,
+    trial_start_word: int
+):
+    """Add trials based on strobed words already in the working NWB file in memory."""
+    print(f"Mark trials based on strobed word {trial_start_word}")
+    if not nwb_file.acquisition or not "strobed_words" in nwb_file.acquisition:
+        print(f"Couldn't find 'strobed_words' time series in 'acquisition' container.")
+        return
+
+    strobed_words = nwb_file.get_acquisition("strobed_words")
+    trial_selector = [word == trial_start_word for word in strobed_words.data]
+    trial_starts = strobed_words.timestamps[trial_selector]
+    trial_count = len(trial_starts)
+    print(f"Adding {trial_count} trials.")
+    for index, trial_start in enumerate(trial_starts):
+        next_index = index + 1
+        if next_index >= trial_count:
+            trial_end = strobed_words.timestamps[-1]
+        else:
+            trial_end = trial_starts[next_index]
+        nwb_file.add_trial(
+            start_time=trial_start,
+            stop_time=trial_end
+        )
