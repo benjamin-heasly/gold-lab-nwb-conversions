@@ -5,7 +5,7 @@ from nwb_file import create, write
 from plexon_sorting import add_plexon_sorting
 from phy_sorting import add_phy_sorting
 from kilosort_recording import add_kilosort_recording
-from plexon_gold import add_lfps, add_eye_signals
+from plexon_gold import add_lfps, add_eye_signals, add_recording_epochs, add_digital_events
 
 # from args or defaults
 plx_file = "/home/ninjaben/Desktop/codin/gold-lab/plexon_data/MrM/Sorted/MM_2022_08_05_Rec-tentative-3units.plx"
@@ -38,7 +38,8 @@ add_phy_sorting(nwb_file, phy_dir)
 
 add_lfps(nwb_file, plexon_reader, lfp_channel_ids=['17', '48', '51'])
 add_eye_signals(nwb_file, plexon_reader, gaze_x_channel_id='49', gaze_y_channel_id='50', pupil_channel_id='48')
-# add_digital_events(nwb_file, plexon_reader, timestamp_channel_ids=[258, 259], strobe_channel_ids=[257])
+add_recording_epochs(nwb_file, plexon_reader, start_channel_id='258', stop_channel_id='259')
+add_digital_events(nwb_file, plexon_reader, strobe_channel_id='257')
 # add_trials(nwb_file, strobe_config)
 
 write(nwb_file=nwb_file, file_path=nwb_out_path)

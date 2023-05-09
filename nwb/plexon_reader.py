@@ -82,10 +82,9 @@ class PlexonReader():
                         event_timestamps=event_timestamps,
                         event_channel_index=channel)
                     if event_count:
-                        print(
-                            f"      event channel {channel} has {event_count} events: {np.amin(scaled_timestamps)} - {np.amax(scaled_timestamps)}")
-                        print(f"      event channel {channel} labels: {event_info[1]}")
-                        print(f"      event channel {channel} durations: {event_info[2]}")
+                        print(f"      event channel {channel} has {event_count} events: {np.amin(scaled_timestamps)} - {np.amax(scaled_timestamps)}")
+                        print(f"      event channel {channel} durations: {event_info[1]}")
+                        print(f"      event channel {channel} labels: {event_info[2]}")
                     else:
                         print(f"      event channel {channel} has {event_count} events.")
 
@@ -112,3 +111,71 @@ class PlexonReader():
             stream_data.append(np.concatenate(block_data))
         analog_data = np.concatenate(stream_data)
         return (analog_data, sample_rate)
+
+    def event_channel_id_to_index(self, channel_id):
+        """
+        Transform an event channel_id to and event channel_indexe.
+        Based on self.header['event_channels']
+        channel_indexe is zero-based
+        """
+        event_channels = self.plexon_raw_io.header['event_channels']
+        chan_ids = list(event_channels['id'])
+        return chan_ids.index(channel_id)
+
+    def read_events(self, channel_id):
+        channel_index = self.event_channel_id_to_index(channel_id)
+        print(f"channel_id {channel_id} has index {channel_index}")
+        block_count = self.plexon_raw_io.block_count()
+        channel_timestamps = []
+        channel_durations = []
+        channel_labels = []
+        for block_index in range(block_count):
+            block_timestamps = []
+            block_durations = []
+            block_labels = []
+            segment_count = self.plexon_raw_io.segment_count(block_index)
+            for segment_index in range(segment_count):
+                (segment_timestamps, segment_durations, segment_labels) = self.plexon_raw_io.get_event_timestamps(
+                    block_index,
+                    segment_index,
+                    channel_index
+                )
+                # Awkward test for truthiness:
+                # Numpy arrays with one element act like that one element WRT truthiness.
+                # So a numpy array with one timestamps that happens to be at zero, like array([0]), evaluates to False.
+                # This is unlike a Python list with one zero element, like [0], which evalueates to True!
+                # It seems dumb to me, like we're paying a price here for someone's unrelated use case.
+                if segment_timestamps is not None and len(segment_timestamps):
+                    scaled_segment_timestamps = self.plexon_raw_io.rescale_event_timestamp(
+                        segment_timestamps,
+                        event_channel_index=channel_index
+                    )
+                    block_timestamps.append(scaled_segment_timestamps)
+                if segment_durations is not None and len(segment_durations):
+                    block_durations.append(segment_durations)
+                if segment_labels is not None and len(segment_labels):
+                    block_labels.append(segment_labels)
+
+            if block_timestamps:
+                channel_timestamps.append(np.concatenate(block_timestamps))
+            if block_durations:
+                channel_durations.append(np.concatenate(block_durations))
+            if block_labels:
+                channel_labels.append(np.concatenate(block_labels))
+
+        if channel_timestamps:
+            timestamps = np.concatenate(channel_timestamps)
+        else:
+            timestamps = None
+
+        if channel_durations:
+            durations = np.concatenate(channel_durations)
+        else:
+            durations = None
+
+        if channel_labels:
+            labels = np.concatenate(channel_labels)
+        else:
+            labels = None
+
+        return (timestamps, durations, labels)

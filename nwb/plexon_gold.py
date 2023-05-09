@@ -1,3 +1,5 @@
+import numpy as np
+
 from pynwb import NWBFile
 from pynwb.behavior import EyeTracking, PupilTracking, SpatialSeries, TimeSeries
 from pynwb.ecephys import LFP, ElectricalSeries
@@ -92,7 +94,7 @@ def add_eye_signals(
         behavior_module = nwb_file.create_processing_module(name="behavior", description="Processed behavioral data")
 
     if gaze_x_channel_id and gaze_y_channel_id:
-        print(f"Read gaze_x_channel_id: {gaze_x_channel_id}, gaze_y_channel_id: {gaze_y_channel_id}")
+        print(f"Read gaze_x_channel_id {gaze_x_channel_id}, gaze_y_channel_id {gaze_y_channel_id}")
         (gaze_analog_data, sample_rate) = plexon_reader.read_analog_channels([gaze_x_channel_id, gaze_y_channel_id])
         eye_position = SpatialSeries(
             name="eye_position",
@@ -116,12 +118,48 @@ def add_eye_signals(
             data=pupil_analog_data,
             starting_time=starting_time,
             rate=sample_rate,
+            continuity="continuous"
         )
         pupil_tracking = PupilTracking(time_series=pupil_diameter, name="PupilTracking")
         behavior_module.add(pupil_tracking)
 
 
-# events for acquisition:
-#   - channel names or ids for strobed words: time series per unique word
-#   - channel names or ids for start and stop: recording epochs
-#   - channel names or ids for others: time series per channel
+def add_recording_epochs(
+    nwb_file: NWBFile,
+    plexon_reader: PlexonReader,
+    start_channel_id: str,
+    stop_channel_id: str,
+    starting_time: float = 0.0
+):
+    """Add recording start-stop epochs from Plexon digital event channels to the working NWB file in memory."""
+    print(f"Read recording epochs: start_channel_id {start_channel_id}, stop_channel_id {stop_channel_id}")
+    (start_timestamps, _, _) = plexon_reader.read_events(start_channel_id)
+    (stop_timestamps, _, _) = plexon_reader.read_events(stop_channel_id)
+    for start, stop in zip(start_timestamps, stop_timestamps):
+        nwb_file.add_epoch(
+            start_time=start + starting_time,
+            stop_time=stop + starting_time,
+            tags=["plexon_recording_on"]
+        )
+
+
+def add_digital_events(
+    nwb_file: NWBFile,
+    plexon_reader: PlexonReader,
+    strobe_channel_id: str,
+    starting_time: float = 0.0
+):
+    """Add recording strobe words from a Plexon digital event channel to the working NWB file in memory."""
+    print(f"Read strobe words: strobe_channel_id {strobe_channel_id}")
+    (strobe_timestamps, _, strobed_labels) = plexon_reader.read_events(strobe_channel_id)
+
+    strobed_ints = [int(label) for label in strobed_labels]
+    word_series = TimeSeries(
+        name=f"Strobed words on {strobe_channel_id}",
+        description=f"Strobed word timestamps from Plexon event channel {strobe_channel_id}",
+        timestamps=strobe_timestamps + starting_time,
+        data=strobed_ints,
+        unit="digital",
+        continuity="instantaneous"
+    )
+    nwb_file.add_acquisition(word_series)
