@@ -25,6 +25,13 @@ jupyter notebook
 # runs OK for now
 ```
 
+At the moment pyneo 0.12.0, which reads Plexon files for us, eats so much memory it crushes my laptop (10+ GB of memory for a 1.1 GB file!).
+I submitted a PR to reduce this, which they accepted.
+When pyneo 0.12.1 is available, we can just update environment.yml to use that version.
+In the meantime, I'll manually replace 0.12.0 with the latest from git
+
+    # https://github.com/NeuralEnsemble/python-neo.git
+
 # Related
 
 ## this repo

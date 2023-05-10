@@ -11,7 +11,7 @@ def create(
     session_id: str,
     nwb_identifier: str = str(uuid.uuid4()),
     session_start_time: datetime = datetime.utcnow(),
-    extra_metadata: dict[str, str] = {},
+    session_description: str = None
 ) -> NWBFile:
     """ Create a new NWB file to represent a recording session.
         This doesn't add data to the file yet.
@@ -22,8 +22,9 @@ def create(
         identifier=nwb_identifier,
         session_start_time=session_start_time,
         session_id=session_id,
-        **experiment_info,
-        **extra_metadata)
+        session_description=session_description,
+        **experiment_info
+    )
 
     if (isinstance(subject_info["date_of_birth"], str)):
         subject_info["date_of_birth"] = datetime.fromisoformat(subject_info["date_of_birth"])
