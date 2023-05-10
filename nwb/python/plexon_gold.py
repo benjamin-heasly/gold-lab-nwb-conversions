@@ -1,5 +1,3 @@
-import numpy as np
-
 from pynwb import NWBFile
 from pynwb.behavior import EyeTracking, PupilTracking, SpatialSeries, TimeSeries
 from pynwb.ecephys import LFP, ElectricalSeries
@@ -8,10 +6,10 @@ from plexon_reader import PlexonReader
 
 
 def add_lfps(
-        nwb_file: NWBFile,
-        plexon_reader: PlexonReader,
-        lfp_channel_ids: list[str],
-        starting_time: float = 0.0
+    nwb_file: NWBFile,
+    plexon_reader: PlexonReader,
+    lfp_channel_ids: list[str],
+    starting_time: float = 0.0
 ):
     """Add LFPs from the given Plexon analog channels to the working NWB file in memory."""
 
@@ -131,7 +129,8 @@ def add_recording_epochs(
     stop_channel_id: str,
     starting_time: float = 0.0
 ):
-    """Add recording start-stop epochs from Plexon digital event channels to the working NWB file in memory."""
+    """Add recording start-stop epochs from the given Plexon digital event channels to the working NWB file in memory."""
+
     print(f"Read recording epochs: start_channel_id {start_channel_id}, stop_channel_id {stop_channel_id}")
     (start_timestamps, _, _) = plexon_reader.read_events(start_channel_id)
     (stop_timestamps, _, _) = plexon_reader.read_events(stop_channel_id)
@@ -149,7 +148,8 @@ def add_digital_events(
     strobe_channel_id: str,
     starting_time: float = 0.0
 ):
-    """Add recording strobe words from a Plexon digital event channel to the working NWB file in memory."""
+    """Add strobed words and timestamps from a Plexon digital event channel to the working NWB file in memory."""
+
     print(f"Read strobe words: strobe_channel_id {strobe_channel_id}")
     (strobe_timestamps, _, strobed_labels) = plexon_reader.read_events(strobe_channel_id)
 
@@ -169,7 +169,8 @@ def add_trials(
     nwb_file: NWBFile,
     trial_start_word: int
 ):
-    """Add trials based on strobed words already in the working NWB file in memory."""
+    """Add trials in the working NWB file in memory based on the given strobed word (wip...)."""
+
     print(f"Mark trials based on strobed word {trial_start_word}")
     if not nwb_file.acquisition or not "strobed_words" in nwb_file.acquisition:
         print(f"Couldn't find 'strobed_words' time series in 'acquisition' container.")

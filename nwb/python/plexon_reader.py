@@ -8,11 +8,15 @@ from neo.rawio import PlexonRawIO
 
 
 class PlexonReader():
+    """Index a Plexon .plx file and its data blocks, so we can get at metadata and analog signals.
+    
+    Header parsing is actually pretty slow, something like 1-10 minutes for Gold Lab sessions.
+    This is because .plx files have millions of small data blocks written out in unsorted order.
+    Parsing all the block headers is worth the time because then we can seek to the block we want.
+    """
+
     def __init__(self, plx_file):
         self.plexon_raw_io = PlexonRawIO(filename=plx_file)
-
-        # Header parsing is actually pretty slow, a few minutes.
-        # We need to index the millions of data blocks that Plexon wrote out in no particular order.
         print(f"Start reading Plexon block headers: {datetime.now()}")
         self.plexon_raw_io.parse_header()
         print(f"Finished reading Plexon block headers: {datetime.now()}")
@@ -113,18 +117,12 @@ class PlexonReader():
         return (analog_data, sample_rate)
 
     def event_channel_id_to_index(self, channel_id):
-        """
-        Transform an event channel_id to and event channel_indexe.
-        Based on self.header['event_channels']
-        channel_indexe is zero-based
-        """
         event_channels = self.plexon_raw_io.header['event_channels']
         chan_ids = list(event_channels['id'])
         return chan_ids.index(channel_id)
 
     def read_events(self, channel_id):
         channel_index = self.event_channel_id_to_index(channel_id)
-        print(f"channel_id {channel_id} has index {channel_index}")
         block_count = self.plexon_raw_io.block_count()
         channel_timestamps = []
         channel_durations = []

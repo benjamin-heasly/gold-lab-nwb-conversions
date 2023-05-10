@@ -1,0 +1,24 @@
+experiment:
+  experimenter:
+    - Last, First M
+    - Last, First Middle
+  experiment_description: An experiment from the Gold Lab.
+  institution: University of Pennsylvania School of Medicine
+  lab: The Gold Lab
+  keywords:
+    - cool
+    - science
+  related_publications:
+   - DOI:10.1016/j.neuron.2016.12.011
+plexon:
+  lfp_channel_ids:
+    - '17'
+    - '48'
+    - '51'
+  gaze_x_channel_id: '49'
+  gaze_y_channel_id: '50'
+  pupil_channel_id: '48'
+  start_channel_id: '258'
+  stop_channel_id: '259'
+  strobe_channel_id: '257'
+  trial_start_word: 1005

@@ -125,3 +125,4 @@ venv.bak/
 .nwb
 .pre-commit-config.yaml
 *.nwb
+nwb-cache/
