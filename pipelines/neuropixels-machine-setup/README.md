@@ -21,7 +21,7 @@ This document started as a Google Doc [here](https://docs.google.com/document/d/
 You may or may not have access to that doc.
 I [converted it to Markdown](https://workspace.google.com/marketplace/app/docs_to_markdown/700168918607) so we could save it here in [this repo](https://github.com/benjamin-heasly/gold-lab-nwb-conversions).
 
-# Connection {#connection}
+# Connection
 
 I'm connecting to the Gold Lab Neuropixels Windows 11 machine that has NVIDIA hardware.
 
@@ -41,7 +41,7 @@ This uses port 4000, which is apparently open at Penn.
 We were not able to use the Windows Remote Desktop, on port 3389, because of Penn router configuration.
 
 
-# System Info {#system-info}
+# System Info
 
 Here's some system info that seems relevant.
 
@@ -80,22 +80,22 @@ This card has "Ampere" architecture, from [here](https://www.nvidia.com/en-ph/ge
 
 
 
-# Chrome {#chrome}
+# Chrome
 
 I installed Chrome to use instead of the default Edge browser, from [here](https://www.google.com/chrome/thank-you.html?brand=CHBF&statcb=1&installdataindex=empty&defaultbrowser=0).
 
 
-# Gandalf {#gandalf}
+# Gandalf
 
 I set a sweet desktop background from [here](https://steamuserimages-a.akamaihd.net/ugc/246962430133837220/2156B23860B197223E354FA54CAC369EFF5398AB/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=#000000&letterbox=false).
 
 
-# Timezone {#timezone}
+# Timezone
 
 Changed time zone from `US Pacific` to `US East`.
 
 
-# Never Sleep {#never-sleep}
+# Never Sleep
 
 I set the machine to Never Sleep.
 
@@ -106,7 +106,7 @@ This should allow me to reconnect to the machine each day, after breaks, etc.
 There might be a way to enable wakeup from the network, but I don't feel like messing with the BIOS now.
 
 
-# WSL2 Info {#wsl2-info}
+# WSL2 Info
 
 I read about the Windows Subsystem for Linux [here](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux).
 
@@ -133,7 +133,7 @@ WSL2 runs a full linux kernel on a managed VM, as opposed to being a system call
 
 
 
-# Install WSL2 {#install-wsl2}
+# Install WSL2
 
 I'll install WSL2 on the machine, using the Microsoft instructions [here](https://learn.microsoft.com/en-us/windows/wsl/install).
 
@@ -199,7 +199,7 @@ $ exit
 
 
 
-# Docker info {#docker-info}
+# Docker info
 
 I read about Docker and WSL [here](https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9) and [here](https://www.docker.com/blog/new-docker-desktop-wsl2-backend/).
 
@@ -218,7 +218,7 @@ It might be fine for us to just use Docker Desktop, though, since Tripledip is a
 
 
 
-# Install Docker Desktop {#install-docker-desktop}
+# Install Docker Desktop
 
 I followed Docker Desktop for Windows installation instructions from [here](https://docs.docker.com/desktop/install/windows-install/).
 
@@ -345,7 +345,7 @@ Docker version 20.10.21, build baeda1f
 So all that seems good.
 
 
-# Updating WSL Kernel {#updating-wsl-kernel}
+# Updating WSL Kernel
 
 I think I already did this above as one of the Docker Desktop prerequisites.
 
@@ -376,7 +376,7 @@ So we have kernel version 5.15.79.1, which is good.
 The NVIDIA WSL docs recommend 5.10.16.3 or later.
 
 
-# Updating Windows NVIDIA drivers {#updating-windows-nvidia-drivers}
+# Updating Windows NVIDIA drivers
 
 I'm seeing drivers r495 through r525+ mentioned in the [nvidia docs](https://docs.nvidia.com/cuda/wsl-user-guide/index.html#nvidia-compute-software-support-on-wsl-2).
 
@@ -410,7 +410,7 @@ The system came back up, and now the NVIDIA Control Panel shows version 527.56.
 Seems good.
 
 
-# Info about NVIDIA drivers under WSL2 {#info-about-nvidia-drivers-under-wsl2}
+# Info about NVIDIA drivers under WSL2
 
 I read about installing NVIDIA under Ubuntu and WSL2 [here (Canonical)](https://ubuntu.com/tutorials/enabling-gpu-acceleration-on-ubuntu-on-wsl2-with-the-nvidia-cuda-platform#1-overview) and [here (NVIDIA)](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
 
@@ -429,7 +429,7 @@ It just means we won't take control of the drivers as part of our workflow / pip
 Instead we'll try to hug the framework and follow the docs.
 
 
-# Installing CUDA Toolkit under WSL  {#installing-cuda-toolkit-under-wsl}
+# Installing CUDA Toolkit under WSL
 
 I followed the instructions [here](https://ubuntu.com/tutorials/enabling-gpu-acceleration-on-ubuntu-on-wsl2-with-the-nvidia-cuda-platform#3-install-nvidia-cuda-on-ubuntu) and [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html#cuda-support-for-wsl-2) (same Canonical and NVIDIA sites as above) to install the CUDA toolkit.
 
@@ -591,7 +591,7 @@ Setting up at-spi2-core (2.44.0-3) ...
 Good, all of that seemed to install smoothly.
 
 
-# Can CUDA find NVIDIA Drivers and Card in WSL and Docker? {#can-cuda-find-nvidia-drivers-and-card-in-wsl-and-docker}
+# Can CUDA find NVIDIA Drivers and Card in WSL and Docker?
 
 With everything above, we should be able to see the NVIDIA hardware from the WSL Ubuntu environment.  We can check this with the [NVIDIA System Management Interface (nvidia-smi)](https://developer.nvidia.com/nvidia-system-management-interface).
 
@@ -673,7 +673,7 @@ That output looks comparable to what we got in plain-old WSL without Docker.
 Kind of amazing.
 
 
-# Can we run a Dockerized sample program from NVIDIA? {#can-we-run-a-dockerized-sample-program-from-nvidia}
+# Can we run a Dockerized sample program from NVIDIA?
 
 The NVIDIA WSL installation docs have a [troubleshooting example](https://docs.nvidia.com/cuda/wsl-user-guide/index.html#container-runtime-initialization-errors) we can try.  They give this as an error example.  But can we just run it without error?
 
@@ -727,7 +727,7 @@ I don't know much about the benchmarking example or how "good" those numbers are
 So, good.
 
 
-# Can we build and run a CUDA sample program? {#can-we-build-and-run-a-cuda-sample-program}
+# Can we build and run a CUDA sample program?
 
 The Canonical Ubuntu installation docs suggest we [build and run a sample app](https://ubuntu.com/tutorials/enabling-gpu-acceleration-on-ubuntu-on-wsl2-with-the-nvidia-cuda-platform#4-compile-a-sample-application), to test the CUDA installation.  Sounds good.
 
@@ -804,12 +804,12 @@ Result = PASS
 That seems good, and consistent with the nvidia-smi output.
 
 
-# NVIDIA Setup Seems Good {#nvidia-setup-seems-good}
+# NVIDIA Setup Seems Good
 
 I think we've got NVIDIA CUDA-accelerated Docker containers running Under Windows 11 WSL 2!
 
 
-# NVIDIA Container Toolkit info {#nvidia-container-toolkit-info}
+# NVIDIA Container Toolkit info
 
 This is a note about some things that confused me as I was trying to understand things above.
 
@@ -835,7 +835,7 @@ or
 * A regular Docker install, like on Linux, plus the NVIDIA Container Toolkit package
 
 
-# Matlab in Docker, with Local License File {#matlab-in-docker-with-local-license-file}
+# Matlab in Docker, with Local License File
 
 I'll move on to Matlab and include the setup steps in this same doc.
 
@@ -934,7 +934,7 @@ Does the Matlab Docker image set the random seed?
 Or is this happening implicitly as a result of the Ubuntu base image?
 
 
-# TODO: Get a License File for this Machine {#todo-get-a-license-file-for-this-machine}
+# TODO: Get a License File for this Machine
 
 The `license.lic` currently on the Desktop is for MAC address / host id `68f728f668a6`, which is my laptop.  With Docker we can specify whatever MAC address we want when we run a container, so we can do silly stuff like this.
 
@@ -952,7 +952,7 @@ goldlab@goldneuropixels:~$ cat /sys/class/net/eth0/address
 So we'll want a license for Linux, Matlab 2022b, MAC address `00:15:5d:56:bb:11`.  And we should switch our Docker calls to use this address.
 
 
-# Run CUDA and Kilosort in Matlab Containers {#run-cuda-and-kilosort-in-matlab-containers}
+# Run CUDA and Kilosort in Matlab Containers
 
 Even without using an nvidia/cuda base image, we can still use nvidia-smi from containers.
 
@@ -1266,7 +1266,7 @@ success =
 That looks good!
 
 
-# Run Interactive Phy GUI to look at the Kilosort results {#run-interactive-phy-gui-to-look-at-the-kilosort-results}
+# Run Interactive Phy GUI to look at the Kilosort results
 
 As far as I can tell from this [Microsoft doc](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps), Linux GUI apps using X should "just run" under WSL.
 
