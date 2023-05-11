@@ -154,14 +154,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     cli_args = parser.parse_args(argv)
 
-    experiment_file = Path(cli_args.experiment)
+    experiment_file = Path(cli_args.experiment).expanduser()
     if not experiment_file.exists():
         experiment_file = Path(
             cli_args.experiments_dir,
             f"{cli_args.experiment}.yaml"
         )
 
-    subject_file = Path(cli_args.subject)
+    subject_file = Path(cli_args.subject).expanduser()
     if not subject_file.exists():
         subject_file = Path(
             cli_args.subjects_dir,
@@ -170,17 +170,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     subject_dir_name = subject_file.stem
 
     if cli_args.plx_file:
-        plx_file = Path(cli_args.plx_file)
+        plx_file = Path(cli_args.plx_file).expanduser()
     else:
         plx_file = Path(
             cli_args.data_dir,
             subject_dir_name,
             "Raw",
             f"{cli_args.session_id}.plx"
-        )
+        ).expanduser()
 
     if cli_args.bin_file:
-        bin_file = Path(cli_args.bin_file)
+        bin_file = Path(cli_args.bin_file).expanduser()
     else:
         bin_file = Path(
             cli_args.data_dir,
@@ -188,10 +188,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "Kilosort",
             cli_args.session_id,
             f"{cli_args.session_id}.plx.bin"
-        )
+        ).expanduser()
 
     if cli_args.ops_file:
-        ops_file = Path(cli_args.ops_file)
+        ops_file = Path(cli_args.ops_file).expanduser()
     else:
         ops_file = Path(
             cli_args.data_dir,
@@ -199,10 +199,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "Kilosort",
             cli_args.session_id,
             f"{cli_args.session_id}-ops.json"
-        )
+        ).expanduser()
 
     if cli_args.phy_dir:
-        phy_dir = Path(cli_args.phy_dir)
+        phy_dir = Path(cli_args.phy_dir).expanduser()
     else:
         phy_dir = Path(
             cli_args.data_dir,
@@ -211,17 +211,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             cli_args.session_id,
             cli_args.results_name,
             "phy"
-        )
+        ).expanduser()
 
     if cli_args.nwb_out_file:
-        nwb_out_file = Path(cli_args.nwb_out_file)
+        nwb_out_file = Path(cli_args.nwb_out_file).expanduser()
     else:
         nwb_out_file = Path(
             cli_args.data_dir,
             subject_dir_name,
             "NWB",
             f"{cli_args.session_id}-{cli_args.results_name}.nwb"
-        )
+        ).expanduser()
     nwb_out_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
