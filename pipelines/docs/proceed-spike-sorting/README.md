@@ -60,155 +60,216 @@ pip install .
 
 # Spike Sorting with Kilosort and Phy
 
-Here are some instructions for how you can sort files with Proceed.
+Here are some instructions for how you can spike-sort Plexon files with Proceed.
 
 
 ## setup
 
-If you haven't already, go to WSL, activate our Conda environment for running pipelines, and cd to our folder that contains pipeline definition YAML files.
+If you haven't already, go to WSL, activate our Conda environment for running pipelines, and `cd` to our folder that contains pipeline definition YAML files.
 
 
 ```
 # Activate our Python environment (if not already)
 conda activate pipeline-stuff
 
-# Get the latest code
-cd /mnt/d/pipelines
+# Get the latest pipeline definitions
+cd /mnt/d/repos/gold-lab-nwb-conversions
+git pull
+cd pipelines
 ```
 
 
 
 ## initial file conversion step
 
-When sorting a new file, the first step is to convert from Plexon's .plx file format to the raw, binary format expected by Kilosort.
+When sorting a new file, the first step is to convert from Plexon's `.plx` file format to the raw, binary `.bin` format expected by Kilosort.
 
-Find a file you want to sort in the "Raw" folder on the Neuropixels machine, for example MM_2022_11_28C_V-ProRec.plx
+Find a file you want to sort in the "Raw" folder on the Neuropixels machine, for example `MM_2022_11_28C_V-ProRec.plx`
 
+From Windows this would look like: `D:\MrM\Raw\MM_2022_11_28C_V-ProRec.plx`
 
+![windows raw plexon file](images/windows-raw-plexon-file.png)
 
-* from Windows this would look like: D:\data\Raw\MM_2022_11_28C_V-ProRec.plx
-* from WSL / Linux this would look like: /mnt/d/data/Raw/MM_2022_11_28C_V-ProRec.plx
+From WSL / Linux this would look like: `/mnt/d/MrM/Raw/MM_2022_11_28C_V-ProRec.plx`
 
-[screen shot of Windows file explorer]
+```
+$ ls -alth /mnt/d/MrM/Raw/
+total 6.0G
+drwxrwxrwx 1 goldlab goldlab 4.0K May 11 13:46 .
+-rwxrwxrwx 1 goldlab goldlab 936M May 11 13:38 MM_2022_12_05_V-ProRec.plx
+-rwxrwxrwx 1 goldlab goldlab 1.4G May 10 12:12 MM_2022_11_04_V-ProRec.plx
+-rwxrwxrwx 1 goldlab goldlab 744M May  8 12:42 MM_2022_11_30_V-ProRec.plx
+-rwxrwxrwx 1 goldlab goldlab 299M May  1 12:03 MM_2023_01_30_BV-ProRec.plx
+-rwxrwxrwx 1 goldlab goldlab 140M Apr 27 15:51 MM_2022_08_05_REC.plx
+drwxrwxrwx 1 goldlab goldlab 4.0K Apr 17 17:00 ..
+-rwxrwxrwx 1 goldlab goldlab 160M Apr 17 16:57 MM_2022_02_22_5_44.plx
+-rwxrwxrwx 1 goldlab goldlab 670M Feb 28 13:53 MM_2023_01_23_BV-ProRec_sorted.plx
+-rwxrwxrwx 1 goldlab goldlab 670M Jan 31 13:59 MM_2023_01_23_BV-ProRec.plx
+-rwxrwxrwx 1 goldlab goldlab 1.1G Jan 25 14:12 MM_2022_11_28C_V-ProRec.plx <------------
+```
 
-[screen shot of WSL terminal "ls" results]
+Note the base name of your file -- without the ".plx" at the end.  In this example it's `MM_2022_11_28C_V-ProRec`.  You'll need this base name in the steps below.
 
-Note the base name of your file -- without the .plx at the end: MM_2022_11_28C_V-ProRec.  You'll need this in all the steps below.  Run the following command, using this plx_name.
-
+To convert your file to Kilosort's format you can run the following command using your file base name as the `plx_name` argument.
 
 ```
 # Convert plx to kilosort
-proceed run plexon-kilosort-phy-fira.yaml --options options.yaml --step-names plx-to-kilosort --args plx_name=MM_2022_11_28C_V-ProRec
+proceed run plexon-kilosort-phy-fira.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --step-names plx-to-kilosort \
+  --args plx_name=MM_2022_11_28C_V-ProRec
 ```
 
+After several minutes and lots of logging, this will produce several new files in a `Kilosort` folder and a subfolder named like the Plexon file
 
-This will produce several new files in a folder named like the Plexon file, for example:
+From Windows this would look like: `D:\MrM\Kilosort\MM_2022_11_28C_V-ProRec\`.
 
+![windows converted kilosort files](images/windows-converted-bin-file.png)
 
+From WSL / Linux this would look like: `/mnt/d/MrM/Kilosort/MM_2022_11_28C_V-ProRec/`
 
-* D:\data\Kilosort\MM_2022_11_28C_V-ProRec\MM_2022_11_28C_V-ProRec.plx
-* D:\data\Kilosort\MM_2022_11_28C_V-ProRec\MM_2022_11_28C_V-ProRec-ops.json
+```
+$ ls -alth /mnt/d/MrM/Kilosort/MM_2022_11_28C_V-ProRec/
+total 9.6G
+drwxrwxrwx 1 goldlab goldlab 4.0K May 12 14:57 .
+-rwxrwxrwx 1 goldlab goldlab 4.8G May 12 12:57 temp_wh2.dat
+-rwxrwxrwx 1 goldlab goldlab  799 May 12 12:27 MM_2022_11_28C_V-ProRec-ops.json
+-rwxrwxrwx 1 goldlab goldlab 1.7K May 12 12:27 MM_2022_11_28C_V-ProRec-ops.mat
+-rwxrwxrwx 1 goldlab goldlab 4.8G May 12 12:27 MM_2022_11_28C_V-ProRec.plx.bin
+-rwxrwxrwx 1 goldlab goldlab  333 May 12 12:16 MM_2022_11_28C_V-ProRec-chanMap.json
+-rwxrwxrwx 1 goldlab goldlab  320 May 12 12:16 MM_2022_11_28C_V-ProRec-chanMap.mat
+drwxrwxrwx 1 goldlab goldlab 4.0K May 12 11:07 ..
+```
 
-[screen shot of Windows file explorer]
+### optional args
 
-[screen shot of WSL terminal "ls" results]
-
-By default this will convert all channels in the .plx file (even ones without data on them) across the entire file timeline.  You can convert a subset of channels (logical indexing array) and/or a subrange of the recording timeline (in seconds) by passing additional args to the pipeline.
+By default this will convert all channels in the `.plx` file (even ones without data on them) across the entire file timeline.  You can convert a subset of channels (logical indexing array) and/or a subrange of the recording timeline (in seconds) by passing additional `args` to the pipeline.
 
 
 ```
 # Convert plx to kilosort with specific channels and time range
-proceed run plexon-kilosort-phy-fira.yaml --options options.yaml --step-names plx-to-kilosort --args plx_name=MM_2022_11_28C_V-ProRec tStart=120 tEnd=240 channels=[true true false true true false]
+proceed run plexon-kilosort-phy-fira.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --step-names plx-to-kilosort \
+  --args plx_name=MM_2022_11_28C_V-ProRec plx_t_start=120 plx_t_end=240 channels="[true true false true true false]"
 ```
 
+The standard Python argument parser is sensitive to spaces, so we need quotes around extended values like `"[true true false true true false]"`.
 
-By default, the conversion will only run once.  Once the output files exist, the pipeline will skip this first step to avoid extra time and work.  You can force the pipeline to re-run the step anyway, by passing a "--force-rerun" flag.
+### overwriting a previous run
 
-Note: by default Kilosort 3 is hard-coded to work with 10 or more channels, and errors out with fewer than 10.  We [patched the code](https://github.com/benjamin-heasly/Kilosort/pulls?q=is%3Apr+is%3Aclosed) to remove this known limit, and now we can go down to 4 channels.  4 seems to be a harder limit, going deeper into the Kilosort 3 implementation, which would be harder and riskier to patch.  For now, we let's just include 4 or more channels, even if some of those channels end up being empty.
-
+By default, the conversion step will only run once.  Once the output files exist the pipeline will skip the conversion stepto avoid extra time and work.  You can force the pipeline to re-run the conversion step anyway, by passing a `--force-rerun` flag.
 
 ```
-# Convert plx to kilosort with force rerun
-proceed run plexon-kilosort-phy-fira.yaml --options options.yaml --step-names plx-to-kilosort --args plx_name=MM_2022_11_28C_V-ProRec tStart=120 tEnd=240 channels=[true true false true true false] --force-rerun
+# Convert plx to kilosort, overwriting an existing conversion
+proceed run plexon-kilosort-phy-fira.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --step-names plx-to-kilosort \
+  --args plx_name=MM_2022_11_28C_V-ProRec plx_t_start=120 plx_t_end=240 channels="[true true false true true false]" \
+  --force-rerun
 ```
 
+### a point about small numbers of channels
 
-At this point, you might want to edit some of the values in the generated "MM_2022_11_28C_V-ProRec-ops.json" file.  These values are passed on to Kilosort as its [ops struct](https://github.com/MouseLand/Kilosort/blob/main/configFiles/StandardConfig_MOVEME.m).  If you know what you want already, you can edit these ops before running Kilosort in the next step.
+By default Kilosort 3 is hard-coded to work with 10 or more channels, and errors out with fewer than 10.  We [patched the code](https://github.com/benjamin-heasly/Kilosort/pulls?q=is%3Apr+is%3Aclosed) to remove this known limit, and now we can go down to 4 channels.
 
-[double check YAML step and args for conversion]
+4 seems to be a harder limit, going deeper into the Kilosort 3 implementation, and not so easy to patch (and also riskier to mess with).  For now, let's just include 4 or more channels, even if some of those channels end up being empty.
 
+## Review and edit ops
+
+In addition to the raw `.bin` file, the conversion step will produce a .`json` file of Kilosort ops that you can review and edit.
+
+Some of these default ops are copied from Kilosort examples and hard-coded into our conversion code [here](https://github.com/benjamin-heasly/plx-to-kilosort/blob/main/plx-to-kilosort/matlab/defaultOpsForPlxFile.m).  
+
+Some of the ops, like `NchanTOT` and `trange`, depend on the original Plexon file and the optional pipeline `args` mentoined above, like `channels`, `plx_t_start`, and `plx_t_end`.
+
+You might want to review and edit some of these values, before proceeding with the spike sorting steps.
+
+![windows locating ops json](images/windows-locating-ops-json.png)
+
+![windows editing ops json](images/windows-editing-ops-json.png)
 
 ## sorting steps: Kilosort and Phy
 
-Once you convert your file to Kilosort's binary format, you can run Kilosort and view the sorting results in the Phy GUI.  This uses the same pipeline as before, and runs all the steps instead of just the first step.  It will detect that the first step is already done, and skip it.
+After you convert your Plexon file to Kilosort's binary format, you can run Kilosort and view the sorting results in the Phy GUI.  You can do this using the same pipeline as before, but this time we'll tell the pipeline runner to run the whole pipeline instead of just the conversion step.  The runner will find that the conversion step is already complete, skip it, and proceed to spike sorting.
 
-You can provide a "results_name" arg to the pipeline to have the Kilosort results go to a specific subfolder.  In this example, the subfolder will be named "mysubfolder".
-
+From spike sorting onwards, it can be useful to pass in a `results_name` arg.  This tells the runner to store spike sorting and downstream results in a subfolder, using the given name.  This way, results of multiple runs won't clobber each other.
 
 ```
-proceed run plexon-kilosort-phy-fira.yaml --options options.yaml --args plx_name=MM_2022_11_28C_V-ProRec results_name=mysubfolder
+# Continue the pipeline and sort some spikes
+proceed run plexon-kilosort-phy-fira.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --args plx_name=MM_2022_11_28C_V-ProRec results_name=mysubfolder
 ```
 
+After several minutes of sorting, the pipeline should automatically open the Phy GUI for an interactive session.
 
-After several minutes of sorting, this should open the Phy GUI for an interactive session.
+![phy gui](images/phy-gui.png)
 
 I don't know if having an interactive step is a good or bad idea -- just something we can try!
+
+## final step: creating a FIRA struct
+
+While the Phy GUI is open, the pipeline runner is actually still running.  Once you close the GUI, the runner will proceed to the final step of combining Plexon and Phy results to gether into a Gold Lab `FIRA` struct and `.mat` file for further analysis.
+
+From Windows, this would look like: `D:\MrM\Converted\MM_2022_11_28C_V-ProRec\mysubfolder\MM_2022_11_28C_V-ProRec.mat`.
+
+![windows fira file](images/windows-fira-file.png)
+
+From WSL / Linux this would look like: `/mnt/d/MrM/Converted/MM_2022_11_28C_V-ProRec/mysubfolder/MM_2022_11_28C_V-ProRec.mat`
+
+```
+$ ls -alth /mnt/d/MrM/Converted/MM_2022_11_28C_V-ProRec/mysubfolder/
+total 15M
+-rwxrwxrwx 1 goldlab goldlab  15M May 12 16:06 MM_2022_11_28C_V-ProRec.mat
+drwxrwxrwx 1 goldlab goldlab 4.0K May 12 16:06 .
+drwxrwxrwx 1 goldlab goldlab 4.0K May 12 15:55 ..
+```
 
 
 ## revisiting results later on: Phy
 
-In case you come back later to view previous sorting results, you can re-run the whole pipeline as in the previous command.  The pipeline runner should skip the first, completed steps and jump to the interactive Phy GUI step.
+In case you come back later to view previous sorting results, you can re-run the whole pipeline as in the previous command.  The pipeline runner should skip the first steps that are already completed and jump to the interactive Phy GUI step.
 
 You can also run the Phy GUI step explicitly, by name.
 
-
 ```
-proceed run plexon-kilosort-phy-fira.yaml --options options.yaml --args plx_name=MM_2022_11_28C_V-ProRec results_name=mysubfolder --step-names "phy gui"
+# Re-run the Phy GUI step
+proceed run plexon-kilosort-phy-fira.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --args plx_name=MM_2022_11_28C_V-ProRec results_name=mysubfolder \ --step-names "phy template-gui"
 ```
-
-
 
 # Viewing Plexon Manual Sorting with Phy
 
-We also have a shorter pipeline to convert manually sorted Plexon data to Phy for visualization there.  Run the following in WSL.
-
-
-```
-proceed run plexon-phy.yaml --options options.yaml --args plx_name=MM_2022_11_28C_V-ProRec
-```
-
-
-This will also take several minutes to run and will end with an interactive Phy session.
-
-As above, you can optionally select specific channels and/or time range, and/or for re-conversion of the original .plx file.
-
+We also have a shorter pipeline to convert manually sorted Plexon data to Phy for visualization there.  To launch this, you can run the following command in WSL.
 
 ```
-# Convert plx to kilosort with specific channels and time range
-proceed run plexon-phy.yaml --options options.yaml --args plx_name=MM_2022_11_28C_V-ProRec tStart=120 tEnd=240 channels=[true true false true true false]
+proceed run plexon-phy.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --args plx_name=MM_2022_08_05_REC
 ```
 
+This will take several minutes to run and should end with an interactive Phy session.
 
-[double check YAML step and args for conversion]
+Note: this uses a different pipeline definition YAML file: `plexon-phy.yaml` as opposed to `plexon-kilosort-phy-fira.yaml`.
 
+Also note: I'm using a different, smaller raw Plexon file in this example, `MM_2022_08_05_REC` as opposed to `MM_2022_11_28C_V-ProRec`.  I don't know if this step is robust to all our files, but this example works OK!
 
 # Summarizing Pipeline Runs
 
-Proceed can also summarize previous pipeline runs into a csv / spreadsheet.
-
-To summarize everything we've tried running so far, run the following in WSL.
-
+Proceed can also summarize previous pipeline runs into a csv / spreadsheet.  To summarize everything many previous runs on the neuropixels machine so far, you can run the following in WSL:
 
 ```
 # Activate our Python environment (if not already)
 conda activate pipeline-stuff
 
-# Get the latest code
-cd /mnt/d/pipelines
+cd /mnt/d/
 proceed summarize
 ```
 
+By default this will look for execution results in `/mnt/d/proceed_out` and produce a summary at `summary.csv`. You can specify an alternate output file using proceed `summarize --summary-file some_other.csv`.
 
-By default this produces a summary in `/mnt/d/pipelines/summary.csv`. You can specify an alternate output file using proceed `summarize --summary-file other.csv`.
+It should be possible to view the `.csv`s with Excel, Google Sheets, and/or Libreoffice Calc.
 
-It should be possible to view these with Excel, Google Sheets, and/or Libreoffice Calc.  I installed Libreoffice, but annoyingly I can't see any content in the application windows, via NoMachine.  So I've been copying the files to my local machine and viewing them in my own Google Sheets.  Here's an example summary from the Neuropixels machine: [summary.csv](https://docs.google.com/spreadsheets/d/1HXPk-uHdKsgWIrMoRMwV-SRB1duOzGZwgYedrpKH43U/edit?usp=sharing).
+I think this may turn out to be useful, but we haven't explored it much, yet.
