@@ -1464,3 +1464,26 @@ cd proceed/
 conda activate pipeline-stuff
 hatch run test:cov
 ```
+
+# Get this gold-lab-nwb-conversions repo
+I cloned this repo so we can access pipeline yaml files from version control.
+I also set up an access token so that we can push changes from the neuropixels machine back to this repo.
+
+In WSL / Linux command prompt:
+
+```
+/mnt/d/repos/
+git clone https://github.com/benjamin-heasly/gold-lab-nwb-conversions.git
+cd gold-lab-nwb-conversions/
+git config credential.helper store
+git push
+# user benjamin-heasly
+# password (Github personal access token with "repos" scope, expiring 12 May 2024)
+```
+
+Because of `git config credential.helper store`, the password / access token is stored in a file on the neuropixels machine with restrictive permissions.  This seems like a reasonable compromise, and we can also invalidate or regenerate the access token if/when we need to.
+
+```
+ls -alth ~/.git-credentials
+-rw------- 1 goldlab goldlab 76 May 12 10:15 /home/goldlab/.git-credentials
+```
