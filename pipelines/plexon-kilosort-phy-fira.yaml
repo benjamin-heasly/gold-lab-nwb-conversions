@@ -47,7 +47,7 @@ steps:
     match_out: [Kilosort/$plx_name/$results_name/phy/*]
   - name: phy-to-fira
     image: ninjaben/phy-to-fira:v0.0.2
-    command: [-batch, "phyToFira('/data/Kilosort/$plx_name/$results_name/phy/params.py', '/data/Raw/$plx_name.plx', '/data/Spm/spmADPODR5.m', '/data/Converted', 'spike_list', [zeros([1000, 1]), (0:999)'], 'sig_list', 49:51)"]
-    match_done: [Converted/$plx_name.mat]
+    command: [-batch, "phyToFira('/data/Kilosort/$plx_name/$results_name/phy/params.py', '/data/Raw/$plx_name.plx', '/data/Spm/spmADPODR5.m', '/data/Converted/$plx_name/$results_name', 'spike_list', [zeros([1000, 1]), (0:999)'], 'sig_list', 49:51)"]
+    match_done: [Converted/$plx_name/$results_name/$plx_name.mat]
     match_in: [Kilosort/$plx_name/$results_name/phy/*]
-    match_done: [Converted/$plx_name.mat]
+    match_out: [Converted/$plx_name/$results_name/$plx_name.mat]
