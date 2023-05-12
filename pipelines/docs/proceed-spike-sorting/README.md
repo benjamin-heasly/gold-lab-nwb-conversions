@@ -237,7 +237,8 @@ You can also run the Phy GUI step explicitly, by name.
 # Re-run the Phy GUI step
 proceed run plexon-kilosort-phy-fira.yaml \
   --local-options-file np-machine-default-options.yaml \
-  --args plx_name=MM_2022_11_28C_V-ProRec results_name=mysubfolder \ --step-names "phy template-gui"
+  --args plx_name=MM_2022_11_28C_V-ProRec results_name=mysubfolder \
+  --step-names "phy template-gui"
 ```
 
 # Viewing Plexon Manual Sorting with Phy
