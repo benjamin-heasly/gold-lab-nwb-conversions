@@ -1,0 +1,30 @@
+version: 0.0.1
+args:
+  data_dir: /mnt/d/MrM
+  plx_name: MM_2022_11_28C_V-ProRec
+prototype:
+  volumes:
+    $data_dir: /data
+steps:
+  - name: plx-to-phy
+    image: ninjaben/plx-to-phy:v0.0.20
+    environment:
+      PLX_FILE: /data/Raw/$plx_name.plx
+      BIN_FILE: /data/Kilosort/$plx_name/$plx_name.plx.bin
+      OPS_FILE: /data/Kilosort/$plx_name/$plx_name-ops.json
+      OUT_DIR: /data/Manual/$plx_name
+    command: [jupyter, nbconvert, --execute, notebooks/plx_to_phy.ipynb, --to, html]
+    match_done: [Manual/$plx_name/phy/params.py]
+  - name: phy extract-waveforms
+    image: ninjaben/phy:v0.0.28
+    command: [phy, extract-waveforms, /data/Manual/$plx_name/phy/params.py]
+    match_done: [Manual/$plx_name/phy/_phy_spikes_subset.waveforms.npy]
+  - name: phy template-gui
+    description: Is it too weird to have one interactive step here?
+    image: ninjaben/phy:v0.0.31
+    gpus: true
+    environment:
+      DISPLAY: ":0"
+    volumes:
+      /tmp/.X11-unix: /tmp/.X11-unix
+    command: [phy, template-gui, /data/Manual/$plx_name/phy/params.py]

@@ -1,0 +1,53 @@
+version: 0.0.1
+args:
+  data_dir: /mnt/d/MrM
+  plx_name: MM_2022_11_28C_V-ProRec
+  results_name: results
+  chanY: [1050, 900, 750, 600, 450, 300, 150, 0, 2250, 2100, 1950, 1800, 1650, 1500, 1350, 1200]
+  connected: true(16, 1)
+  matlab_license: /mnt/d/matlabLicense/license.lic
+prototype:
+  volumes:
+    $data_dir: /data
+    $matlab_license: /license.lic
+  mac_address: 68:f7:28:f6:68:a6
+  environment:
+    MLM_LICENSE_FILE: /license.lic
+steps:
+  - name: plx-to-kilosort
+    image: ninjaben/plx-to-kilosort:v0.0.20
+    command: [-batch, "plxToKilosort('/data/Raw/$plx_name.plx', '/data/Kilosort/$plx_name', 'chanY', $chanY, 'connected', $connected, 'interpolate', true)"]
+    match_done: [Kilosort/$plx_name/*]
+    match_in: [Raw/$plx_name.plx]
+    match_out: [Kilosort/$plx_name/*]
+  - name: kilosort3
+    image: ninjaben/kilosort3:v0.0.31
+    gpus: true
+    command: [-batch, "runKilosort('/data/Kilosort/$plx_name/$plx_name-ops.mat', '/data/Kilosort/$plx_name/$results_name', 'ops', '/data/Kilosort/$plx_name/$plx_name-ops.json', 'driftCorrection', false, 'autoMerge', false)"]
+    match_done: [Kilosort/$plx_name/$results_name/rez.mat]
+    match_in: [Kilosort/$plx_name/*]
+    match_out: [Kilosort/$plx_name/$results_name/*]
+    match_summary: [Kilosort/$plx_name/$results_name/*.json]
+  - name: phy extract-waveforms
+    image: ninjaben/phy:v0.0.30
+    command: [phy, extract-waveforms, /data/Kilosort/$plx_name/$results_name/phy/params.py]
+    match_done: [Kilosort/$plx_name/$results_name/phy/_phy_spikes_subset.waveforms.npy]
+    match_in: [Kilosort/$plx_name/$results_name/phy/*]
+    match_out: [Kilosort/$plx_name/$results_name/phy/_phy*.npy]
+  - name: phy template-gui
+    description: Is it too weird to have one interactive step here?
+    image: ninjaben/phy:v0.0.30
+    gpus: true
+    environment:
+      DISPLAY: :0
+    volumes:
+      /tmp/.X11-unix: /tmp/.X11-unix
+    command: [phy, template-gui, /data/Kilosort/$plx_name/$results_name/phy/params.py]
+    match_in: [Kilosort/$plx_name/$results_name/phy/*]
+    match_out: [Kilosort/$plx_name/$results_name/phy/*]
+  - name: phy-to-fira
+    image: ninjaben/phy-to-fira:v0.0.2
+    command: [-batch, "phyToFira('/data/Kilosort/$plx_name/$results_name/phy/params.py', '/data/Raw/$plx_name.plx', '/data/Spm/spmADPODR5.m', '/data/Converted', 'spike_list', [zeros([1000, 1]), (0:999)'], 'sig_list', 49:51)"]
+    match_done: [Converted/$plx_name.mat]
+    match_in: [Kilosort/$plx_name/$results_name/phy/*]
+    match_done: [Converted/$plx_name.mat]
