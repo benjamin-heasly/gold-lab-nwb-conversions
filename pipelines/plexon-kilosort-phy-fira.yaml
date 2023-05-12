@@ -15,13 +15,13 @@ prototype:
     MLM_LICENSE_FILE: /license.lic
 steps:
   - name: plx-to-kilosort
-    image: ninjaben/plx-to-kilosort:v0.0.20
+    image: ninjaben/plx-to-kilosort:v0.0.22
     command: [-batch, "plxToKilosort('/data/Raw/$plx_name.plx', '/data/Kilosort/$plx_name', 'chanY', $chanY, 'connected', $connected, 'interpolate', true)"]
     match_done: [Kilosort/$plx_name/*]
     match_in: [Raw/$plx_name.plx]
     match_out: [Kilosort/$plx_name/*]
   - name: kilosort3
-    image: ninjaben/kilosort3:v0.0.31
+    image: ninjaben/kilosort3:v0.0.32
     gpus: true
     command: [-batch, "runKilosort('/data/Kilosort/$plx_name/$plx_name-ops.mat', '/data/Kilosort/$plx_name/$results_name', 'ops', '/data/Kilosort/$plx_name/$plx_name-ops.json', 'driftCorrection', false, 'autoMerge', false)"]
     match_done: [Kilosort/$plx_name/$results_name/rez.mat]
@@ -29,14 +29,14 @@ steps:
     match_out: [Kilosort/$plx_name/$results_name/*]
     match_summary: [Kilosort/$plx_name/$results_name/*.json]
   - name: phy extract-waveforms
-    image: ninjaben/phy:v0.0.30
+    image: ninjaben/phy:v0.0.32
     command: [phy, extract-waveforms, /data/Kilosort/$plx_name/$results_name/phy/params.py]
     match_done: [Kilosort/$plx_name/$results_name/phy/_phy_spikes_subset.waveforms.npy]
     match_in: [Kilosort/$plx_name/$results_name/phy/*]
     match_out: [Kilosort/$plx_name/$results_name/phy/_phy*.npy]
   - name: phy template-gui
     description: Is it too weird to have one interactive step here?
-    image: ninjaben/phy:v0.0.30
+    image: ninjaben/phy:v0.0.32
     gpus: true
     environment:
       DISPLAY: :0

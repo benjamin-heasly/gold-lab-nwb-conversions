@@ -7,7 +7,7 @@ prototype:
     $data_dir: /data
 steps:
   - name: plx-to-phy
-    image: ninjaben/plx-to-phy:v0.0.20
+    image: ninjaben/plx-to-phy:v0.0.21
     environment:
       PLX_FILE: /data/Raw/$plx_name.plx
       BIN_FILE: /data/Kilosort/$plx_name/$plx_name.plx.bin
@@ -21,7 +21,7 @@ steps:
     match_done: [Manual/$plx_name/phy/_phy_spikes_subset.waveforms.npy]
   - name: phy template-gui
     description: Is it too weird to have one interactive step here?
-    image: ninjaben/phy:v0.0.31
+    image: ninjaben/phy:v0.0.32
     gpus: true
     environment:
       DISPLAY: ":0"
