@@ -177,8 +177,11 @@ def add_trials(
         return
 
     strobed_words = nwb_file.get_acquisition("strobed_words")
-    trial_selector = [word == trial_start_word for word in strobed_words.data]
-    trial_starts = strobed_words.timestamps[trial_selector]
+    trial_word_indices = []
+    for index, word in enumerate(strobed_words.data):
+        if word == trial_start_word:
+            trial_word_indices.append(index)
+    trial_starts = strobed_words.timestamps[trial_word_indices]
     trial_count = len(trial_starts)
     print(f"Adding {trial_count} trials.")
     for index, trial_start in enumerate(trial_starts):
