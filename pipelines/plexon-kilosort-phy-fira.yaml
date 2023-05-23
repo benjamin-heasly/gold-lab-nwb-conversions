@@ -1,13 +1,29 @@
 version: 0.0.1
 args:
+  # which subject's dir to use, with standard subfolder layout
   data_dir: /mnt/d/MrM
+
+  # which .plx file to use, in the subject's Raw/ subfolder
   plx_name: MM_2022_11_28C_V-ProRec
+
+  # subfolder name for spike sorting results
   results_name: results
+
+  # contact positions for the probe used (this default assumes a 16-channel linear probe)
   chanY: [1050, 900, 750, 600, 450, 300, 150, 0, 2250, 2100, 1950, 1800, 1650, 1500, 1350, 1200]
+
+  # which channels to include in file conversion and sorting -- default [] is any channel with data
+  connected: []
+
+  # start time in seconds of the Plexon file to convert and use for spike sorting
   plx_t_start: 0
+
+  # end time in seconds of the Plexon file to convert and use for spike sorting
   plx_t_end: inf
-  connected: true(16, 1)
+
+  # licence file to use for Matlab steps
   matlab_license: /mnt/d/matlabLicense/license.lic
+
 prototype:
   volumes:
     $data_dir: /data
