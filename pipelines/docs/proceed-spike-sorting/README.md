@@ -120,6 +120,8 @@ proceed run plexon-kilosort-phy-fira.yaml \
   --args plx_name=MM_2022_11_28C_V-ProRec
 ```
 
+**A point about shell command syntax:** the command above is a multi-line shell command where backslashes `\` tell the shell that the same command continues on the next line.  Hopefully this makes the commands easier to read and edit -- just make sure to include backslashes like these, otherwise each line will run as a separate (nonsense) shell command.
+
 After several minutes and lots of logging, this will produce several new files in a `Kilosort` folder and a subfolder named like the Plexon file
 
 From Windows this would look like: `D:\MrM\Kilosort\MM_2022_11_28C_V-ProRec\`.
@@ -169,11 +171,7 @@ proceed run plexon-kilosort-phy-fira.yaml \
   --force-rerun
 ```
 
-### a point about small numbers of channels
-
-By default Kilosort 3 is hard-coded to work with 10 or more channels, and errors out with fewer than 10.  We [patched the code](https://github.com/benjamin-heasly/Kilosort/pulls?q=is%3Apr+is%3Aclosed) to remove this known limit, and now we can go down to 4 channels.
-
-4 seems to be a harder limit, going deeper into the Kilosort 3 implementation, and not so easy to patch (and also riskier to mess with).  For now, let's just include 4 or more channels, even if some of those channels end up being empty.
+***A point about small numbers of channels:*** by default Kilosort 3 is hard-coded to work with 10 or more channels, and errors out with fewer than 10.  We [patched the code](https://github.com/benjamin-heasly/Kilosort/pulls?q=is%3Apr+is%3Aclosed) to remove this known limit, and now we can go down to 4 channels.  4 seems to be a harder limit, going deeper into the Kilosort 3 implementation, and not so easy to patch (and also riskier to mess with).  For now, let's just try to include 4 or more channels.
 
 ## Review and edit ops
 
