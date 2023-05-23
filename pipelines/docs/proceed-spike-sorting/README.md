@@ -145,29 +145,33 @@ drwxrwxrwx 1 goldlab goldlab 4.0K May 12 11:07 ..
 
 ### optional args
 
-By default this will convert all channels in the `.plx` file (even ones without data on them) across the entire file timeline.  You can convert a subset of channels (logical indexing array) and/or a subrange of the recording timeline (in seconds) by passing additional `args` to the pipeline.
+By default this will convert only those channels in the `.plx` file that have data on them.  You can convert a specific subset of channels by passing in a value for the `connected` pipeline arg.  This value is an expression passed to Matlab and should results in a logical indexing array for selecting channels out of the full list.  For example, `"[true true false true true false]"` would select the first, second, fourth, and fifth channels out of a full list of six or more channels.
 
+Note: the standard shell and Python argument parsers are sensitive to spaces, so we need the quotes `" ... "` around extended values like this.
+
+Also by default, this will convert the entire recording timeline.  You can convert an explicit subrange by passing in values (in seconds) for the `plx_t_start` and/or `plx_t_end` pipeline args.
+
+Here's an example using explicit channel selection and time range.
 
 ```
-# Convert plx to kilosort with specific channels and time range
+# Convert plx to kilosort with specific connected channels and time range
 proceed run plexon-kilosort-phy-fira.yaml \
   --local-options-file np-machine-default-options.yaml \
   --step-names plx-to-kilosort \
-  --args plx_name=MM_2022_11_28C_V-ProRec plx_t_start=120 plx_t_end=240 channels="[true true false true true false]"
+  --args plx_name=MM_2022_11_28C_V-ProRec plx_t_start=120 plx_t_end=240 connected="[true true false true true false]"
 ```
 
-The standard Python argument parser is sensitive to spaces, so we need quotes around extended values like `"[true true false true true false]"`.
 
 ### overwriting a previous run
 
-By default, the conversion step will only run once.  Once the output files exist the pipeline will skip the conversion stepto avoid extra time and work.  You can force the pipeline to re-run the conversion step anyway, by passing a `--force-rerun` flag.
+By default, the conversion step will only run once.  Once the output files exist the pipeline will skip the conversion step to avoid extra time and work.  You can force the pipeline to re-run the conversion step anyway, by passing a `--force-rerun` flag.
 
 ```
 # Convert plx to kilosort, overwriting an existing conversion
 proceed run plexon-kilosort-phy-fira.yaml \
   --local-options-file np-machine-default-options.yaml \
   --step-names plx-to-kilosort \
-  --args plx_name=MM_2022_11_28C_V-ProRec plx_t_start=120 plx_t_end=240 channels="[true true false true true false]" \
+  --args plx_name=MM_2022_11_28C_V-ProRec plx_t_start=120 plx_t_end=240 connected="[true true false true true false]" \
   --force-rerun
 ```
 
@@ -197,7 +201,7 @@ In addition to the raw `.bin` file, the conversion step will produce a .`json` f
 
 Some of these default ops are copied from Kilosort examples and hard-coded into our conversion code [here](https://github.com/benjamin-heasly/plx-to-kilosort/blob/main/plx-to-kilosort/matlab/defaultOpsForPlxFile.m).  
 
-Some of the ops, like `NchanTOT` and `trange`, depend on the original Plexon file and the optional pipeline `args` mentoined above, like `channels`, `plx_t_start`, and `plx_t_end`.
+Some of the ops, like `NchanTOT` and `trange`, depend on the original Plexon file and the optional pipeline `args` mentoined above, like `connected`, `plx_t_start`, and `plx_t_end`.
 
 You might want to review and edit some of these values, before proceeding with the spike sorting steps.
 
