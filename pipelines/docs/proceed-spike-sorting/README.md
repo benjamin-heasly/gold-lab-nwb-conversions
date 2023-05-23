@@ -186,7 +186,7 @@ Here's an example for sorting a made up Plexon file `JP_1701_D.plx`, located in 
 proceed run plexon-kilosort-phy-fira.yaml \
   --local-options-file np-machine-default-options.yaml \
   --step-names plx-to-kilosort \
-  --args plx_name=JP_1701_D --data_dir=/mnt/d/JLP
+  --args plx_name=JP_1701_D data_dir=/mnt/d/JLP
 ```
 
 You should include same `data_dir` when running the steps below.
