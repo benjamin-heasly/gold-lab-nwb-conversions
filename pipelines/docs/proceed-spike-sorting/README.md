@@ -84,7 +84,7 @@ cd pipelines
 
 When sorting a new file, the first step is to convert from Plexon's `.plx` file format to the raw, binary `.bin` format expected by Kilosort.
 
-Find a file you want to sort in the "Raw" folder on the Neuropixels machine, for example `MM_2022_11_28C_V-ProRec.plx`
+Find a file you want to sort in a subject's "Raw" folder on the Neuropixels machine, for example `MrM/Raw/MM_2022_11_28C_V-ProRec.plx`.  In this example we're looking in the folder for subject `MrM`.  We can use folders for other subjects, too -- see [other subjects](#other-subjects) below.
 
 From Windows this would look like: `D:\MrM\Raw\MM_2022_11_28C_V-ProRec.plx`
 
@@ -173,7 +173,25 @@ proceed run plexon-kilosort-phy-fira.yaml \
 
 ***A point about small numbers of channels:*** by default Kilosort 3 is hard-coded to work with 10 or more channels, and errors out with fewer than 10.  We [patched the code](https://github.com/benjamin-heasly/Kilosort/pulls?q=is%3Apr+is%3Aclosed) to remove this known limit, and now we can go down to 4 channels.  4 seems to be a harder limit, going deeper into the Kilosort 3 implementation, and not so easy to patch (and also riskier to mess with).  For now, let's just try to include 4 or more channels.
 
-## Review and edit ops
+### other subjects
+
+The example above has been using the Plexon file `MM_2022_11_28C_V-ProRec.plx`, located in the folder for subject `MrM`: `MrM/Raw/MM_2022_11_28C_V-ProRec.plx`.  If your Plexon file belongs to a different subject, you can specify the subject's folder by passing a value for the `data_dir` pipeline arg.
+
+The pipeline will expect a consistent subfolder layout within each subject's folder.  For example, each subject folder must contain a `Raw` subfolder with existing Plexon files.
+
+Here's an example for sorting a made up Plexon file `JP_1701_D.plx`, located in a folder for subject `JLP`: `JLP/Raw/JP_1701_D.plx`.
+
+```
+# Convert plx to kilosort for a subject other than MrM
+proceed run plexon-kilosort-phy-fira.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --step-names plx-to-kilosort \
+  --args plx_name=JP_1701_D --data_dir=/mnt/d/JLP
+```
+
+You should include same `data_dir` when running the steps below.
+
+## review and edit ops
 
 In addition to the raw `.bin` file, the conversion step will produce a .`json` file of Kilosort ops that you can review and edit.
 
