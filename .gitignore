@@ -126,3 +126,6 @@ venv.bak/
 .pre-commit-config.yaml
 *.nwb
 nwb-cache/
+
+# proceed
+proceed_out/

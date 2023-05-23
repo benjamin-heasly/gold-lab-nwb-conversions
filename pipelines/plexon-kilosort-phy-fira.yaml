@@ -4,6 +4,8 @@ args:
   plx_name: MM_2022_11_28C_V-ProRec
   results_name: results
   chanY: [1050, 900, 750, 600, 450, 300, 150, 0, 2250, 2100, 1950, 1800, 1650, 1500, 1350, 1200]
+  plx_t_start: 0
+  plx_t_end: inf
   connected: true(16, 1)
   matlab_license: /mnt/d/matlabLicense/license.lic
 prototype:
@@ -16,7 +18,7 @@ prototype:
 steps:
   - name: plx-to-kilosort
     image: ninjaben/plx-to-kilosort:v0.0.22
-    command: [-batch, "plxToKilosort('/data/Raw/$plx_name.plx', '/data/Kilosort/$plx_name', 'chanY', $chanY, 'connected', $connected, 'interpolate', true)"]
+    command: [-batch, "plxToKilosort('/data/Raw/$plx_name.plx', '/data/Kilosort/$plx_name', 'chanY', $chanY, 'connected', $connected, 'interpolate', true, 'tStart', $plx_t_start, 'tEnd', $plx_t_end)"]
     match_done: [Kilosort/$plx_name/*]
     match_in: [Raw/$plx_name.plx]
     match_out: [Kilosort/$plx_name/*]

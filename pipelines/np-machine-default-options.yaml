@@ -1,0 +1,7 @@
+results_dir: /mnt/d/proceed_out/
+args:
+  data_dir: /mnt/d/MrM
+  plx_name: MM_2022_11_28C_V-ProRec
+  chanY: [1050, 900, 750, 600, 450, 300, 150, 0, 2250, 2100, 1950, 1800, 1650, 1500, 1350, 1200]
+  connected: true(16, 1)
+  matlab_license: /mnt/d/matlabLicense/license.lic
