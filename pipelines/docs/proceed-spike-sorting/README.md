@@ -199,7 +199,7 @@ You should include same `data_dir` when running the steps below.
 
 In addition to the raw `.bin` file, the conversion step will produce a .`json` file of Kilosort ops that you can review and edit.
 
-Some of these default ops are copied from Kilosort examples and hard-coded into our conversion code [here](https://github.com/benjamin-heasly/plx-to-kilosort/blob/main/plx-to-kilosort/matlab/defaultOpsForPlxFile.m).  
+Some of these default ops are copied from Kilosort examples and hard-coded into our conversion code [here](https://github.com/benjamin-heasly/plx-to-kilosort/blob/main/plx-to-kilosort/matlab/defaultOpsForPlxFile.m).  If those hard-coded defaults are not what you want, you can specify the initial ops to use with the `initial_kilosort_ops` pipeline arg.  See [specifying the initial kilosort ops](#specifying-the-initial-kilosort-ops) below.
 
 Some of the ops, like `NchanTOT` and `trange`, depend on the original Plexon file and the optional pipeline `args` mentoined above, like `connected`, `plx_t_start`, and `plx_t_end`.
 
@@ -260,6 +260,25 @@ proceed run plexon-kilosort-phy-fira.yaml \
   --args plx_name=MM_2022_11_28C_V-ProRec results_name=mysubfolder \
   --step-names "phy template-gui"
 ```
+
+## specifying the initial kilosort ops
+
+By default the initial Kilosort ops generated during Plexon file conversion are taken from our conversion code in [defaultOpsForPlxFile.m](https://github.com/benjamin-heasly/plx-to-kilosort/blob/main/plx-to-kilosort/matlab/defaultOpsForPlxFile.m).
+
+If those hard-coded defaults are not what you want you can specify the initial ops to use via the `initial_kilosort_ops` pipeline arg.  The value for this arg can take one of several forms supported by our [loadStruct.m](https://github.com/benjamin-heasly/plx-to-kilosort/blob/main/plx-to-kilosort/matlab/loadStruct.m), including:
+ - a string Matlab expression that evaluates to a struct, like `struct()` or `struct('sig', 20)`
+ - the name of a `.mat` file where each saved variable becomes an ops field
+ - the name of a `.json` file where each `"name": value` entry becomes an ops field
+
+Ops specified with `initial_kilosort_ops` will be merged with the hard-coded defaults, with fields of `initial_kilosort_ops` taking precedence.
+
+```
+# Specifiy initial Kilosort ops as a .json file.
+proceed run plexon-kilosort-phy-fira.yaml \
+  --local-options-file np-machine-default-options.yaml \
+  --args plx_name=MM_2022_11_28C_V-ProRec initial_kilosort_ops=myOps.json
+```
+
 
 # Viewing Plexon Manual Sorting with Phy
 

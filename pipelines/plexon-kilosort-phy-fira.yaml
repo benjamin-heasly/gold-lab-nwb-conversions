@@ -21,6 +21,9 @@ args:
   # end time in seconds of the Plexon file to convert and use for spike sorting
   plx_t_end: inf
 
+  # initial Kilosort ops to use during plx conversion: .json file, .mat file, or Matlab struct expression.
+  initial_kilosort_ops: struct()
+
   # licence file to use for Matlab steps
   matlab_license: /mnt/d/matlabLicense/license.lic
 
@@ -34,7 +37,7 @@ prototype:
 steps:
   - name: plx-to-kilosort
     image: ninjaben/plx-to-kilosort:v0.0.22
-    command: [-batch, "plxToKilosort('/data/Raw/$plx_name.plx', '/data/Kilosort/$plx_name', 'chanY', $chanY, 'connected', $connected, 'interpolate', true, 'tStart', $plx_t_start, 'tEnd', $plx_t_end)"]
+    command: [-batch, "plxToKilosort('/data/Raw/$plx_name.plx', '/data/Kilosort/$plx_name', 'chanY', $chanY, 'connected', $connected, 'interpolate', true, 'tStart', $plx_t_start, 'tEnd', $plx_t_end, 'ops', $initial_kilosort_ops)"]
     match_done: [Kilosort/$plx_name/*]
     match_in: [Raw/$plx_name.plx]
     match_out: [Kilosort/$plx_name/*]
