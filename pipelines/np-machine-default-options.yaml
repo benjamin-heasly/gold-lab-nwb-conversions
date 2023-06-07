@@ -5,6 +5,9 @@ args:
   # which subject's dir to use, with standard subfolder layout
   data_dir: /mnt/d/MrM
 
+  # directory with config files, like Kilosort ops files
+  config_dir: "."
+
   # which .plx file to use, in the subject's Raw/ subfolder
   plx_name: MM_2022_11_28C_V-ProRec
 

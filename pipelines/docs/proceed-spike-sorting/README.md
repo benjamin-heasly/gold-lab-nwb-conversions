@@ -272,11 +272,20 @@ If those hard-coded defaults are not what you want you can specify the initial o
 
 Ops specified with `initial_kilosort_ops` will be merged with the hard-coded defaults, with fields of `initial_kilosort_ops` taking precedence.
 
+When using ops from a file the file itself must be in a directory that the step has access to.  The pipeline's `config_dir` is a good place for this.  By default, `config_dir` will take the current working folder where the pipeline is run, and make it available to steps as a directory called `/config`.
+
+So given a setup like this:
+ - ops file is located in this repo at `gold-lab-nwb-conversions/pipelines/myOps.json`
+ - current working directory when the pipeline is run is `gold-lab-nwb-conversions/pipelines/`
+ - arg passed to pipeline: `initial_kilosort_ops=/config/myOps.json`
+
+Then the following command should work work to specify Kilosort ops as a file.
+
 ```
 # Specifiy initial Kilosort ops as a .json file.
 proceed run plexon-kilosort-phy-fira.yaml \
   --local-options-file np-machine-default-options.yaml \
-  --args plx_name=MM_2022_11_28C_V-ProRec initial_kilosort_ops=myOps.json
+  --args plx_name=MM_2022_11_28C_V-ProRec initial_kilosort_ops=/config/myOps.json
 ```
 
 
