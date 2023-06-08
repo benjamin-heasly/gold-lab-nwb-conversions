@@ -80,6 +80,7 @@ class PlotFigureController():
         self.plotters = plotters
         self.experiment_info = experiment_info
         self.subject_info = subject_info
+        self.figures = {}
 
     def set_up(self) -> None:
         # Use matplotlib in interactive mode instead of blocking on eg plt.show().
@@ -106,3 +107,6 @@ class PlotFigureController():
             plotter.clean_up(fig)
             if plt.fignum_exists(fig.number):
                 plt.close(fig)
+
+    def open_figures(self) -> list[Figure]:
+        return [figure for figure in self.figures.values() if plt.fignum_exists(figure.number)]
