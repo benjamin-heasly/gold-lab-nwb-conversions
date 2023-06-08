@@ -1,5 +1,6 @@
 from typing import Self
 from importlib import import_module
+import sys
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -21,10 +22,31 @@ class Plotter():
         pass
 
     @classmethod
-    def from_dynamic_import(cls, import_spec: str) -> Self:
+    def from_dynamic_import(cls, import_spec: str, external_package_path: str = None) -> Self:
+        """Create a Plotter instance from a dynamically imported module and class.
+
+        The given import_spec should be of the form "package.subpackage.module.ClassName".
+        The "package.subpackage.module" will be imported dynamically via importlib.
+        Then "ClassName" from the imported module will be invoked as a Plotter no-arg constructor.
+        This should be equivalent to the static statement "from package.subpackage.module import ClassName".
+
+        Returns a new instance of the imported Plotter class.
+
+        Provide external_package_path in order to import a class from a module that was not
+        already installed by the usual means, eg conda or pip.  The external_package_path will
+        be added temporarily to the Python import search path, then removed when done here.
+        """
         last_dot = import_spec.rfind(".")
         module_spec = import_spec[0:last_dot]
-        imported_module = import_module(module_spec, package="None")
+
+        try:
+            original_sys_path = sys.path
+            if external_package_path:
+                sys.path = original_sys_path.copy()
+                sys.path.append(external_package_path)
+            imported_module = import_module(module_spec, package=None)
+        finally:
+            sys.path = original_sys_path
 
         class_name = import_spec[last_dot+1:]
         imported_class = getattr(imported_module, class_name)
