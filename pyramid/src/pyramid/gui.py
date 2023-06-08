@@ -108,5 +108,5 @@ class PlotFigureController():
             if plt.fignum_exists(fig.number):
                 plt.close(fig)
 
-    def open_figures(self) -> list[Figure]:
+    def get_open_figures(self) -> list[Figure]:
         return [figure for figure in self.figures.values() if plt.fignum_exists(figure.number)]

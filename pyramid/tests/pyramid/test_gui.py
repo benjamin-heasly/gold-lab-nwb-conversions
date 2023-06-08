@@ -3,9 +3,9 @@ from pathlib import Path
 from pytest import fixture
 import matplotlib.pyplot as plt
 
-
 from pyramid.gui import Plotter, PlotFigureController
 from pyramid.plotters.sample_plotters import SampleSinePlotter, SampleCosinePlotter
+
 
 @fixture
 def tests_path(request):
@@ -14,7 +14,7 @@ def tests_path(request):
 
 
 def test_installed_plotter_dynamic_import():
-    #Import a plotter that was installed in the usual way (eg pip) along with pyramid itself.
+    # Import a plotter that was installed in the usual way (eg by pip) along with pyramid itself.
     import_spec = "pyramid.plotters.sample_plotters.SampleSinePlotter"
     plotter = Plotter.from_dynamic_import(import_spec)
     assert isinstance(plotter, Plotter)
@@ -46,9 +46,9 @@ def test_another_external_plotter_dynamic_import(tests_path):
 
 def test_single_figure():
     plotter = SampleSinePlotter()
-    controller = PlotFigureController(plotters = [plotter])
+    controller = PlotFigureController(plotters=[plotter])
     controller.set_up()
-    assert len(controller.open_figures()) == 1
+    assert len(controller.get_open_figures()) == 1
     assert plotter.update_count == 0
 
     controller.update(None, None)
@@ -59,14 +59,14 @@ def test_single_figure():
 
     controller.clean_up()
     assert plotter.update_count == -1
-    assert len(controller.open_figures()) == 0
+    assert len(controller.get_open_figures()) == 0
 
 
 def test_multiple_figures():
     plotters = [SampleSinePlotter(), SampleCosinePlotter(), SampleSinePlotter()]
-    controller = PlotFigureController(plotters = plotters)
+    controller = PlotFigureController(plotters=plotters)
     controller.set_up()
-    assert len(controller.open_figures()) == len(plotters)
+    assert len(controller.get_open_figures()) == len(plotters)
     for plotter in plotters:
         assert plotter.update_count == 0
 
@@ -81,14 +81,14 @@ def test_multiple_figures():
     controller.clean_up()
     for plotter in plotters:
         assert plotter.update_count == -1
-    assert len(controller.open_figures()) == 0
+    assert len(controller.get_open_figures()) == 0
 
 
 def test_close_figure_early():
     plotters = [SampleSinePlotter(), SampleCosinePlotter(), SampleSinePlotter()]
-    controller = PlotFigureController(plotters = plotters)
+    controller = PlotFigureController(plotters=plotters)
     controller.set_up()
-    assert len(controller.open_figures()) == len(plotters)
+    assert len(controller.get_open_figures()) == len(plotters)
     for plotter in plotters:
         assert plotter.update_count == 0
 
@@ -99,10 +99,10 @@ def test_close_figure_early():
     # As if user closed a figure unexpectedly.
     victim_figure = controller.figures[plotters[1]]
     plt.close(victim_figure)
-    assert len(controller.open_figures()) == len(plotters) - 1
+    assert len(controller.get_open_figures()) == len(plotters) - 1
 
     controller.update(None, None)
-    assert len(controller.open_figures()) == len(plotters) - 1
+    assert len(controller.get_open_figures()) == len(plotters) - 1
     assert plotters[0].update_count == 2
     assert plotters[1].update_count == 1
     assert plotters[2].update_count == 2
@@ -110,4 +110,4 @@ def test_close_figure_early():
     controller.clean_up()
     for plotter in plotters:
         assert plotter.update_count == -1
-    assert len(controller.open_figures()) == 0
+    assert len(controller.get_open_figures()) == 0
