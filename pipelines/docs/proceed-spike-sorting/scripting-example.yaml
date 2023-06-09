@@ -1,0 +1,8 @@
+version: 0.0.1
+args:
+  first_thing: foo
+  second_thing: bar
+steps:
+  - name: print two things
+    image: alpine
+    command: echo "$first_thing $second_thing"

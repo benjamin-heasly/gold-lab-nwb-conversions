@@ -322,3 +322,25 @@ By default this will look for execution results in `/mnt/d/proceed_out` and prod
 It should be possible to view the `.csv`s with Excel, Google Sheets, and/or Libreoffice Calc.
 
 I think this may turn out to be useful, but we haven't explored it much, yet.
+
+# Python Scripting
+
+In addition to using the shell command line interface as above, it's also possible to script Proceed using Python.
+
+Here's an example that shows how to pass commands and args to the same `main()` entrypoint used by the shell, but from a Python script.  This uses a short sample pipeline in this repo called `scripting-example.yaml` which just prints the values of two args.  It also uses a short Python script called `scripting_example.py`.
+
+Here's a shell command line run:
+
+```
+conda activate pipeline-stuff
+cd pipelines/docs/proceed-spike-sorting
+proceed run scripting-example.yaml --args first_thing=cool second_thing=shell
+```
+
+And here's an equivalent Python scripted version:
+
+```
+conda activate pipeline-stuff
+cd pipelines/docs/proceed-spike-sorting
+python scripting_example.py
+```
