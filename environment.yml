@@ -10,7 +10,8 @@ dependencies:
     - neuroconv[plexon,phy]==0.2.4
       # want neo==0.12.1, when available, to avoid this git silliness
     - neo @ git+https://github.com/NeuralEnsemble/python-neo.git@093231fa63781e0024aec448d8cd735ac77a42a0
-    - spikeinterface[full,widgets]==0.97.1
+      # want spikeinterface==0.97.2 when available to avoid this git silliness (need change that skips python-cuda dependency darwin)
+    - spikeinterface[full,widgets] @ git+https://github.com/SpikeInterface/spikeinterface.git@6c5c0b89791dd943b1c77393e4074f5f51c5e6ee
     - probeinterface==0.2.16
     - nwbwidgets==0.10.2
     - jupyter==1.0.0
