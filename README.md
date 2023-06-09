@@ -10,14 +10,18 @@ Collecting some startup syntax here, while I bootstrap this repo.
 git clone https://github.com/benjamin-heasly/gold-lab-nwb-conversions
 cd gold-lab-nwb-conversions
 
+# this can be slow
 conda env create -f environment.yml
-# so slow
-conda env update -f environment.yml --prune
-# as I learn dependencies better
 
+# this is useful as I learn and capture dependencies better
+conda env update -f environment.yml --prune
+
+# this is also useful sometimes
+conda remoev -n gold_nwb --all
+
+# then we can start using the environment
+# DON'T FORGET TO ACTIVATE THE ENVIRONMENT :-)
 conda activate gold_nwb
-python nwb_plx_poc.py
-# runs OK for now
 
 jupyter notebook
 # browse to nwb_panel.ipynb
