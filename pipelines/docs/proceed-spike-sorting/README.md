@@ -327,7 +327,7 @@ I think this may turn out to be useful, but we haven't explored it much, yet.
 
 In addition to using the shell command line interface as above, it's also possible to script Proceed using Python.
 
-Here's an example that shows how to pass commands and args to the same `main()` entrypoint used by the shell, but from a Python script.  This uses a short sample pipeline in this repo called `scripting-example.yaml` which just prints the values of two args.  It also uses a short Python script called `scripting_example.py`.
+Here's an example that shows how to pass commands and args to the same `main()` entrypoint used by the shell, but from a Python script.  This uses a short sample pipeline in this repo called [scripting-example.yaml](scripting-example.yaml) which just prints the values of two args.  It also uses a short Python script called [scripting_example.py](scripting_example.py).
 
 Here's a shell command line run:
 
