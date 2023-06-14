@@ -153,64 +153,74 @@ class NumericEventReader():
 class NumericEventSource():
     """Manage a NumericEventReader and maintain a buffer of events within a finite time range."""
 
-    def __init__(self, reader: NumericEventReader, reader_timeout: float = 1.0, values_per_event: int = 1) -> None:
+    def __init__(
+        self,
+        reader: NumericEventReader,
+        reader_timeout: float = 1.0,
+        max_empty_reads: int = 2,
+        values_per_event: int = 1,
+        event_value_index: int = 0
+    ) -> None:
         self.reader = reader
         self.reader_timeout = reader_timeout
+        self.max_empty_reads = max_empty_reads
         self.event_list = NumericEventList(np.empty([0, values_per_event + 1]))
+        self.event_value_index = event_value_index
 
     def start_time(self, default: float = 0.0) -> float:
         """The time of the earliest event currently in the buffer, or the default when empty."""
-        self.event_list.get_times().min(default)
+        return self.event_list.get_times().min(initial=default)
 
     def end_time(self, default: float = 0.0) -> float:
         """The time of the last event currently in the buffer, or the default when empty."""
-        self.event_list.get_times().max(default)
+        return self.event_list.get_times().max(initial=default)
 
-    def read_until_time(self, goal_time: float, max_empty_reads: int = 2) -> bool:
-        """Keep adding events from the reader until reaching a goal time or exhausting retries.
+    def read_until_time(self, goal_time: float) -> bool:
+        """Keep adding events from the reader until reaching a goal time or exhausting max empty reads.
 
-        We might call this once per trial, for each event source: "catch up to the end time of the current trial."
+        We might call this once per trial on each event source: "catch up to the end time of the current trial."
 
-        Sometimes this is easy -- like if we're reading a file we can consume events until we start seeing event
+        Sometimes this is easy -- like if we're reading a file we can read in events until we start seeing event
         times that are at or beyond the goal time.  Then we know we've read far enough and we're good for now.
+        This assumes events come in order.
 
         Sometimes this is less obvious -- like if we're polling a socket for live events.  If a poll returns
         nothing, does that mean we're all caught up or that there's a relevant trial event still on its way
-        through the network?  In this case we want to make a best effort to wait, but not wait forever.
+        to us through the network?  In this case we want to make a best effort to wait, but not wait forever.
 
         So, we have two exit conditions indicated by return value:
-         - return True: We read a new event with time at or beyond the goal time -- we're all caught up.
-         - return False: We exhausted our max number of empty reads, each including the reader's timeout -- we 
-                         made a good effort to get caught up, but we can't be sure. 
+         - return True: We have an event with time at or beyond the goal time -- so are all caught up.
+                        Once this returns True and we're caught up to a give goal time, this is idempotent (save to call again).
+         - return False: We exhausted our max number of empty reads (each of these including the reader's own timeout).
+                         So, we made a good effort to get caught up, but we can't quite be sure. 
         """
         empty_reads = 0
-        while self.end_time() < goal_time and empty_reads < max_empty_reads:
+        while self.end_time() < goal_time and empty_reads < self.max_empty_reads:
             new_events = self.reader.read_next(timeout=self.reader_timeout)
-            if new_events.event_count():
+            if new_events and new_events.event_count():
                 self.event_list.append(new_events)
             else:
                 empty_reads += 1
         return self.end_time() >= goal_time
 
-    def check_for_value(self, event_value: float) -> bool:
-        """Read new events from the reader and report when a desired event_value arrives.
+    def read_next_time_of_value(self, event_value: float) -> np.ndarray:
+        """Read new events from the reader and report whether/when a desired event_value arrives.
 
         We might call this periodically on a chosen event source while waiting for the next trial.
-        This should not block because it would be interleaved with eg GUI updates.
+        This should not block because it would be interleaved with other updates, like responding to UI events.
 
-        Returns whether or not the desired event_value arrived.
+        Returns a numpy array of times of a newly read event that has the given event_value, if any.
+        If no event is ready with the given event_value, returns None.
+        This only considers *newly read* events, not any previously read event.
+        This is not idempotent -- calling it has side-effects and each occurrence of an event_value is reported only once.
         """
         new_events = self.reader.read_next(timeout=self.reader_timeout)
-        if new_events.event_count():
+        if new_events and new_events.event_count():
             self.event_list.append(new_events)
-            return new_events.get_times_of(event_value).size > 0
+            event_times = new_events.get_times_of(event_value, value_index=self.event_value_index)
+            if event_times.size > 0:
+                return event_times
+            else:
+                return None
         else:
-            return False
-
-    def discard_before(self, start_time: float) -> None:
-        """Discard buffered events strictly before the given start_time.
-        
-        We might call this after we're done extracting a trial.
-        This allows the event source to limit memory usage to a relevant time range.
-        """
-        self.event_list.discard_before(start_time)
+            return None
