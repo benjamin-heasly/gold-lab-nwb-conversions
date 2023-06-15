@@ -141,6 +141,7 @@ class TrialExtractor():
         if new_trials:
             for trial in new_trials:
                 self.populate_trial(trial)
+                self.discard_before(trial.start_time)
             return new_trials
         else:
             return None
@@ -149,6 +150,7 @@ class TrialExtractor():
         """Poll the delimiter for whatever's left, populate this last trial with whatever's left from configured sources."""
         last_trial = self.delimiter.read_last()
         self.populate_trial(last_trial)
+        self.discard_before(last_trial.start_time)
         return last_trial
 
     def populate_trial(self, trial: Trial):

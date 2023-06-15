@@ -205,11 +205,24 @@ class NumericEventSource():
 
     def start_time(self, default: float = 0.0) -> float:
         """The time of the earliest event currently in the buffer, or the default when empty."""
-        return self.event_list.get_times().min(initial=default)
+        times = self.event_list.get_times()
+        if times.size > 0:
+            return times.min()
+        else:
+            return default
 
     def end_time(self, default: float = 0.0) -> float:
         """The time of the last event currently in the buffer, or the default when empty."""
-        return self.event_list.get_times().max(initial=default)
+        times = self.event_list.get_times()
+        if times.size > 0:
+            return times.max()
+        else:
+            return default
+
+    def discard_before(self, start_time: float) -> None:
+        """Discard buffered events that have times strictly less than the given start_time.
+        """
+        self.event_list.discard_before(start_time)
 
     def read_next(self) -> NumericEventList:
         """Read one increment from the reader and append any new events.
