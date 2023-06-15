@@ -1,7 +1,7 @@
 import numpy as np
 
-from pyramid.numeric_events import NumericEventList
-from pyramid.trials import Trial
+from pyramid.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
+from pyramid.trials import Trial, TrialDelimiter
 
 
 def test_trial_interop():
@@ -17,9 +17,136 @@ def test_trial_interop():
     trial.add_numeric_events("bar", bar_events)
 
     interop = trial.to_interop()
-    print(interop)
     trial_2 = Trial.from_interop(interop)
     assert trial_2 == trial
 
     interop_2 = trial_2.to_interop()
     assert interop_2 == interop
+
+
+class FakeNumericEventReader(NumericEventReader):
+
+    def __init__(self, script=[[[0, 0]], [[1, 10]], [[2, 20]]]) -> None:
+        self.index = -1
+        self.script = script
+
+    def read_next(self, timeout: float) -> NumericEventList:
+        # Incrementing this index is like consuming a system or library resource:
+        # - advance a file cursor
+        # - increment past a file data block
+        # - poll a network connection
+        self.index += 1
+
+        # Return dummy events from the contrived script, which might contain gaps and require retries.
+        if timeout > 0 and self.index < len(self.script) and self.script[self.index]:
+            print(f"Reading index {self.index}: {self.script[self.index]}")
+            return NumericEventList(np.array(self.script[self.index]))
+        else:
+            return None
+
+
+def test_delimit_trials_from_separate_sources():
+    start_reader = FakeNumericEventReader(script=[[[1, 1]], [[2, 1]], [[3, 1]]])
+    start_source = NumericEventSource(start_reader)
+    wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42]], [[2.6, 42]], [[3.5, 42]]])
+    wrt_source = NumericEventSource(wrt_reader)
+    delimiter = TrialDelimiter(start_source, 1, wrt_source, 42)
+
+    # trial zero will be garbage, whatever happens before the first start event
+    trial_zero = delimiter.read_next()
+    assert len(trial_zero) == 1
+    assert trial_zero[0] == Trial(0, 1.0, 0.0)
+
+    # trials 1 and 2 will be well-formed
+    trial_one = delimiter.read_next()
+    assert len(trial_one) == 1
+    assert trial_one[0] == Trial(1.0, 2.0, 1.5)
+
+    trial_two = delimiter.read_next()
+    assert len(trial_two) == 1
+    assert trial_two[0] == Trial(2.0, 3.0, 2.5)
+
+    # trial 3 will be made from whatever is left after the last start event
+    assert not delimiter.read_next()
+    trial_three = delimiter.read_last()
+    assert trial_three == Trial(3.0, None, 3.5)
+
+
+def test_delimiting_trials_from_combined_source():
+    combined_reader = FakeNumericEventReader(
+        script=[
+            [[1, 1]],
+            [[1.5, 42]],
+            [[2, 1]],
+            [[2.5, 42]],
+            [[2.6, 42]],
+            [[3, 1]],
+            [[3.5, 42]]
+        ]
+    )
+    combined_source = NumericEventSource(combined_reader)
+    delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
+
+    # Results will be same as in test_delimiting_trials_separate_sources.
+    # But we'll need to poll the event source more often to see all the events.
+    trial_zero = delimiter.read_next()
+    assert len(trial_zero) == 1
+    assert trial_zero[0] == Trial(0, 1.0, 0.0)
+
+    # trials 1 and 2 will be well-formed
+    assert not delimiter.read_next()
+    trial_one = delimiter.read_next()
+    assert len(trial_one) == 1
+    assert trial_one[0] == Trial(1.0, 2.0, 1.5)
+
+    assert not delimiter.read_next()
+    assert not delimiter.read_next()
+    trial_two = delimiter.read_next()
+    assert len(trial_two) == 1
+    assert trial_two[0] == Trial(2.0, 3.0, 2.5)
+
+    # trial 3 will be made from whatever is left after the last start event
+    assert not delimiter.read_next()
+    trial_three = delimiter.read_last()
+    assert trial_three == Trial(3.0, None, 3.5)
+
+
+def test_delimit_multiple_trials_per_read():
+    combined_reader = FakeNumericEventReader(
+        script=[
+            [[1, 1]],
+            [[1.5, 42]],
+            [[2, 1], [2.5, 42], [2.6, 42], [3, 1], [3.5, 42]]
+        ]
+    )
+    combined_source = NumericEventSource(combined_reader)
+    delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
+
+    # Results will be same as in test_delimiting_trials_separate_sources.
+    # But trials one and two will arrive together in the same read.
+    trial_zero = delimiter.read_next()
+    assert len(trial_zero) == 1
+    assert trial_zero[0] == Trial(0, 1.0, 0.0)
+
+    # trials 1 and 2 will be well-formed
+    assert not delimiter.read_next()
+    trials_one_and_2 = delimiter.read_next()
+    assert len(trials_one_and_2) == 2
+    assert trials_one_and_2[0] == Trial(1.0, 2.0, 1.5)
+    assert trials_one_and_2[1] == Trial(2.0, 3.0, 2.5)
+
+    # trial 3 will be made from whatever is left after the last start event
+    assert not delimiter.read_next()
+    trial_three = delimiter.read_last()
+    assert trial_three == Trial(3.0, None, 3.5)
+
+
+# happiness extracting 3 or so trials with other event sources present!
+
+# extract multiple trials per read
+
+# safe to extract when delimiter exhausted
+
+# extract last, without reliable end_time
+
+# safe to extract when some other event sources exhausted

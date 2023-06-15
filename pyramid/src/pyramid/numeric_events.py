@@ -63,15 +63,37 @@ class NumericEventList(InteropData):
         """
         return self.event_data[:, 1 + value_index]
 
-    def get_times_of(self, event_value: float, value_index: int = 0) -> np.ndarray:
+    def get_times_of(
+        self,
+        event_value: float,
+        value_index: int = 0,
+        start_time: float = None,
+        end_time: float = None
+    ) -> np.ndarray:
         """Get times of any events matching the given event_value.
 
         By default this searches the first value per event.
         Pass in value_index>0 to use a different value per event.
+
+        By default this searches all events in the list.
+        Pass in start_time restrict to events at or after start_time.
+        Pass in end_time restrict to events strictly before end_time.
         """
+        if start_time:
+            tail_selector = self.event_data[:, 0] >= start_time
+        else:
+            tail_selector = True
+
+        if end_time:
+            head_selector = self.event_data[:, 0] < end_time
+        else:
+            head_selector = True
+
+        rows_in_range = tail_selector & head_selector
+
         value_column = value_index + 1
         matching_rows = (self.event_data[:, value_column] == event_value)
-        return self.event_data[matching_rows, 0]
+        return self.event_data[rows_in_range & matching_rows, 0]
 
     def append(self, other: Self) -> None:
         """Add new events at the end of the existing list.
@@ -123,12 +145,25 @@ class NumericEventList(InteropData):
         range_event_data = self.event_data[rows_in_range, :]
         return NumericEventList(range_event_data)
 
-    def copy_time_range(self, start_time: float, end_time: float) -> None:
+    def copy_time_range(self, start_time: float = None, end_time: float = None) -> None:
         """Make a new list containing only events with times in half open interval [start_time, end_time).
+
+        Omit start_time to copy all events strictly before end_time.
+        Omit end_time to copy all events at and after start_time.
 
         This returns a new NumericEventList with a copy of events in the requested range.
         """
-        rows_in_range = (self.event_data[:, 0] >= start_time) & (self.event_data[:, 0] < end_time)
+        if start_time:
+            tail_selector = self.event_data[:, 0] >= start_time
+        else:
+            tail_selector = True
+
+        if end_time:
+            head_selector = self.event_data[:, 0] < end_time
+        else:
+            head_selector = True
+
+        rows_in_range = tail_selector & head_selector
         range_event_data = self.event_data[rows_in_range, :]
         return NumericEventList(range_event_data)
 
@@ -153,19 +188,20 @@ class NumericEventReader():
 class NumericEventSource():
     """Manage a NumericEventReader and maintain a buffer of events within a finite time range."""
 
+    # TODO: default min and max to filter on?
+    # TOOD: default offset and gain to apply?
+
     def __init__(
         self,
         reader: NumericEventReader,
         reader_timeout: float = 1.0,
         max_empty_reads: int = 2,
         values_per_event: int = 1,
-        event_value_index: int = 0
     ) -> None:
         self.reader = reader
         self.reader_timeout = reader_timeout
         self.max_empty_reads = max_empty_reads
         self.event_list = NumericEventList(np.empty([0, values_per_event + 1]))
-        self.event_value_index = event_value_index
 
     def start_time(self, default: float = 0.0) -> float:
         """The time of the earliest event currently in the buffer, or the default when empty."""
@@ -174,6 +210,18 @@ class NumericEventSource():
     def end_time(self, default: float = 0.0) -> float:
         """The time of the last event currently in the buffer, or the default when empty."""
         return self.event_list.get_times().max(initial=default)
+
+    def read_next(self) -> NumericEventList:
+        """Read one increment from the reader and append any new events.
+
+        Return the list of new events added, if any, or else None.
+        """
+        new_events = self.reader.read_next(timeout=self.reader_timeout)
+        if new_events and new_events.event_count():
+            self.event_list.append(new_events)
+            return new_events
+        else:
+            return None
 
     def read_until_time(self, goal_time: float) -> bool:
         """Keep adding events from the reader until reaching a goal time or exhausting max empty reads.
@@ -196,31 +244,7 @@ class NumericEventSource():
         """
         empty_reads = 0
         while self.end_time() < goal_time and empty_reads < self.max_empty_reads:
-            new_events = self.reader.read_next(timeout=self.reader_timeout)
-            if new_events and new_events.event_count():
-                self.event_list.append(new_events)
-            else:
+            new_events = self.read_next()
+            if not new_events or not new_events.event_count():
                 empty_reads += 1
         return self.end_time() >= goal_time
-
-    def read_next_time_of_value(self, event_value: float) -> np.ndarray:
-        """Read new events from the reader and report whether/when a desired event_value arrives.
-
-        We might call this periodically on a chosen event source while waiting for the next trial.
-        This should not block because it would be interleaved with other updates, like responding to UI events.
-
-        Returns a numpy array of times of a newly read event that has the given event_value, if any.
-        If no event is ready with the given event_value, returns None.
-        This only considers *newly read* events, not any previously read event.
-        This is not idempotent -- calling it has side-effects and each occurrence of an event_value is reported only once.
-        """
-        new_events = self.reader.read_next(timeout=self.reader_timeout)
-        if new_events and new_events.event_count():
-            self.event_list.append(new_events)
-            event_times = new_events.get_times_of(event_value, value_index=self.event_value_index)
-            if event_times.size > 0:
-                return event_times
-            else:
-                return None
-        else:
-            return None

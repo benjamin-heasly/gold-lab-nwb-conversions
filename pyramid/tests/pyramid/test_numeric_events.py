@@ -21,6 +21,14 @@ def test_list_getters():
     assert event_list.get_times_of(10.42).size == 0
     assert event_list.get_times_of(1000).size == 0
 
+    assert np.array_equal(event_list.get_times_of(50.0, start_time=4.0), np.array([5.0]))
+    assert np.array_equal(event_list.get_times_of(50.0, start_time=5.0), np.array([5.0]))
+    assert event_list.get_times_of(50.0, start_time=6.0).size == 0
+    assert event_list.get_times_of(50.0, end_time=4.0).size == 0
+    assert event_list.get_times_of(50.0, end_time=5.0).size == 0
+    assert np.array_equal(event_list.get_times_of(50.0, end_time=6.0), np.array([5.0]))
+    assert np.array_equal(event_list.get_times_of(50.0, start_time=4.0, end_time=6.0), np.array([5.0]))
+
 
 def test_list_append():
     event_count = 100
@@ -92,6 +100,14 @@ def test_list_copy_time_range():
     range_event_list = event_list.copy_time_range(40, 60)
     assert np.array_equal(range_event_list.get_times(), np.array(range(40, 60)))
     assert np.array_equal(range_event_list.get_values(), 10*np.array(range(40, 60)))
+
+    tail_event_list = event_list.copy_time_range(start_time=40)
+    assert np.array_equal(tail_event_list.get_times(), np.array(range(40, event_count)))
+    assert np.array_equal(tail_event_list.get_values(), 10*np.array(range(40, event_count)))
+
+    head_event_list = event_list.copy_time_range(end_time=60)
+    assert np.array_equal(head_event_list.get_times(), np.array(range(0, 60)))
+    assert np.array_equal(head_event_list.get_values(), 10*np.array(range(0, 60)))
 
     # original list should be unchanged
     assert np.array_equal(event_list.get_times(), np.array(range(100)))
@@ -258,25 +274,3 @@ def test_read_retries_exhausted():
     assert source.start_time() == 0.0
     assert source.end_time() == 4.0
     assert source.event_list.event_count() == 5
-
-def test_read_next_time_of_value():
-    reader = FakeNumericEventReader()
-    source = NumericEventSource(reader)
-
-    # Value of interest should only show up once in the data.
-    event_value = 30
-    expected_time = 3
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
-    assert np.array_equal(source.read_next_time_of_value(event_value), np.array([expected_time]))
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
-
-    # Running past the available data should be OK.
-    assert not source.read_next_time_of_value(event_value)
-    assert not source.read_next_time_of_value(event_value)
