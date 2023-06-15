@@ -294,6 +294,7 @@ def test_extract_multiple_trials_per_read():
         }
     )
 
-
-
-# discard data from completed trials.
+    # Event sources should discard old data after each trial is extracted.
+    assert combined_source.start_time() >= trial_three.start_time
+    assert foo_source.event_list.get_times().size == 0
+    assert bar_source.start_time() >= trial_three.start_time
