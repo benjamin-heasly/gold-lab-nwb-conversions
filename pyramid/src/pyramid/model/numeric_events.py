@@ -2,7 +2,7 @@ from typing import Any, Self
 from dataclasses import dataclass
 import numpy as np
 
-from pyramid.model import InteropData
+from pyramid.model.model import InteropData
 
 
 @dataclass

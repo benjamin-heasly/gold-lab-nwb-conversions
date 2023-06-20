@@ -1,9 +1,13 @@
 from typing import Any, Self
 from dataclasses import dataclass, field
 
-from pyramid.model import InteropData
-from pyramid.numeric_events import NumericEventList, NumericEventSource
+from pyramid.model.model import InteropData
+from pyramid.model.numeric_events import NumericEventList, NumericEventSource
 
+# Construct a trials "IOC container" / context declared in YAML.
+
+# Read and write a Trial File as a JSON list of Trials
+# Mixed Mode: https://pypi.org/project/json-stream/
 
 @dataclass
 class Trial(InteropData):
@@ -172,7 +176,3 @@ class TrialExtractor():
         self.delimiter.discard_before(time)
         for source in self.numeric_sources.values():
             source.discard_before(time)
-
-
-# Read and write a Trial File as a JSON list of Trials
-# Mixed Mode: https://pypi.org/project/json-stream/

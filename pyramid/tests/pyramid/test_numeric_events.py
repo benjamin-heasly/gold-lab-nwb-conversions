@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyramid.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
+from pyramid.model.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
 
 
 def test_list_getters():

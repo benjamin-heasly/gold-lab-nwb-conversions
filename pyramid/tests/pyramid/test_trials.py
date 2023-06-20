@@ -1,7 +1,7 @@
 import numpy as np
 
-from pyramid.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
-from pyramid.trials import Trial, TrialDelimiter, TrialExtractor
+from pyramid.model.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
+from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor
 
 
 def test_trial_interop():
