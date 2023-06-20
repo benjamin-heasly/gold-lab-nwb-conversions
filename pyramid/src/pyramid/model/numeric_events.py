@@ -169,13 +169,31 @@ class NumericEventList(InteropData):
 
 
 class NumericEventReader():
-    """Interface for reading event lists from input sources like streaming connections or data files.
+    """Interface for reading numeric event lists from input sources like streaming connections or data files.
 
     Encapsulate system and library resources for reading from a source.
     Be able to increment through that source and return a list of numeric corresponding to each increment.
     Only one increment should be buffered at a time -- so sockets and large files can be streamed.
     The choice of increment is up to the implementation -- file chunks, data blocks, socket polls -- all fine.
+
+    Implementations should conform Python's "context management protocol" with __enter__() and __exit__().
+    That way readers can set up and cleaned up concisely with code like this:
+
+        with MyReader(a_thing) as reader:
+            # do things
+            reader.read_next()
+            # do more things
+        # Reader is automatically cleaned up when the "with" exits.
+    See: https://peps.python.org/pep-0343/#standard-terminology
     """
+
+    def __enter__(self) -> Any:
+        """Return an object we can read_next() on."""
+        pass  # pragma: no cover
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Release any resources acquired during __init__() or __enter()__."""
+        pass  # pragma: no cover
 
     def read_next(self, timeout: float) -> NumericEventList:
         """Buffer the next increment from the source and convert to numeric events, if any.

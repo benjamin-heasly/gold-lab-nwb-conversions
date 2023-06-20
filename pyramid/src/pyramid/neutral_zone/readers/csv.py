@@ -1,5 +1,6 @@
-import csv
+from typing import Self
 import logging
+import csv
 import numpy as np
 
 from pyramid.model.numeric_events import NumericEventReader, NumericEventList
@@ -11,30 +12,28 @@ from pyramid.model.numeric_events import NumericEventReader, NumericEventList
 class CsvNumericEventReader(NumericEventReader):
     """Read numeric events from a CSV of numbers.
 
-    Skips any lines that contain non-numeric values.
+    Skips lines that contain non-numeric values.
     """
 
-    def __init__(self, csvfile: str, dialect: str = 'excel', **fmtparams) -> None:
-        self.csvfile = csvfile
-        self.stream = None
-        self.reader = None
+    def __init__(self, csv_file: str, dialect: str = 'excel', **fmtparams) -> None:
+        self.csv_file = csv_file
         self.dialect = dialect
         self.fmtparams = fmtparams
 
-    def set_up(self) -> None:
-        # Why newline='' -- https://docs.python.org/3/library/csv.html#id3
-        self.stream = open(self.csvfile, mode='r', newline='')
-        self.reader = csv.reader(
-            self.stream,
-            self.dialect,
-            **self.fmtparams
-        )
+        self.file_stream = None
+        self.reader = None
 
-    def clean_up(self):
-        if self.stream:
-            self.stream.close()
-            self.stream = None
-            self.reader = None
+    def __enter__(self) -> Self:
+        # See https://docs.python.org/3/library/csv.html#id3 for why this has newline=''
+        self.file_stream = open(self.csv_file, mode='r', newline='')
+        self.reader = csv.reader(self.file_stream, self.dialect, **self.fmtparams)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        if self.file_stream:
+            self.file_stream.close()
+            self.file_stream = None
+        self.reader = None
 
     def read_next(self, timeout: float) -> NumericEventList:
         line_num = self.reader.line_num
@@ -42,6 +41,6 @@ class CsvNumericEventReader(NumericEventReader):
         try:
             numeric_row = [float(element) for element in next_row]
         except ValueError as error:
-            logging.info(f"Skipping CSV {self.csvfile}, line {line_num}, with non-numeric value {error.args}: {next_row}")
+            logging.info(f"Skipping CSV {self.csv_file}, line {line_num}, with non-numeric value {error.args}: {next_row}")
             return None
         return NumericEventList(np.array(numeric_row))
