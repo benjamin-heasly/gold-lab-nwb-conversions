@@ -35,18 +35,15 @@ def gui(plotters: list[str], timeout: float = 60.0) -> int:
     logging.info(f"Using {len(plotters)} plotters.")
     for plotter in plotters:
         logging.info(f"  {plotter}")
-    
-    imported_plotters = [Plotter.from_dynamic_import(plotter) for plotter in plotters]
-    controller = PlotFigureController(imported_plotters)
-    controller.set_up()
-    start_time = time.time()
-    elapsed = 0
-    while controller.get_open_figures() and elapsed < timeout:
-        controller.update(None, None)
-        time.sleep(0.025)
-        elapsed = time.time() - start_time
 
-    controller.clean_up()
+    imported_plotters = [Plotter.from_dynamic_import(plotter) for plotter in plotters]
+    with PlotFigureController(imported_plotters) as controller:
+        start_time = time.time()
+        elapsed = 0
+        while controller.get_open_figures() and elapsed < timeout:
+            controller.update(None, None)
+            time.sleep(0.025)
+            elapsed = time.time() - start_time
 
     logging.info("Done.")
     return 0
@@ -71,6 +68,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="TESTING: list of plotters to import and run")
     parser.add_argument("--timeout", '-t',
                         type=float,
+                        default=10,
                         help="TESTING: timeout in seconds before auto-closing the gui")
     parser.add_argument("--version", "-v", action="version", version=version_string)
 

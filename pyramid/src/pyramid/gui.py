@@ -82,7 +82,7 @@ class PlotFigureController():
         self.subject_info = subject_info
         self.figures = {}
 
-    def set_up(self) -> None:
+    def __enter__(self) -> Self:
         # Use matplotlib in interactive mode instead of blocking on eg plt.show().
         plt.ion()
 
@@ -92,6 +92,8 @@ class PlotFigureController():
         # Let each plotter set itself up.
         for plotter, fig in self.figures.items():
             plotter.set_up(fig, self.experiment_info, self.subject_info)
+        
+        return self
 
     def update(self, current_trial, trials_info) -> None:
         # Let each plotter update for the current trial.
@@ -101,7 +103,7 @@ class PlotFigureController():
                 fig.canvas.draw_idle()
                 fig.canvas.flush_events()
 
-    def clean_up(self) -> None:
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         # Close each managed figure.
         for plotter, fig in self.figures.items():
             plotter.clean_up(fig)
