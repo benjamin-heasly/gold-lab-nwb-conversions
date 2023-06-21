@@ -38,9 +38,10 @@ class CsvNumericEventReader(NumericEventReader):
     def read_next(self, timeout: float) -> NumericEventList:
         line_num = self.reader.line_num
         next_row = self.reader.__next__()
+        print(next_row)
         try:
             numeric_row = [float(element) for element in next_row]
         except ValueError as error:
             logging.info(f"Skipping CSV {self.csv_file}, line {line_num}, with non-numeric value {error.args}: {next_row}")
             return None
-        return NumericEventList(np.array(numeric_row))
+        return NumericEventList(np.array([numeric_row]))

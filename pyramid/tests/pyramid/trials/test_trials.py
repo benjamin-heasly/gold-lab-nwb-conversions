@@ -16,6 +16,9 @@ def test_trial_interop():
     bar_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))
     trial.add_numeric_events("bar", bar_events)
 
+    empty_events = NumericEventList(np.empty([0, 2]))
+    trial.add_numeric_events("empty", empty_events)
+
     interop = trial.to_interop()
     trial_2 = Trial.from_interop(interop)
     assert trial_2 == trial

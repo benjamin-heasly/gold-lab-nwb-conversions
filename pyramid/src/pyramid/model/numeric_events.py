@@ -1,4 +1,5 @@
 from typing import Any, Self
+import logging
 from dataclasses import dataclass
 import numpy as np
 
@@ -22,7 +23,7 @@ class NumericEventList(InteropData):
     def __eq__(self, other: object) -> bool:
         """Compare event_data arrays as-a-whole instead of element-wise."""
         if isinstance(other, self.__class__):
-            return np.array_equal(self.event_data, other.event_data)
+            return (self.event_data.size == 0 and other.event_data.size == 0) or np.array_equal(self.event_data, other.event_data)
         else:
             return False
 
@@ -204,7 +205,11 @@ class NumericEventReader():
 
 
 class NumericEventSource():
-    """Manage a NumericEventReader and maintain a buffer of events within a finite time range."""
+    """Manage a NumericEventReader and maintain a buffer of events within a finite time range.
+    
+    If the reader throws an exception, it will be ignored and future reads will return None.
+    This applies the same to normal end-of-data situations and to errors.
+    """
 
     # TODO: default min and max to filter on?
     # TOOD: default offset and gain to apply?
@@ -219,6 +224,7 @@ class NumericEventSource():
         self.reader = reader
         self.reader_timeout = reader_timeout
         self.max_empty_reads = max_empty_reads
+        self.reader_exception = None
         self.event_list = NumericEventList(np.empty([0, values_per_event + 1]))
 
     def start_time(self, default: float = 0.0) -> float:
@@ -247,11 +253,19 @@ class NumericEventSource():
 
         Return the list of new events added, if any, or else None.
         """
-        new_events = self.reader.read_next(timeout=self.reader_timeout)
-        if new_events and new_events.event_count():
-            self.event_list.append(new_events)
-            return new_events
-        else:
+        if self.reader_exception:
+            return None
+
+        try:
+            new_events = self.reader.read_next(timeout=self.reader_timeout)
+            if new_events and new_events.event_count():
+                self.event_list.append(new_events)
+                return new_events
+            else:
+                return None
+        except Exception as error:
+            self.reader_exception = error
+            logging.info(f"Reader {self.reader} will be ignored following execption:", exc_info=True)
             return None
 
     def read_until_time(self, goal_time: float) -> bool:

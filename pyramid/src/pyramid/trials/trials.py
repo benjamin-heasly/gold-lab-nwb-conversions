@@ -6,9 +6,6 @@ from pyramid.model.numeric_events import NumericEventList, NumericEventSource
 
 # Construct a trials "IOC container" / context declared in YAML.
 
-# Read and write a Trial File as a JSON list of Trials
-# Mixed Mode: https://pypi.org/project/json-stream/
-
 @dataclass
 class Trial(InteropData):
     """A delimited part of the timeline with named event, signal, and computed data from the same time range."""

@@ -274,3 +274,11 @@ def test_read_retries_exhausted():
     assert source.start_time() == 0.0
     assert source.end_time() == 4.0
     assert source.event_list.event_count() == 5
+
+def test_read_empty_after_exception():
+    reader = FakeNumericEventReader(script=["error!"])
+    source = NumericEventSource(reader, reader_timeout=1.0)
+
+    assert source.read_next() is None
+    assert source.read_next() is None
+    assert source.read_next() is None
