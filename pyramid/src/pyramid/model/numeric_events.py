@@ -116,7 +116,8 @@ class NumericEventList(InteropData):
 
         This modifies the event_data in place.
         """
-        self.event_data[:, 0] += shift
+        if self.event_data.size > 0:
+            self.event_data[:, 0] += shift
 
     def apply_offset_then_gain(self, offset: float = 0, gain: float = 1, value_index: int = 0) -> None:
         """Transform all event data by a constant gain and offset.

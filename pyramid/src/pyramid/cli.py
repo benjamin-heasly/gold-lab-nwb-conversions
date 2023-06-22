@@ -1,4 +1,5 @@
 import sys
+import time
 import logging
 from pathlib import Path
 from contextlib import ExitStack
@@ -43,14 +44,19 @@ def run_without_plots(trial_file: str, extractor: TrialExtractor) -> None:
                 writer.append_trials(new_trials)
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
-        last_trials = extractor.read_last()
-        if last_trials:
-            writer.append_trials([last_trials])
+        last_trial = extractor.read_last()
+        if last_trial:
+            writer.append_trials([last_trial])
 
 
-def run_with_plots(trial_file: str, extractor: TrialExtractor, plot_controller: PlotFigureController) -> None:
+def run_with_plots(
+        trial_file: str,
+        extractor: TrialExtractor,
+        plot_controller: PlotFigureController,
+        goofy_trial_pause: float = None
+) -> None:
     """Run with plots, and expect to import matplotlib.
-    
+
     This code is very similar to run_without_plots() so why is it a separate method?
     It seemed like a lot of conditional checks whether we got a plot_controller or not.
     Also, I have a hunch that it's "the right thing to do" so that we can run batch conversions
@@ -69,6 +75,8 @@ def run_with_plots(trial_file: str, extractor: TrialExtractor, plot_controller: 
             if new_trials:
                 writer.append_trials(new_trials)
                 for trial in new_trials:
+                    if goofy_trial_pause:  # pragma: no cover
+                        time.sleep(goofy_trial_pause)
                     plot_controller.update(trial, None)
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
@@ -126,6 +134,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         type=str,
                         nargs="+",
                         help="TESTING: list of plotters to import and run")
+    parser.add_argument("--goofy-trial-pause", '-g',
+                        type=float,
+                        help="TESTING: seconds to pause between trials")
     parser.add_argument("--delimiter-csv", '-d',
                         type=str,
                         help="TESTING: CSV file with trial-delimiting events")
@@ -158,7 +169,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     cli_args.extra_csvs
                 )
                 plot_controller = configure_plots(cli_args.plotters)
-                run_with_plots(cli_args.trial_file, extractor, plot_controller)
+                run_with_plots(cli_args.trial_file, extractor, plot_controller, cli_args.goofy_trial_pause)
                 exit_code = 0
             except Exception:
                 logging.error(f"Error running gui:", exc_info=True)

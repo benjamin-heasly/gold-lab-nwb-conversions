@@ -35,6 +35,8 @@ def test_gui(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
     start_value = "1010"
     wrt_value = "42"
+    foo_csv = Path(fixture_path, "foo.csv").as_posix()
+    bar_csv = Path(fixture_path, "bar.csv").as_posix()
 
     cli_args = [
         "gui",
@@ -42,6 +44,9 @@ def test_gui(fixture_path, tmp_path):
         "--delimiter-csv", delimiter_csv,
         "--start-value", start_value,
         "--wrt-value", wrt_value,
+        "--extra-csvs",
+        foo_csv,
+        bar_csv,
         "--plotters",
         "pyramid.plotters.sample_plotters.SampleSinePlotter",
         "pyramid.plotters.sample_plotters.SampleCosinePlotter"
@@ -55,13 +60,18 @@ def test_gui_no_plotters(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
     start_value = "1010"
     wrt_value = "42"
+    foo_csv = Path(fixture_path, "foo.csv").as_posix()
+    bar_csv = Path(fixture_path, "bar.csv").as_posix()
 
     cli_args = [
         "gui",
         "--trial-file", trial_file,
         "--delimiter-csv", delimiter_csv,
         "--start-value", start_value,
-        "--wrt-value", wrt_value
+        "--wrt-value", wrt_value,
+        "--extra-csvs",
+        foo_csv,
+        bar_csv,
     ]
     exit_code = main(cli_args)
     assert exit_code == 0

@@ -65,6 +65,12 @@ def test_list_shift_times():
     assert np.array_equal(event_list.get_times(), 5 + np.array(range(100)))
 
 
+def test_list_shift_times_empty():
+    event_list = NumericEventList(np.empty([0, 2]))
+    event_list.shift_times(5)
+    assert event_list.get_times().size == 0
+
+
 def test_list_transform_values():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
