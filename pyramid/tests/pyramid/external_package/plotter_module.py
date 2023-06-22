@@ -1,4 +1,4 @@
-from pyramid.gui import Plotter
+from pyramid.plotters.plotters import Plotter
 
 class ExternalPlotter1(Plotter):
     """Placeholder Plotter implementation used for testing dynamic imports"""

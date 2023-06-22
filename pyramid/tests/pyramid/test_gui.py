@@ -3,7 +3,7 @@ from pathlib import Path
 from pytest import fixture
 import matplotlib.pyplot as plt
 
-from pyramid.gui import Plotter, PlotFigureController
+from pyramid.plotters.plotters import Plotter, PlotFigureController
 from pyramid.plotters.sample_plotters import SampleSinePlotter, SampleCosinePlotter
 
 

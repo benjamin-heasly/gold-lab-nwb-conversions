@@ -2,9 +2,10 @@ from typing import Any, Self
 from dataclasses import dataclass, field
 
 from pyramid.model.model import InteropData
-from pyramid.model.numeric_events import NumericEventList, NumericEventSource
+from pyramid.model.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
 
 # Construct a trials "IOC container" / context declared in YAML.
+
 
 @dataclass
 class Trial(InteropData):
@@ -63,6 +64,14 @@ class TrialDelimiter():
         self.wrt_value_index = wrt_value_index
         self.trial_start_time = trial_start_time
 
+    def get_readers(self) -> set[NumericEventReader]:
+        """Gather up all configured readers, to help with context management (ie set up and clean up)."""
+        return {self.start_source.reader, self.wrt_source.reader}
+
+    def stil_going(self) -> bool:
+        """Return whether the start_source is still active and new trials might still arrive."""
+        return self.start_source.reader_exception is None
+
     def read_next(self) -> list[Trial]:
         """Poll the start source for new events, produce new trials whenever the chosen start_value arrives.
 
@@ -78,7 +87,7 @@ class TrialDelimiter():
                     trial = self.make_trial(next_start_time)
                     trials.append(trial)
                     self.trial_start_time = next_start_time
-                return trials        
+                return trials
         return None
 
     def read_last(self) -> Trial:
@@ -93,11 +102,11 @@ class TrialDelimiter():
 
     def make_trial(self, next_start_time: float, default_wrt_time: float = 0.0) -> Trial:
         """Make a new Trial starting where the last trial ended.
-        
+
         This queries the wrt_source for a wrt time at or after the current trial_start_time,
         and strictly before the given next_start_time.
         next_start_time can be None to take whatever's after trial_start_time.
-        
+
         This should be safe to call repeatedly, without side effects.
 
         Returns a new Trial spanning the current trial_start_time up to the given next_start_time.
@@ -105,8 +114,8 @@ class TrialDelimiter():
         wrt_times = self.wrt_source.event_list.get_times_of(
             self.wrt_value,
             self.wrt_value_index,
-            start_time = self.trial_start_time,
-            end_time = next_start_time
+            start_time=self.trial_start_time,
+            end_time=next_start_time
         )
         if wrt_times.size > 0:
             wrt_time = wrt_times.min()
@@ -132,6 +141,16 @@ class TrialExtractor():
     ) -> None:
         self.delimiter = delimiter
         self.numeric_sources = numeric_sources
+
+    def get_readers(self) -> set[NumericEventReader]:
+        """Gather up all configured readers, to help with context management (ie set up and clean up)."""
+        delimiter_readers = self.delimiter.get_readers()
+        numeric_event_readers = {source.reader for source in self.numeric_sources.values()}
+        return delimiter_readers.union(numeric_event_readers)
+
+    def still_going(self) -> bool:
+        """Return whether the delimiter still active and new trials might still arrive."""
+        return self.delimiter.stil_going()
 
     def read_next(self) -> list[Trial]:
         """Poll the delimiter for new trials, populate each new trial with data from configured sources.

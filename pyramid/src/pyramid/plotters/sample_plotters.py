@@ -2,7 +2,7 @@ import time
 import numpy as np
 from matplotlib.figure import Figure
 
-from pyramid.gui import Plotter
+from pyramid.plotters.plotters import Plotter
 
 
 class SampleSinePlotter(Plotter):
