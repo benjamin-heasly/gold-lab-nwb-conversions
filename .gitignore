@@ -127,5 +127,6 @@ venv.bak/
 *.nwb
 nwb-cache/
 
-# proceed
-proceed_out/
+# pyramid
+trials.json
+slow_trials.csv

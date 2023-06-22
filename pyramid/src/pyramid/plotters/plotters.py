@@ -92,14 +92,18 @@ class PlotFigureController():
         # Let each plotter set itself up.
         for plotter, fig in self.figures.items():
             plotter.set_up(fig, self.experiment_info, self.subject_info)
-        
+
         return self
 
-    def update(self, current_trial, trials_info) -> None:
+    def plot_next(self, current_trial, trials_info) -> None:
         # Let each plotter update for the current trial.
         for plotter, fig in self.figures.items():
             if plt.fignum_exists(fig.number):
                 plotter.update(fig, current_trial, trials_info, self.experiment_info, self.subject_info)
+
+    def update(self) -> None:
+        for fig in self.figures.values():
+            if plt.fignum_exists(fig.number):
                 fig.canvas.draw_idle()
                 fig.canvas.flush_events()
 

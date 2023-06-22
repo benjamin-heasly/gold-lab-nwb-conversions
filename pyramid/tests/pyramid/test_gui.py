@@ -50,10 +50,10 @@ def test_single_figure():
         assert len(controller.get_open_figures()) == 1
         assert plotter.update_count == 0
 
-        controller.update(None, None)
+        controller.plot_next(None, None)
         assert plotter.update_count == 1
 
-        controller.update(None, None)
+        controller.plot_next(None, None)
         assert plotter.update_count == 2
 
     assert plotter.update_count == -1
@@ -67,11 +67,11 @@ def test_multiple_figures():
         for plotter in plotters:
             assert plotter.update_count == 0
 
-        controller.update(None, None)
+        controller.plot_next(None, None)
         for plotter in plotters:
             assert plotter.update_count == 1
 
-        controller.update(None, None)
+        controller.plot_next(None, None)
         for plotter in plotters:
             assert plotter.update_count == 2
 
@@ -87,7 +87,7 @@ def test_close_figure_early():
         for plotter in plotters:
             assert plotter.update_count == 0
 
-        controller.update(None, None)
+        controller.plot_next(None, None)
         for plotter in plotters:
             assert plotter.update_count == 1
 
@@ -96,7 +96,7 @@ def test_close_figure_early():
         plt.close(victim_figure)
         assert len(controller.get_open_figures()) == len(plotters) - 1
 
-        controller.update(None, None)
+        controller.plot_next(None, None)
         assert len(controller.get_open_figures()) == len(plotters) - 1
         assert plotters[0].update_count == 2
         assert plotters[1].update_count == 1

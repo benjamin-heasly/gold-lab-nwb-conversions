@@ -31,7 +31,7 @@ def set_up_logging():
 
 
 def run_without_plots(trial_file: str, extractor: TrialExtractor) -> None:
-    """Run without mentioning or importing matplotlib."""
+    """Run without plots as fast as the data allow."""
     with ExitStack() as stack:
         # All these "context managers" will clean up automatically when the "with" exits.
         writer = stack.enter_context(TrialFileWriter(trial_file))
@@ -55,7 +55,7 @@ def run_with_plots(
         extractor: TrialExtractor,
         plot_controller: PlotFigureController
 ) -> None:
-    """Run with plots, and expect to import matplotlib.
+    """Run with plots and interactive GUI updates.
 
     This code is very similar to run_without_plots() so why is it a separate method?
     It seemed like a lot of conditional checks whether we got a plot_controller or not.
@@ -71,17 +71,18 @@ def run_with_plots(
 
         # Extract trials indefinitely, as they come.
         while extractor.still_going() and plot_controller.get_open_figures():
+            plot_controller.update()
             new_trials = extractor.read_next()
             if new_trials:
                 writer.append_trials(new_trials)
                 for trial in new_trials:
-                    plot_controller.update(trial, extractor.get_progress_info())
+                    plot_controller.plot_next(trial, extractor.get_progress_info())
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
         last_trial = extractor.read_last()
         if last_trial:
             writer.append_trials([last_trial])
-            plot_controller.update(last_trial, extractor.get_progress_info())
+            plot_controller.plot_next(last_trial, extractor.get_progress_info())
 
 
 def configure_plots(plotter_paths: list[str]) -> PlotFigureController:
