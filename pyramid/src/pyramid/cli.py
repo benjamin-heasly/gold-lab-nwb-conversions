@@ -9,6 +9,7 @@ from typing import Optional, Sequence
 from pyramid.__about__ import __version__ as proceed_version
 from pyramid.plotters.plotters import Plotter, PlotFigureController
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
+from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorNumericEventReader
 from pyramid.model.numeric_events import NumericEventSource
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor
 from pyramid.trials.trial_file import TrialFileWriter
@@ -52,8 +53,7 @@ def run_without_plots(trial_file: str, extractor: TrialExtractor) -> None:
 def run_with_plots(
         trial_file: str,
         extractor: TrialExtractor,
-        plot_controller: PlotFigureController,
-        goofy_trial_pause: float = None
+        plot_controller: PlotFigureController
 ) -> None:
     """Run with plots, and expect to import matplotlib.
 
@@ -75,15 +75,13 @@ def run_with_plots(
             if new_trials:
                 writer.append_trials(new_trials)
                 for trial in new_trials:
-                    if goofy_trial_pause:  # pragma: no cover
-                        time.sleep(goofy_trial_pause)
-                    plot_controller.update(trial, None)
+                    plot_controller.update(trial, extractor.get_progress_info())
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
         last_trial = extractor.read_last()
         if last_trial:
             writer.append_trials([last_trial])
-            plot_controller.update(last_trial, None)
+            plot_controller.update(last_trial, extractor.get_progress_info())
 
 
 def configure_plots(plotter_paths: list[str]) -> PlotFigureController:
@@ -104,10 +102,15 @@ def configure_extractor(
     delimiter_csv: str,
     start_value: float,
     wrt_value: float,
-    numeric_event_csvs: list[str]
+    numeric_event_csvs: list[str],
+    simulate_delay: bool = False
 ) -> TrialExtractor:
     logging.info(f"Using delimiters from {delimiter_csv} start={start_value} wrt={wrt_value}")
-    delimiter_reader = CsvNumericEventReader(delimiter_csv)
+    if simulate_delay:
+        delimiter_reader = DelaySimulatorNumericEventReader(CsvNumericEventReader(delimiter_csv))
+    else:
+        delimiter_reader = CsvNumericEventReader(delimiter_csv)
+
     delimiter_source = NumericEventSource(delimiter_reader)
     delimiter = TrialDelimiter(delimiter_source, start_value, delimiter_source, wrt_value)
 
@@ -134,9 +137,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         type=str,
                         nargs="+",
                         help="TESTING: list of plotters to import and run")
-    parser.add_argument("--goofy-trial-pause", '-g',
-                        type=float,
-                        help="TESTING: seconds to pause between trials")
     parser.add_argument("--delimiter-csv", '-d',
                         type=str,
                         help="TESTING: CSV file with trial-delimiting events")
@@ -153,6 +153,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--trial-file", '-f',
                         type=str,
                         help="TESTING: JSON trial file to write")
+    parser.add_argument("--simulate-delay", '-D',
+                        action='store_true',
+                        help="TESTING: simulate delay between trial delimiter events")
     parser.add_argument("--version", "-v", action="version", version=version_string)
 
     set_up_logging()
@@ -166,10 +169,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     cli_args.delimiter_csv,
                     cli_args.start_value,
                     cli_args.wrt_value,
-                    cli_args.extra_csvs
+                    cli_args.extra_csvs,
+                    cli_args.simulate_delay
                 )
                 plot_controller = configure_plots(cli_args.plotters)
-                run_with_plots(cli_args.trial_file, extractor, plot_controller, cli_args.goofy_trial_pause)
+                run_with_plots(cli_args.trial_file, extractor, plot_controller)
                 exit_code = 0
             except Exception:
                 logging.error(f"Error running gui:", exc_info=True)
@@ -181,7 +185,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     cli_args.delimiter_csv,
                     cli_args.start_value,
                     cli_args.wrt_value,
-                    cli_args.extra_csvs
+                    cli_args.extra_csvs,
+                    cli_args.simulate_delay
                 )
                 run_without_plots(cli_args.trial_file, extractor)
                 exit_code = 0

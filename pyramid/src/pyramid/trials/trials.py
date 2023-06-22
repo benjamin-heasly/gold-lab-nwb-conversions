@@ -54,7 +54,8 @@ class TrialDelimiter():
         wrt_value: float,
         start_value_index: int = 0,
         wrt_value_index: int = 0,
-        trial_start_time: float = 0.0
+        trial_start_time: float = 0.0,
+        trial_count: int = 0
     ) -> None:
         self.start_source = start_source
         self.start_value = start_value
@@ -63,6 +64,7 @@ class TrialDelimiter():
         self.start_value_index = start_value_index
         self.wrt_value_index = wrt_value_index
         self.trial_start_time = trial_start_time
+        self.trial_count = trial_count
 
     def get_readers(self) -> set[NumericEventReader]:
         """Gather up all configured readers, to help with context management (ie set up and clean up)."""
@@ -87,6 +89,7 @@ class TrialDelimiter():
                     trial = self.make_trial(next_start_time)
                     trials.append(trial)
                     self.trial_start_time = next_start_time
+                    self.trial_count += 1
                 return trials
         return None
 
@@ -98,6 +101,7 @@ class TrialDelimiter():
         self.start_source.read_next()
         self.wrt_source.read_next()
         trial = self.make_trial(None)
+        self.trial_count += 1
         return trial
 
     def make_trial(self, next_start_time: float, default_wrt_time: float = 0.0) -> Trial:
@@ -151,6 +155,13 @@ class TrialExtractor():
     def still_going(self) -> bool:
         """Return whether the delimiter still active and new trials might still arrive."""
         return self.delimiter.stil_going()
+
+    def get_progress_info(self) -> dict[str, Any]:
+        """Return a dictionary of trial extraction progress info.
+        """
+        return {
+            "trial_count": self.delimiter.trial_count
+        }
 
     def read_next(self) -> list[Trial]:
         """Poll the delimiter for new trials, populate each new trial with data from configured sources.

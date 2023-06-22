@@ -38,7 +38,6 @@ class CsvNumericEventReader(NumericEventReader):
     def read_next(self, timeout: float) -> NumericEventList:
         line_num = self.reader.line_num
         next_row = self.reader.__next__()
-        print(next_row)
         try:
             numeric_row = [float(element) for element in next_row]
         except ValueError as error:

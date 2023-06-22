@@ -77,6 +77,27 @@ def test_gui_no_plotters(fixture_path, tmp_path):
     assert exit_code == 0
 
 
+def test_gui_simulate_delay(fixture_path, tmp_path):
+    trial_file = Path(tmp_path, "trial_file.json").as_posix()
+    delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
+    start_value = "1010"
+    wrt_value = "42"
+
+    cli_args = [
+        "gui",
+        "--trial-file", trial_file,
+        "--delimiter-csv", delimiter_csv,
+        "--start-value", start_value,
+        "--wrt-value", wrt_value,
+        "--plotters",
+        "pyramid.plotters.sample_plotters.SampleSinePlotter",
+        "pyramid.plotters.sample_plotters.SampleCosinePlotter",
+        "--simulate-delay"
+    ]
+    exit_code = main(cli_args)
+    assert exit_code == 0
+
+
 def test_gui_plotter_error(fixture_path, tmp_path):
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
