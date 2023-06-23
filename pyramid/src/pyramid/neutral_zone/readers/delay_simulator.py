@@ -1,18 +1,18 @@
 from typing import Self
 import time
 
-from pyramid.model.numeric_events import NumericEventList, NumericEventReader
+from pyramid.neutral_zone.readers.readers import Reader
+from pyramid.model.numeric_events import NumericEventList
 
-# Delay simulator string event reader?
-# Delay simulator signal reader?
 
-class DelaySimulatorNumericEventReader(NumericEventReader):
-    """Read numeric events from another reader, and simulate delay between them.
+class DelaySimulatorReader(Reader):
+    """Simulate delay between events so offline plays back sort of like online.
     """
 
-    def __init__(self, reader: NumericEventReader) -> None:
+    def __init__(self, reader: Reader) -> None:
         self.reader = reader
-        self.stashed_events = None
+        self.stashed_result = None
+        self.stash_until = None
         self.start_time = None
 
     def __enter__(self) -> Self:
@@ -22,15 +22,18 @@ class DelaySimulatorNumericEventReader(NumericEventReader):
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         self.reader.__exit__(exc_type, exc_value, traceback)
 
-    def read_next(self, timeout: float) -> NumericEventList:
-        if self.stashed_events:
+    def read_next(self) -> dict[str, NumericEventList]:
+        if self.stashed_result:
             elapsed = time.time() - self.start_time
-            stash_until = self.stashed_events.get_times().max()
-            if elapsed >= stash_until:
+            if elapsed >= self.stash_until:
                 stashed = self.stashed_events
                 self.stashed_events = None
                 return stashed
             else:
                 return None
 
-        self.stashed_events = self.reader.read_next(timeout)
+        next_result = self.reader.read_next()
+        if next_result:
+            end_times = [result.get_times().max() for result in next_result.values()]
+            self.stash_until = max(end_times)
+            self.stashed_result = next_result

@@ -1,6 +1,9 @@
+from typing import Self
+
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
+from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
+from pyramid.neutral_zone.readers.readers import Reader
 from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor
 
 
@@ -27,13 +30,31 @@ def test_trial_interop():
     assert interop_2 == interop
 
 
-class FakeNumericEventReader(NumericEventReader):
+class FakeNumericEventReader(Reader):
 
-    def __init__(self, script=[[[0, 0]], [[1, 10]], [[2, 20]]]) -> None:
+    def __init__(
+        self,
+        script=[[[0, 0]],
+                [[1, 10]],
+                [[2, 20]],
+                [[3, 30]],
+                [[4, 40]],
+                [[5, 50]],
+                [[6, 60]],
+                [[7, 70]],
+                [[8, 80]],
+                [[9, 90]]]
+    ) -> None:
         self.index = -1
         self.script = script
 
-    def read_next(self, timeout: float) -> NumericEventList:
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        pass
+
+    def read_next(self) -> dict[str, NumericEventList]:
         # Incrementing this index is like consuming a system or library resource:
         # - advance a file cursor
         # - increment past a file data block
@@ -41,17 +62,18 @@ class FakeNumericEventReader(NumericEventReader):
         self.index += 1
 
         # Return dummy events from the contrived script, which might contain gaps and require retries.
-        if timeout > 0 and self.index < len(self.script) and self.script[self.index]:
+        if self.index < len(self.script) and self.script[self.index]:
             return NumericEventList(np.array(self.script[self.index]))
         else:
             return None
 
+# refactor using routers and routes to buffers
 
 def test_delimit_trials_from_separate_sources():
     start_reader = FakeNumericEventReader(script=[[[1, 1]], [[2, 1]], [[3, 1]]])
-    start_source = NumericEventSource(start_reader)
+    start_source = NumericEventBuffer(start_reader)
     wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42]], [[2.6, 42]], [[3.5, 42]]])
-    wrt_source = NumericEventSource(wrt_reader)
+    wrt_source = NumericEventBuffer(wrt_reader)
     delimiter = TrialDelimiter(start_source, 1, wrt_source, 42)
 
     # trial zero will be garbage, whatever happens before the first start event
@@ -86,7 +108,7 @@ def test_delimiting_trials_from_combined_source():
             [[3.5, 42]]
         ]
     )
-    combined_source = NumericEventSource(combined_reader)
+    combined_source = NumericEventBuffer(combined_reader)
     delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
 
     # Results will be same as in test_delimiting_trials_separate_sources.
@@ -121,7 +143,7 @@ def test_delimit_multiple_trials_per_read():
             [[2, 1], [2.5, 42], [2.6, 42], [3, 1], [3.5, 42]]
         ]
     )
-    combined_source = NumericEventSource(combined_reader)
+    combined_source = NumericEventBuffer(combined_reader)
     delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
 
     # Results will be same as in test_delimiting_trials_separate_sources.
@@ -146,16 +168,16 @@ def test_delimit_multiple_trials_per_read():
 def test_extract_trials_with_data():
     # Delimit trials with start and wrt events.
     start_reader = FakeNumericEventReader(script=[[[1, 1]], [[2, 1]], [[3, 1]]])
-    start_source = NumericEventSource(start_reader)
+    start_source = NumericEventBuffer(start_reader)
     wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42]], [[2.6, 42]], [[3.5, 42]]])
-    wrt_source = NumericEventSource(wrt_reader)
+    wrt_source = NumericEventBuffer(wrt_reader)
     delimiter = TrialDelimiter(start_source, 1, wrt_source, 42)
 
     # Extract trials enriched with various other events.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
-    foo_source = NumericEventSource(foo_reader)
+    foo_source = NumericEventBuffer(foo_reader)
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
-    bar_source = NumericEventSource(bar_reader)
+    bar_source = NumericEventBuffer(bar_reader)
     extractor = TrialExtractor(
         delimiter=delimiter,
         numeric_sources={
@@ -204,7 +226,7 @@ def test_extract_trials_with_data():
 
     # trial 3 will be made from whatever is left after the last start event
     assert not extractor.read_next()
-    trial_three = extractor.read_last()
+    trial_three = extractor.last()()
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,
@@ -230,14 +252,14 @@ def test_extract_multiple_trials_per_read():
             [[2, 1], [2.5, 42], [2.6, 42], [3, 1], [3.5, 42]]
         ]
     )
-    combined_source = NumericEventSource(combined_reader)
+    combined_source = NumericEventBuffer(combined_reader)
     delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
 
     # Extract trials enriched with various other events.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
-    foo_source = NumericEventSource(foo_reader)
+    foo_source = NumericEventBuffer(foo_reader)
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
-    bar_source = NumericEventSource(bar_reader)
+    bar_source = NumericEventBuffer(bar_reader)
     extractor = TrialExtractor(
         delimiter=delimiter,
         numeric_sources={
@@ -286,7 +308,7 @@ def test_extract_multiple_trials_per_read():
 
     # trial 3 will be made from whatever is left after the last start event
     assert not extractor.read_next()
-    trial_three = extractor.read_last()
+    trial_three = extractor.last()()
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,

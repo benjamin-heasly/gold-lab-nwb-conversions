@@ -1,5 +1,4 @@
 from typing import Any, Self
-import logging
 from dataclasses import dataclass
 import numpy as np
 
@@ -170,62 +169,13 @@ class NumericEventList(InteropData):
         return NumericEventList(range_event_data)
 
 
-class NumericEventReader():
-    """Interface for reading numeric event lists from input sources like streaming connections or data files.
-
-    Encapsulate system and library resources for reading from a source.
-    Be able to increment through that source and return a list of numeric corresponding to each increment.
-    Only one increment should be buffered at a time -- so sockets and large files can be streamed.
-    The choice of increment is up to the implementation -- file chunks, data blocks, socket polls -- all fine.
-
-    Implementations should conform Python's "context management protocol" with __enter__() and __exit__().
-    That way readers can set up and cleaned up concisely with code like this:
-
-        with MyReader(a_thing) as reader:
-            # do things
-            reader.read_next()
-            # do more things
-        # Reader is automatically cleaned up when the "with" exits.
-    See: https://peps.python.org/pep-0343/#standard-terminology
-    """
-
-    def __enter__(self) -> Any:
-        """Return an object we can read_next() on."""
-        pass  # pragma: no cover
-
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        """Release any resources acquired during __init__() or __enter()__."""
-        pass  # pragma: no cover
-
-    def read_next(self, timeout: float) -> NumericEventList:
-        """Buffer the next increment from the source and convert to numeric events, if any.
-
-        Return a NumericEventList with all events from the increment, or None if no new events before timeout.
-        """
-        pass  # pragma: no cover
-
-
-class NumericEventSource():
-    """Manage a NumericEventReader and maintain a buffer of events within a finite time range.
-    
-    If the reader throws an exception, it will be ignored and future reads will return None.
-    This applies the same to normal end-of-data situations and to errors.
-    """
-
-    # TODO: default min and max to filter on?
-    # TOOD: default offset and gain to apply?
+class NumericEventBuffer():
+    """Manage numeric events from a reader within a sliding, finite time range."""
 
     def __init__(
         self,
-        reader: NumericEventReader,
-        reader_timeout: float = 1.0,
-        max_empty_reads: int = 2,
         values_per_event: int = 1,
     ) -> None:
-        self.reader = reader
-        self.reader_timeout = reader_timeout
-        self.max_empty_reads = max_empty_reads
-        self.reader_exception = None
         self.event_list = NumericEventList(np.empty([0, values_per_event + 1]))
 
     def start_time(self, default: float = 0.0) -> float:
@@ -245,52 +195,9 @@ class NumericEventSource():
             return default
 
     def discard_before(self, start_time: float) -> None:
-        """Discard buffered events that have times strictly less than the given start_time.
-        """
+        """Discard buffered events that have times strictly less than the given start_time."""
         self.event_list.discard_before(start_time)
 
-    def read_next(self) -> NumericEventList:
-        """Read one increment from the reader and append any new events.
-
-        Return the list of new events added, if any, or else None.
-        """
-        if self.reader_exception:
-            return None
-
-        try:
-            new_events = self.reader.read_next(timeout=self.reader_timeout)
-            if new_events and new_events.event_count():
-                self.event_list.append(new_events)
-                return new_events
-            else:
-                return None
-        except Exception as error:
-            self.reader_exception = error
-            logging.info(f"Reader {self.reader} will be ignored following execption:", exc_info=True)
-            return None
-
-    def read_until_time(self, goal_time: float) -> bool:
-        """Keep adding events from the reader until reaching a goal time or exhausting max empty reads.
-
-        We might call this once per trial on each event source: "catch up to the end time of the current trial."
-
-        Sometimes this is easy -- like if we're reading a file we can read in events until we start seeing event
-        times that are at or beyond the goal time.  Then we know we've read far enough and we're good for now.
-        This assumes events come in order.
-
-        Sometimes this is less obvious -- like if we're polling a socket for live events.  If a poll returns
-        nothing, does that mean we're all caught up or that there's a relevant trial event still on its way
-        to us through the network?  In this case we want to make a best effort to wait, but not wait forever.
-
-        So, we have two exit conditions indicated by return value:
-         - return True: We have an event with time at or beyond the goal time -- so are all caught up.
-                        Once this returns True and we're caught up to a give goal time, this is idempotent (save to call again).
-         - return False: We exhausted our max number of empty reads (each of these including the reader's own timeout).
-                         So, we made a good effort to get caught up, but we can't quite be sure. 
-        """
-        empty_reads = 0
-        while self.end_time() < goal_time and empty_reads < self.max_empty_reads:
-            new_events = self.read_next()
-            if not new_events or not new_events.event_count():
-                empty_reads += 1
-        return self.end_time() >= goal_time
+    def append(self, new_events: NumericEventList) -> None:
+        """Add new events to the buffer, at the end."""
+        self.event_list.append(new_events)

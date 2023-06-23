@@ -2,7 +2,7 @@ from typing import Any, Self
 from dataclasses import dataclass, field
 
 from pyramid.model.model import InteropData
-from pyramid.model.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
+from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
 
 # Construct a trials "IOC container" / context declared in YAML.
 
@@ -44,62 +44,49 @@ class Trial(InteropData):
 
 
 class TrialDelimiter():
-    """Follow a chosen event source, waiting for events that delimit trials in time."""
+    """Monitor "start" and "wrt" event buffers, making new trials as delimiting events arrive."""
 
     def __init__(
         self,
-        start_source: NumericEventSource,
+        start_buffer: NumericEventBuffer,
         start_value: float,
-        wrt_source: NumericEventSource,
+        wrt_buffer: NumericEventBuffer,
         wrt_value: float,
         start_value_index: int = 0,
         wrt_value_index: int = 0,
         trial_start_time: float = 0.0,
         trial_count: int = 0
     ) -> None:
-        self.start_source = start_source
+        self.start_buffer = start_buffer
         self.start_value = start_value
-        self.wrt_source = wrt_source
+        self.wrt_buffer = wrt_buffer
         self.wrt_value = wrt_value
         self.start_value_index = start_value_index
         self.wrt_value_index = wrt_value_index
         self.trial_start_time = trial_start_time
         self.trial_count = trial_count
 
-    def get_readers(self) -> set[NumericEventReader]:
-        """Gather up all configured readers, to help with context management (ie set up and clean up)."""
-        return {self.start_source.reader, self.wrt_source.reader}
+    def next(self) -> list[Trial]:
+        """Check the start buffer for start events, produce new trials as new start events arrive.
 
-    def stil_going(self) -> bool:
-        """Return whether the start_source is still active and new trials might still arrive."""
-        return self.start_source.reader_exception is None
+        This has side-effect of incrementing trial_start_time and trial_count.
+        """
+        trials = []
+        next_start_times = self.start_buffer.event_list.get_times_of(self.start_value, self.start_value_index)
+        for next_start_time in next_start_times:
+            if next_start_time > self.trial_start_time:
+                trial = self.make_trial(next_start_time)
+                trials.append(trial)
+                self.trial_start_time = next_start_time
+                self.trial_count += 1
 
-    def read_next(self) -> list[Trial]:
-        """Poll the start source for new events, produce new trials whenever the chosen start_value arrives.
+        return trials
+
+    def last(self) -> Trial:
+        """Make a best effort to make a trial with whatever's left on the start and wrt sources.
 
         This has side-effects on the start source and wrt source, potentially consuming data on each call.
         """
-        new_start_events = self.start_source.read_next()
-        if new_start_events and new_start_events.event_count():
-            next_start_times = new_start_events.get_times_of(self.start_value, self.start_value_index)
-            if next_start_times.size > 0:
-                trials = []
-                for next_start_time in next_start_times:
-                    self.wrt_source.read_until_time(next_start_time)
-                    trial = self.make_trial(next_start_time)
-                    trials.append(trial)
-                    self.trial_start_time = next_start_time
-                    self.trial_count += 1
-                return trials
-        return None
-
-    def read_last(self) -> Trial:
-        """Make a best effort to make a trial with whatever's left on the start and wrt sources.
-
-        This has side-effects on the start source and wrt source, potentially consuming data on each call.        
-        """
-        self.start_source.read_next()
-        self.wrt_source.read_next()
         trial = self.make_trial(None)
         self.trial_count += 1
         return trial
@@ -107,15 +94,14 @@ class TrialDelimiter():
     def make_trial(self, next_start_time: float, default_wrt_time: float = 0.0) -> Trial:
         """Make a new Trial starting where the last trial ended.
 
-        This queries the wrt_source for a wrt time at or after the current trial_start_time,
-        and strictly before the given next_start_time.
-        next_start_time can be None to take whatever's after trial_start_time.
+        This queries the wrt_buffer for a wrt time in [self.trial_start_time, next_start_time).
+        next_start_time can be None to take whatever's at or after trial_start_time.
 
         This should be safe to call repeatedly, without side effects.
 
         Returns a new Trial spanning the current trial_start_time up to the given next_start_time.
         """
-        wrt_times = self.wrt_source.event_list.get_times_of(
+        wrt_times = self.wrt_buffer.event_list.get_times_of(
             self.wrt_value,
             self.wrt_value_index,
             start_time=self.trial_start_time,
@@ -130,45 +116,34 @@ class TrialDelimiter():
         return trial
 
     def discard_before(self, time: float):
-        """Let event sources discard data no longer needed."""
-        self.start_source.discard_before(time)
-        self.wrt_source.discard_before(time)
+        """Let event buffers discard data no longer needed."""
+        self.start_buffer.discard_before(time)
+        self.wrt_buffer.discard_before(time)
 
 
 class TrialExtractor():
-    """Follow a trial delimiter, waiting for new trials, populating each one with data."""
+    """Monitor a trial delimiter, waiting for new trials, populating each one with data from other buffers."""
 
     def __init__(
         self,
         delimiter: TrialDelimiter,
-        numeric_sources: dict[str, NumericEventSource] = {}
+        buffers: dict[str, NumericEventBuffer] = {}
     ) -> None:
         self.delimiter = delimiter
-        self.numeric_sources = numeric_sources
-
-    def get_readers(self) -> set[NumericEventReader]:
-        """Gather up all configured readers, to help with context management (ie set up and clean up)."""
-        delimiter_readers = self.delimiter.get_readers()
-        numeric_event_readers = {source.reader for source in self.numeric_sources.values()}
-        return delimiter_readers.union(numeric_event_readers)
-
-    def still_going(self) -> bool:
-        """Return whether the delimiter still active and new trials might still arrive."""
-        return self.delimiter.stil_going()
+        self.buffers = buffers
 
     def get_progress_info(self) -> dict[str, Any]:
-        """Return a dictionary of trial extraction progress info.
-        """
+        """Return a dictionary of trial extraction progress info."""
         return {
             "trial_count": self.delimiter.trial_count
         }
 
-    def read_next(self) -> list[Trial]:
-        """Poll the delimiter for new trials, populate each new trial with data from configured sources.
+    def next(self) -> list[Trial]:
+        """Query the delimiter for new trials, populate each new trial with data from other buffers.
 
-        This has side-effects on the delimiter and other sources, potentially consuming data on each call.
+        This has side-effects on the delimiter, incrementing trial start time and trial count.
         """
-        new_trials = self.delimiter.read_next()
+        new_trials = self.delimiter.next()
         if new_trials:
             for trial in new_trials:
                 self.populate_trial(trial)
@@ -177,29 +152,23 @@ class TrialExtractor():
         else:
             return None
 
-    def read_last(self) -> Trial:
-        """Poll the delimiter for whatever's left, populate this last trial with whatever's left from configured sources."""
-        last_trial = self.delimiter.read_last()
+    def last(self) -> Trial:
+        """Query the delimiter for whatever's left, populate this last trial with whatever's left from other sources."""
+        last_trial = self.delimiter.last()
         self.populate_trial(last_trial)
         self.discard_before(last_trial.start_time)
         return last_trial
 
     def populate_trial(self, trial: Trial):
-        """Fill in the given trial with data from configured sources, in the trial's time range.
-
-        This causes the configured sources to "catch up" to the trial's end_time.
-        """
-        for name, source in self.numeric_sources.items():
-            if trial.end_time:
-                source.read_until_time(trial.end_time)
-            else:
-                source.read_next()
-            events = source.event_list.copy_time_range(trial.start_time, trial.end_time)
+        """Fill in the given trial with data from configured buffers, in the trial's time range."""
+        for name, buffer in self.buffers.items():
+            # TODO: will be other buffer types here, besides NumericEventBuffer
+            events = buffer.event_list.copy_time_range(trial.start_time, trial.end_time)
             events.shift_times(-trial.wrt_time)
             trial.add_numeric_events(name, events)
 
     def discard_before(self, time: float):
         """Let event sources discard data no longer needed."""
         self.delimiter.discard_before(time)
-        for source in self.numeric_sources.values():
+        for source in self.buffers.values():
             source.discard_before(time)

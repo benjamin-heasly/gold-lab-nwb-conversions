@@ -20,6 +20,3 @@ class InteropData():
     def from_interop(cls, interop) -> Self:
         """Create a new instance of this class from standard types / collections, as from to_interop()"""
         pass # pragma: no cover
-
-
-# EventList or EventSource abstract types?
