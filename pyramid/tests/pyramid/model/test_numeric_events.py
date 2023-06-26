@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList
+from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
 
 
 def test_list_getters():
@@ -154,6 +154,56 @@ def test_list_equality():
     assert bar_events != "wrong type"
     assert baz_events != "wrong type"
 
-# TODO: missing coverage:
-# buffer start and end times -- with data and when empty
-# buffer append and discard
+
+def test_buffer_getters():
+    buffer = NumericEventBuffer()
+    assert buffer.start_time() == 0.0
+    assert buffer.end_time() == 0.0
+
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+    event_list.shift_times(42)
+    buffer.append(event_list)
+
+    assert buffer.start_time() == 42
+    assert buffer.end_time() == 141
+
+
+def test_buffer_discard():
+    buffer = NumericEventBuffer()
+
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+    buffer.append(event_list)
+
+    assert buffer.start_time() == 0
+    assert buffer.end_time() == 99
+
+    # Discard half.
+    buffer.discard_before(50)
+    assert buffer.start_time() == 50
+    assert buffer.end_time() == 99
+
+    # Discard same again has no effect.
+    buffer.discard_before(50)
+    assert buffer.start_time() == 50
+    assert buffer.end_time() == 99
+
+    # Discard before earliest has no effect.
+    buffer.discard_before(25)
+    assert buffer.start_time() == 50
+    assert buffer.end_time() == 99
+
+    # Discard half again.
+    buffer.discard_before(75)
+    assert buffer.start_time() == 75
+    assert buffer.end_time() == 99
+
+    # Discard the rest and become empty.
+    buffer.discard_before(100)
+    assert buffer.start_time() == 0
+    assert buffer.end_time() == 0
