@@ -22,7 +22,7 @@ def test_no_writing(tmp_path):
 def test_write_empty(tmp_path):
     trial_file = Path(tmp_path, 'empty_trial_file.py').as_posix()
     with TrialFileWriter(trial_file) as writer:
-        writer.append_trials([])
+        pass
     assert writer.file_stream is None
 
     with open(trial_file) as f:
@@ -70,23 +70,11 @@ sample_trials = [
 ]
 
 
-def test_write_several_trials(tmp_path):
-    trial_file = Path(tmp_path, 'trial_file.py').as_posix()
-    with TrialFileWriter(trial_file) as writer:
-        writer.append_trials(sample_trials)
-    assert writer.file_stream is None
-
-    with open(trial_file) as f:
-        trials_interop = json.load(f)
-        sample_trials_2 = [Trial.from_interop(trial_interop) for trial_interop in trials_interop]
-    assert sample_trials_2 == sample_trials
-
-
 def test_write_trials_incrementally(tmp_path):
     trial_file = Path(tmp_path, 'trial_file.py').as_posix()
     with TrialFileWriter(trial_file) as writer:
         for trial in sample_trials:
-            writer.append_trials([trial])
+            writer.append_trial(trial)
     assert writer.file_stream is None
 
     with open(trial_file) as f:

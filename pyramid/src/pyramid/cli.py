@@ -30,8 +30,18 @@ def set_up_logging():
     logging.info(version_string)
 
 
-def run_without_plots(trial_file: str, extractor: TrialExtractor, routers: list[ReaderRouter]) -> None:
-    """Run without plots as fast as the data allow."""
+def run_without_plots(
+    trial_file: str,
+    delimiter: TrialDelimiter,
+    extractor: TrialExtractor,
+    routers: list[ReaderRouter]
+) -> None:
+    """Run without plots as fast as the data allow.
+    
+    Similar to run_with_plots(), below.
+    It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
+    run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
+    """
     with ExitStack() as stack:
         # All these "context managers" will clean up automatically when the "with" exits.
         writer = stack.enter_context(TrialFileWriter(trial_file))
@@ -44,34 +54,34 @@ def run_without_plots(trial_file: str, extractor: TrialExtractor, routers: list[
         while start_router.still_going():
             got_start_data = start_router.route_next()
             if got_start_data:
-                # TODO: Is this enough to consider other readers "all caught up" for the next trial?
-                for router in other_routers:
-                    router.route_next()
-
-                new_trials = extractor.next()
-                if new_trials:
-                    writer.append_trials(new_trials)
+                new_trials = delimiter.next()
+                for new_trial in new_trials:
+                    for router in other_routers:
+                        router.route_until(new_trial.end_time)
+                        extractor.populate_trial(new_trial)
+                    writer.append_trial(new_trial)
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
         for router in routers:
             router.route_next()
-        last_trial = extractor.last()
+        last_trial = delimiter.last()
         if last_trial:
-            writer.append_trials([last_trial])
+            extractor.populate_trial(last_trial)
+            writer.append_trial(last_trial)
 
 
 def run_with_plots(
         trial_file: str,
+        delimiter: TrialDelimiter,
         extractor: TrialExtractor,
-        plot_controller: PlotFigureController,
-        routers: list[ReaderRouter]
+        routers: list[ReaderRouter],
+        plot_controller: PlotFigureController
 ) -> None:
     """Run with plots and interactive GUI updates.
 
-    This code is very similar to run_without_plots() so why is it a separate method?
-    It seemed like a lot of conditional checks whether we got a plot_controller or not.
-    Also, I have a hunch that it's "the right thing to do" so that we can run batch conversions
-    and not have to invoke any GUI code, potentially stumbling over issues with host graphics config.
+    Similar to run_without_plots(), above.
+    It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
+    run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
     """
     with ExitStack() as stack:
         # All these "context managers" will clean up automatically when the "with" exits.
@@ -87,27 +97,22 @@ def run_with_plots(
             plot_controller.update()
             got_start_data = start_router.route_next()
             if got_start_data:
-                # TODO: Is this enough to consider other readers "all caught up" for the next trial?
-                for router in other_routers:
-                    router.route_next()
-
-                new_trials = extractor.next()
-                if new_trials:
-                    writer.append_trials(new_trials)
-                    for trial in new_trials:
-                        plot_controller.plot_next(trial, extractor.get_progress_info())
+                new_trials = delimiter.next()
+                for new_trial in new_trials:
+                    for router in other_routers:
+                        router.route_until(new_trial.end_time)
+                        extractor.populate_trial(new_trial)
+                    writer.append_trial(new_trial)
+                    plot_controller.plot_next(new_trial, {"trial_count": delimiter.trial_count})
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
         for router in routers:
             router.route_next()
-        last_trial = extractor.last()
+        last_trial = delimiter.last()
         if last_trial:
-            writer.append_trials([last_trial])
-            plot_controller.plot_next(last_trial, extractor.get_progress_info())
-
-        # Leave the gui open to review the last trial.
-        while plot_controller.get_open_figures():
-            plot_controller.update()
+            extractor.populate_trial(last_trial)
+            writer.append_trial(last_trial)
+            plot_controller.plot_next(last_trial, {"trial_count": delimiter.trial_count})
 
 
 def configure_plots(plotter_paths: list[str]) -> PlotFigureController:
@@ -130,17 +135,19 @@ def configure_conversion(
     wrt_value: float,
     numeric_event_csvs: list[str],
     simulate_delay: bool = False
-) -> tuple[TrialExtractor, list[ReaderRouter]]:
+) -> tuple[TrialDelimiter, TrialExtractor, list[ReaderRouter]]:
     logging.info(f"Using delimiters from {delimiter_csv} start={start_value} wrt={wrt_value}")
     if simulate_delay:
         delimiter_reader = DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, results_name="delimiters"))
     else:
         delimiter_reader = CsvNumericEventReader(delimiter_csv, results_name="delimiters")
+    start_buffer = NumericEventBuffer()
+    start_route = ReaderRoute("delimiters", "start")
+    wrt_buffer = NumericEventBuffer()
+    wrt_route = ReaderRoute("delimiters", "wrt")
+    delimiter_router = ReaderRouter(delimiter_reader, {"start": start_buffer, "wrt": wrt_buffer}, [start_route, wrt_route])
+    delimiter = TrialDelimiter(start_buffer, start_value)
 
-    delimiter_buffer = NumericEventBuffer()
-    delimiter = TrialDelimiter(delimiter_buffer, start_value, delimiter_buffer, wrt_value)
-    delimiter_route = ReaderRoute("delimiters", "delimiters")
-    delimiter_router = ReaderRouter(delimiter_reader, {"delimiters": delimiter_buffer}, [delimiter_route])
     routers = [delimiter_router]
 
     extra_buffers = {}
@@ -150,14 +157,19 @@ def configure_conversion(
             name = Path(csv).stem
             logging.info(f"  {name}: {csv}")
             reader = CsvNumericEventReader(csv, results_name=name)
-            buffer = NumericEventBuffer(reader)
+            buffer = NumericEventBuffer()
             route = ReaderRoute(name, name)
             router = ReaderRouter(reader, {name: buffer}, [route])
             extra_buffers[name] = buffer
             routers.append(router)
 
-    extractor = TrialExtractor(delimiter=delimiter, buffers=extra_buffers)
-    return (extractor, routers)
+    extractor = TrialExtractor(
+        wrt_buffer=wrt_buffer,
+        wrt_value=wrt_value,
+        named_buffers=extra_buffers
+    )
+
+    return (delimiter, extractor, routers)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -198,7 +210,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     match cli_args.mode:
         case "gui":
             try:
-                (extractor, routers) = configure_conversion(
+                (delimiter, extractor, routers) = configure_conversion(
                     cli_args.delimiter_csv,
                     cli_args.start_value,
                     cli_args.wrt_value,
@@ -206,7 +218,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     cli_args.simulate_delay
                 )
                 plot_controller = configure_plots(cli_args.plotters)
-                run_with_plots(cli_args.trial_file, extractor, routers, plot_controller)
+                run_with_plots(cli_args.trial_file, delimiter, extractor, routers, plot_controller)
                 exit_code = 0
             except Exception:
                 logging.error(f"Error running gui:", exc_info=True)
@@ -214,14 +226,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         case "convert":
             try:
-                (extractor, routers) = configure_conversion(
+                (delimiter, extractor, routers) = configure_conversion(
                     cli_args.delimiter_csv,
                     cli_args.start_value,
                     cli_args.wrt_value,
                     cli_args.extra_csvs,
                     cli_args.simulate_delay
                 )
-                run_without_plots(cli_args.trial_file, extractor, routers)
+                run_without_plots(cli_args.trial_file, delimiter, extractor, routers)
                 exit_code = 0
             except Exception:
                 logging.error(f"Error running conversion:", exc_info=True)

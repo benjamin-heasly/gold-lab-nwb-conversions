@@ -10,7 +10,8 @@ from pyramid.model.numeric_events import NumericEventList
 # routed events are independent copies
 
 # router catches reader errors and circuit-breaks
-# router tolerates reader empty reads, gets it next time
+# router tolerates reader empty reads and retries n times
+# router reads until target time
 
 # router transforms data
 # router catchers transformer errors and skips

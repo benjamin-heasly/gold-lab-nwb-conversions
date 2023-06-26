@@ -3,7 +3,7 @@ from typing import Self
 import numpy as np
 
 from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
-from pyramid.neutral_zone.readers.readers import Reader
+from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
 from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor
 
 
@@ -32,19 +32,7 @@ def test_trial_interop():
 
 class FakeNumericEventReader(Reader):
 
-    def __init__(
-        self,
-        script=[[[0, 0]],
-                [[1, 10]],
-                [[2, 20]],
-                [[3, 30]],
-                [[4, 40]],
-                [[5, 50]],
-                [[6, 60]],
-                [[7, 70]],
-                [[8, 80]],
-                [[9, 90]]]
-    ) -> None:
+    def __init__(self, script=[]) -> None:
         self.index = -1
         self.script = script
 
@@ -63,132 +51,178 @@ class FakeNumericEventReader(Reader):
 
         # Return dummy events from the contrived script, which might contain gaps and require retries.
         if self.index < len(self.script) and self.script[self.index]:
-            return NumericEventList(np.array(self.script[self.index]))
+            return {
+                "events": NumericEventList(np.array(self.script[self.index]))
+            }
         else:
             return None
 
-# refactor using routers and routes to buffers
 
-def test_delimit_trials_from_separate_sources():
-    start_reader = FakeNumericEventReader(script=[[[1, 1]], [[2, 1]], [[3, 1]]])
-    start_source = NumericEventBuffer(start_reader)
-    wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42]], [[2.6, 42]], [[3.5, 42]]])
-    wrt_source = NumericEventBuffer(wrt_reader)
-    delimiter = TrialDelimiter(start_source, 1, wrt_source, 42)
+def test_delimit_trials_from_pivate_buffer():
+    start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2, 1010]], [[3, 1010]]])
+    start_buffer = NumericEventBuffer()
+    start_route = ReaderRoute("events", "start")
+    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
+
+    delimiter = TrialDelimiter(start_buffer, 1010)
 
     # trial zero will be garbage, whatever happens before the first start event
-    trial_zero = delimiter.read_next()
+    assert start_router.route_next() == True
+    trial_zero = delimiter.next()
     assert len(trial_zero) == 1
-    assert trial_zero[0] == Trial(0, 1.0, 0.0)
+    assert trial_zero[0] == Trial(0, 1.0)
 
     # trials 1 and 2 will be well-formed
-    trial_one = delimiter.read_next()
+    assert start_router.route_next() == True
+    trial_one = delimiter.next()
     assert len(trial_one) == 1
-    assert trial_one[0] == Trial(1.0, 2.0, 1.5)
+    assert trial_one[0] == Trial(1.0, 2.0)
 
-    trial_two = delimiter.read_next()
+    assert start_router.route_next() == True
+    trial_two = delimiter.next()
     assert len(trial_two) == 1
-    assert trial_two[0] == Trial(2.0, 3.0, 2.5)
+    assert trial_two[0] == Trial(2.0, 3.0)
 
     # trial 3 will be made from whatever is left after the last start event
-    assert not delimiter.read_next()
-    trial_three = delimiter.read_last()
-    assert trial_three == Trial(3.0, None, 3.5)
+    assert start_router.route_next() == False
+    assert not delimiter.next()
+    trial_three = delimiter.last()
+    assert trial_three == Trial(3.0, None)
 
 
-def test_delimiting_trials_from_combined_source():
-    combined_reader = FakeNumericEventReader(
+def test_delimit_trials_from_shared_buffer():
+    start_reader = FakeNumericEventReader(
         script=[
-            [[1, 1]],
+            [[0.5, 42]],
+            [[1, 1010]],
             [[1.5, 42]],
-            [[2, 1]],
+            [[1.6, 42]],
+            [[2, 1010]],
             [[2.5, 42]],
-            [[2.6, 42]],
-            [[3, 1]],
-            [[3.5, 42]]
+            [[3, 1010]],
+            [[3.5, 42]],
         ]
     )
-    combined_source = NumericEventBuffer(combined_reader)
-    delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
+    start_buffer = NumericEventBuffer()
+    start_route = ReaderRoute("events", "start")
+    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
 
-    # Results will be same as in test_delimiting_trials_separate_sources.
-    # But we'll need to poll the event source more often to see all the events.
-    trial_zero = delimiter.read_next()
+    delimiter = TrialDelimiter(start_buffer, 1010)
+
+    # trial zero will be garbage, whatever happens before the first start event
+    assert start_router.route_next() == True
+    assert start_router.route_next() == True
+    trial_zero = delimiter.next()
     assert len(trial_zero) == 1
-    assert trial_zero[0] == Trial(0, 1.0, 0.0)
+    assert trial_zero[0] == Trial(0, 1.0)
 
     # trials 1 and 2 will be well-formed
-    assert not delimiter.read_next()
-    trial_one = delimiter.read_next()
+    assert start_router.route_next() == True
+    assert start_router.route_next() == True
+    assert start_router.route_next() == True
+    trial_one = delimiter.next()
     assert len(trial_one) == 1
-    assert trial_one[0] == Trial(1.0, 2.0, 1.5)
+    assert trial_one[0] == Trial(1.0, 2.0)
 
-    assert not delimiter.read_next()
-    assert not delimiter.read_next()
-    trial_two = delimiter.read_next()
+    assert start_router.route_next() == True
+    assert start_router.route_next() == True
+    trial_two = delimiter.next()
     assert len(trial_two) == 1
-    assert trial_two[0] == Trial(2.0, 3.0, 2.5)
+    assert trial_two[0] == Trial(2.0, 3.0)
 
     # trial 3 will be made from whatever is left after the last start event
-    assert not delimiter.read_next()
-    trial_three = delimiter.read_last()
-    assert trial_three == Trial(3.0, None, 3.5)
+    assert start_router.route_next() == True
+    assert start_router.route_next() == False
+    assert not delimiter.next()
+    trial_three = delimiter.last()
+    assert trial_three == Trial(3.0, None)
 
 
 def test_delimit_multiple_trials_per_read():
-    combined_reader = FakeNumericEventReader(
+    start_reader = FakeNumericEventReader(
         script=[
-            [[1, 1]],
+            [[1, 1010]],
             [[1.5, 42]],
-            [[2, 1], [2.5, 42], [2.6, 42], [3, 1], [3.5, 42]]
+            [[2, 1010], [2.5, 42], [2.6, 42], [3, 1010], [3.5, 42]]
         ]
     )
-    combined_source = NumericEventBuffer(combined_reader)
-    delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
+    start_buffer = NumericEventBuffer()
+    start_route = ReaderRoute("events", "start")
+    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
 
-    # Results will be same as in test_delimiting_trials_separate_sources.
-    # But trials one and two will arrive together in the same read.
-    trial_zero = delimiter.read_next()
+    delimiter = TrialDelimiter(start_buffer, 1010)
+
+    # trial zero will be garbage, whatever happens before the first start event
+    assert start_router.route_next() == True
+    trial_zero = delimiter.next()
     assert len(trial_zero) == 1
-    assert trial_zero[0] == Trial(0, 1.0, 0.0)
+    assert trial_zero[0] == Trial(0, 1.0)
 
     # trials 1 and 2 will be well-formed
-    assert not delimiter.read_next()
-    trials_one_and_2 = delimiter.read_next()
-    assert len(trials_one_and_2) == 2
-    assert trials_one_and_2[0] == Trial(1.0, 2.0, 1.5)
-    assert trials_one_and_2[1] == Trial(2.0, 3.0, 2.5)
+    assert start_router.route_next() == True
+    assert start_router.route_next() == True
+    trials_one_and_two = delimiter.next()
+    assert len(trials_one_and_two) == 2
+    assert trials_one_and_two[0] == Trial(1.0, 2.0)
+    assert trials_one_and_two[1] == Trial(2.0, 3.0)
 
     # trial 3 will be made from whatever is left after the last start event
-    assert not delimiter.read_next()
-    trial_three = delimiter.read_last()
-    assert trial_three == Trial(3.0, None, 3.5)
+    assert start_router.route_next() == False
+    assert not delimiter.next()
+    trial_three = delimiter.last()
+    assert trial_three == Trial(3.0, None)
 
 
-def test_extract_trials_with_data():
-    # Delimit trials with start and wrt events.
-    start_reader = FakeNumericEventReader(script=[[[1, 1]], [[2, 1]], [[3, 1]]])
-    start_source = NumericEventBuffer(start_reader)
-    wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42]], [[2.6, 42]], [[3.5, 42]]])
-    wrt_source = NumericEventBuffer(wrt_reader)
-    delimiter = TrialDelimiter(start_source, 1, wrt_source, 42)
+def test_populate_trials_from_private_buffers():
+    # Expect trials starting at times 0, 1, 2, and 3.
+    start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2, 1010]], [[3, 1010]]])
+    start_buffer = NumericEventBuffer()
+    start_route = ReaderRoute("events", "start")
+    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
 
-    # Extract trials enriched with various other events.
+    delimiter = TrialDelimiter(start_buffer, 1010)
+
+    # Expect wrt times half way through trials 1, 2, and 3.
+    wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42], [2.6, 42]], [[3.5, 42]]])
+    wrt_buffer = NumericEventBuffer()
+    wrt_route = ReaderRoute("events", "wrt")
+    wrt_router = ReaderRouter(wrt_reader, {"wrt": wrt_buffer}, [wrt_route])
+
+    # Expect "foo" events in trials 0, 1, and 2, before the wrt times.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
-    foo_source = NumericEventBuffer(foo_reader)
+    foo_buffer = NumericEventBuffer()
+    foo_route = ReaderRoute("events", "foo")
+    foo_router = ReaderRouter(foo_reader, {"foo": foo_buffer}, [foo_route])
+
+    # Expect "bar" events in trials 0 and 3, before the wrt times.
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
-    bar_source = NumericEventBuffer(bar_reader)
+    bar_buffer = NumericEventBuffer()
+    bar_route = ReaderRoute("events", "bar")
+    bar_router = ReaderRouter(bar_reader, {"bar": bar_buffer}, [bar_route])
+
     extractor = TrialExtractor(
-        delimiter=delimiter,
-        numeric_sources={
-            "foo": foo_source,
-            "bar": bar_source
+        wrt_buffer,
+        wrt_value=42,
+        named_buffers={
+            "foo": foo_buffer,
+            "bar": bar_buffer
         }
     )
 
-    # trial zero will be garbage, whatever happens before the first start event
-    trial_zero = extractor.read_next()
+    # Trial zero should cover whatever happened before the first "start" event.
+    # This might be non-task rig setup data, or just garbage, or whatever.
+    assert start_router.route_next() == True
+    trial_zero = delimiter.next()
     assert len(trial_zero) == 1
+    assert trial_zero[0] == Trial(0.0, 1.0)
+
+    # Now that we know a trial end time, ask each reader to read until just past that time.
+    assert wrt_router.route_until(1.0) == 1.5
+    assert foo_router.route_until(1.0) == 1.3
+    assert bar_router.route_until(1.0) == 3.1
+
+    # Now that all the readers are caught up to the trial end time, extract the trial data.
+    extractor.populate_trial(trial_zero[0])
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
@@ -199,9 +233,17 @@ def test_extract_trials_with_data():
         }
     )
 
-    # trials 1 and 2 will be well-formed
-    trial_one = extractor.read_next()
+    # Trials 1 and 2 should be "normal" trials with task data.
+    assert start_router.route_next() == True
+    trial_one = delimiter.next()
     assert len(trial_one) == 1
+    assert trial_one[0] == Trial(1.0, 2.0)
+
+    # Bar reader has already read past trial 1, which is fine, this can be a safe no-op.
+    assert wrt_router.route_until(2.0) == 2.6
+    assert foo_router.route_until(2.0) == 2.3
+    assert bar_router.route_until(2.0) == 3.1
+    extractor.populate_trial(trial_one[0])
     assert trial_one[0] == Trial(
         start_time=1.0,
         end_time=2.0,
@@ -212,8 +254,16 @@ def test_extract_trials_with_data():
         }
     )
 
-    trial_two = extractor.read_next()
+    assert start_router.route_next() == True
+    trial_two = delimiter.next()
     assert len(trial_two) == 1
+    assert trial_two[0] == Trial(2.0, 3.0)
+
+    # Bar reader has already read past trial 2, which is still fine, this can be a safe no-op.
+    assert wrt_router.route_until(3.0) == 3.5
+    assert foo_router.route_until(3.0) == 2.3
+    assert bar_router.route_until(3.0) == 3.1
+    extractor.populate_trial(trial_two[0])
     assert trial_two[0] == Trial(
         start_time=2.0,
         end_time=3.0,
@@ -224,9 +274,16 @@ def test_extract_trials_with_data():
         }
     )
 
-    # trial 3 will be made from whatever is left after the last start event
-    assert not extractor.read_next()
-    trial_three = extractor.last()()
+    # We should now run out of "start" events
+    assert start_router.route_next() == False
+
+    # Now we make the last trial with whatever's left on all the readers.
+    trial_three = delimiter.last()
+    assert trial_three == Trial(3.0, None)
+    assert wrt_router.route_next() == False
+    assert foo_router.route_next() == False
+    assert bar_router.route_next() == False
+    extractor.populate_trial(trial_three)
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,
@@ -237,42 +294,63 @@ def test_extract_trials_with_data():
         }
     )
 
-    # Event sources should discard old data after each trial is extracted.
-    assert start_source.start_time() >= trial_three.start_time
-    assert wrt_source.start_time() >= trial_three.start_time
-    assert foo_source.event_list.get_times().size == 0
-    assert bar_source.start_time() >= trial_three.start_time
 
-
-def test_extract_multiple_trials_per_read():
-    combined_reader = FakeNumericEventReader(
+def test_populate_trials_from_shared_buffers():
+    # Expect trials starting at times 0, 1, 2, and 3.
+    # Mix in the wrt times half way through trials 1, 2, and 3.
+    start_reader = FakeNumericEventReader(
         script=[
-            [[1, 1]],
+            [[1, 1010]],
             [[1.5, 42]],
-            [[2, 1], [2.5, 42], [2.6, 42], [3, 1], [3.5, 42]]
+            [[2, 1010]],
+            [[2.5, 42], [2.6, 42]],
+            [[3, 1010]],
+            [[3.5, 42]]
         ]
     )
-    combined_source = NumericEventBuffer(combined_reader)
-    delimiter = TrialDelimiter(combined_source, 1, combined_source, 42)
+    start_buffer = NumericEventBuffer()
+    start_route = ReaderRoute("events", "start")
+    wrt_buffer = NumericEventBuffer()
+    wrt_route = ReaderRoute("events", "wrt")
+    start_router = ReaderRouter(start_reader, {"start": start_buffer, "wrt": wrt_buffer}, [start_route, wrt_route])
 
-    # Extract trials enriched with various other events.
+    delimiter = TrialDelimiter(start_buffer, 1010)
+
+    # Expect "foo" events in trials 0, 1, and 2, before the wrt times.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
-    foo_source = NumericEventBuffer(foo_reader)
+    foo_buffer = NumericEventBuffer()
+    foo_route = ReaderRoute("events", "foo")
+    foo_router = ReaderRouter(foo_reader, {"foo": foo_buffer}, [foo_route])
+
+    # Expect "bar" events in trials 0 and 3, before the wrt times.
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
-    bar_source = NumericEventBuffer(bar_reader)
+    bar_buffer = NumericEventBuffer()
+    bar_route = ReaderRoute("events", "bar")
+    bar_router = ReaderRouter(bar_reader, {"bar": bar_buffer}, [bar_route])
+
     extractor = TrialExtractor(
-        delimiter=delimiter,
-        numeric_sources={
-            "foo": foo_source,
-            "bar": bar_source
+        wrt_buffer,
+        wrt_value=42,
+        named_buffers={
+            "foo": foo_buffer,
+            "bar": bar_buffer
         }
     )
 
-    # Results will be same as in test_extract_trials_with_data.
-    # But trials one and two will arrive together in the same read.
-    # trial zero will be garbage, whatever happens before the first start event
-    trial_zero = extractor.read_next()
+    # Trial zero should cover whatever happened before the first "start" event.
+    # This might be non-task rig setup data, or just garbage, or whatever.
+    assert start_router.route_next() == True
+    trial_zero = delimiter.next()
     assert len(trial_zero) == 1
+    assert trial_zero[0] == Trial(0.0, 1.0)
+
+    # Now that we know a trial end time, ask each reader to read until just past that time.
+    assert start_router.route_until(1.0) == 1.0
+    assert foo_router.route_until(1.0) == 1.3
+    assert bar_router.route_until(1.0) == 3.1
+
+    # Now that all the readers are caught up to the trial end time, extract the trial data.
+    extractor.populate_trial(trial_zero[0])
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
@@ -283,11 +361,19 @@ def test_extract_multiple_trials_per_read():
         }
     )
 
-    # trials one and two will arrive in the same read and be well-formed
-    assert not extractor.read_next()
-    trials_one_and_two = extractor.read_next()
-    assert len(trials_one_and_two) == 2
-    assert trials_one_and_two[0] == Trial(
+    # Trials 1 and 2 should be "normal" trials with task data.
+    assert start_router.route_next() == True
+    assert start_router.route_next() == True
+    trial_one = delimiter.next()
+    assert len(trial_one) == 1
+    assert trial_one[0] == Trial(1.0, 2.0)
+
+    # Bar reader has already read past trial 1, which is fine, this can be a safe no-op.
+    assert start_router.route_until(2.0) == 2.0
+    assert foo_router.route_until(2.0) == 2.3
+    assert bar_router.route_until(2.0) == 3.1
+    extractor.populate_trial(trial_one[0])
+    assert trial_one[0] == Trial(
         start_time=1.0,
         end_time=2.0,
         wrt_time=1.5,
@@ -296,7 +382,19 @@ def test_extract_multiple_trials_per_read():
             "bar": NumericEventList(np.empty([0, 2]))
         }
     )
-    assert trials_one_and_two[1] == Trial(
+
+    assert start_router.route_next() == True
+    assert start_router.route_next() == True
+    trial_two = delimiter.next()
+    assert len(trial_two) == 1
+    assert trial_two[0] == Trial(2.0, 3.0)
+
+    # Bar reader has already read past trial 2, which is still fine, this can be a safe no-op.
+    assert start_router.route_until(3.0) == 3.0
+    assert foo_router.route_until(3.0) == 2.3
+    assert bar_router.route_until(3.0) == 3.1
+    extractor.populate_trial(trial_two[0])
+    assert trial_two[0] == Trial(
         start_time=2.0,
         end_time=3.0,
         wrt_time=2.5,
@@ -306,9 +404,17 @@ def test_extract_multiple_trials_per_read():
         }
     )
 
-    # trial 3 will be made from whatever is left after the last start event
-    assert not extractor.read_next()
-    trial_three = extractor.last()()
+    # We should eventually run out of "wrt" and "start" events
+    assert start_router.route_next() == True
+    assert start_router.route_next() == False
+
+    # Now we make the last trial with whatever's left on all the readers.
+    trial_three = delimiter.last()
+    assert trial_three == Trial(3.0, None)
+    assert start_router.route_next() == False
+    assert foo_router.route_next() == False
+    assert bar_router.route_next() == False
+    extractor.populate_trial(trial_three)
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,
@@ -318,8 +424,3 @@ def test_extract_multiple_trials_per_read():
             "bar": NumericEventList(np.array([[3.1 - 3.5, 0]]))
         }
     )
-
-    # Event sources should discard old data after each trial is extracted.
-    assert combined_source.start_time() >= trial_three.start_time
-    assert foo_source.event_list.get_times().size == 0
-    assert bar_source.start_time() >= trial_three.start_time

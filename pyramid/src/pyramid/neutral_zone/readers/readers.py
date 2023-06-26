@@ -54,6 +54,13 @@ class Reader():
         raise NotImplementedError
 
 
+class Transformer():
+    """Transform values and/or type of Pyramid data, like NumericEventList."""
+
+    def transform(data: NumericEventList) -> NumericEventList:
+        return data
+
+
 @dataclass
 class ReaderRoute():
     """Specify the mapping from a reader result entry to a named buffer."""
@@ -61,8 +68,11 @@ class ReaderRoute():
     reader_name: str
     """How the reader referred a result, like "spikes", "events", etc."""
 
-    transformer: None
-    """Optional data transformation between reader and buffer.
+    buffer_name: str
+    """Name for the buffer that will receive reader results "spikes", "ecodes", etc."""
+
+    transformers: list[Transformer] = None
+    """Optional data transformations between reader and buffer.
 
     I think we can add per-event transformations here, like:
      - linear transform with offset and gain 
@@ -74,9 +84,6 @@ class ReaderRoute():
      - rummage around within a trial for related events
      - join related values into complex events or other types, like strings
     """
-
-    buffer_name: str
-    """Name for the buffer that will receive reader results "spikes", "ecodes", etc."""
 
 
 class ReaderRouter():
@@ -90,13 +97,16 @@ class ReaderRouter():
         self,
         reader: Reader,
         buffers: dict[str, NumericEventBuffer],
-        routes: list[ReaderRoute]
+        routes: list[ReaderRoute],
+        empty_reads_allowed: int = 3
     ) -> None:
         self.reader = reader
         self.buffers = buffers
         self.routes = routes
 
         self.reader_exception = None
+        self.max_buffer_time = 0.0
+        self.empty_reads_allowed = empty_reads_allowed
 
     def still_going(self) -> bool:
         return not self.reader_exception
@@ -109,29 +119,42 @@ class ReaderRouter():
             result = self.reader.read_next()
         except Exception as exception:
             self.reader_exception = exception
-            logging.warn("Reader had an exception and will be ignored going forward:", exc_info=True)
+            logging.warning("Reader had an exception and will be ignored going forward:", exc_info=True)
             return False
 
         if not result:
             return False
 
         for route in self.routes:
-            data = result.get(route.reader_name, None)
-            if not data:
-                continue
-
             buffer = self.buffers.get(route.buffer_name, None)
             if not buffer:
                 continue
 
-            if route.transformer:
+            data = result.get(route.reader_name, None).copy()
+            if not data:
+                continue
+
+            if route.transformers:
                 try:
-                    transformed = route.transformer.transform(data)
+                    for transformer in route.transformers:
+                        data = transformer.transform(data)
                 except Exception as exception:
                     logging.error("Route transformer had an exception:", exc_info=True)
                     continue
-                buffer.append(transformed)
-            else:
-                buffer.append(data)
+
+            buffer.append(data)
+
+        # Update the high water mark for the reader -- the latest timestamp seen so far.
+        buffer_end_times = [buffer.end_time() for buffer in self.buffers.values()]
+        self.max_buffer_time = max(buffer_end_times)
 
         return True
+
+    def route_until(self, target_time: float) -> float:
+        empty_reads = 0
+        while self.max_buffer_time < target_time and empty_reads < self.empty_reads_allowed:
+            got_data = self.route_next()
+            if not got_data:
+                empty_reads +=1
+
+        return self.max_buffer_time

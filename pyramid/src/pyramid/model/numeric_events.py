@@ -25,6 +25,9 @@ class NumericEventList(InteropData):
             return (self.event_data.size == 0 and other.event_data.size == 0) or np.array_equal(self.event_data, other.event_data)
         else:
             return False
+    
+    def copy(self) -> Self:
+        return NumericEventList(self.event_data.copy())
 
     def to_interop(self) -> Any:
         return self.event_data.tolist()
