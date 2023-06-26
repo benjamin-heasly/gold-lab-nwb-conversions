@@ -20,3 +20,6 @@ class InteropData():
     def from_interop(cls, interop) -> Self:
         """Create a new instance of this class from standard types / collections, as from to_interop()"""
         pass # pragma: no cover
+
+# What's the same between buffer tupes?
+# What's the same between event and signal types?

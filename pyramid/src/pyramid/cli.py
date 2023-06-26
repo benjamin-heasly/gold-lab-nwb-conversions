@@ -60,6 +60,8 @@ def run_without_plots(
                         router.route_until(new_trial.end_time)
                         extractor.populate_trial(new_trial)
                     writer.append_trial(new_trial)
+                    delimiter.discard_before(new_trial.start_time)
+                    extractor.discard_before(new_trial.start_time)
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
         for router in routers:
@@ -104,6 +106,8 @@ def run_with_plots(
                         extractor.populate_trial(new_trial)
                     writer.append_trial(new_trial)
                     plot_controller.plot_next(new_trial, {"trial_count": delimiter.trial_count})
+                    delimiter.discard_before(new_trial.start_time)
+                    extractor.discard_before(new_trial.start_time)
 
         # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
         for router in routers:

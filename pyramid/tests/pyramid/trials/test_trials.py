@@ -1,5 +1,3 @@
-from typing import Self
-
 import numpy as np
 
 from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
@@ -35,12 +33,6 @@ class FakeNumericEventReader(Reader):
     def __init__(self, script=[]) -> None:
         self.index = -1
         self.script = script
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        pass
 
     def read_next(self) -> dict[str, NumericEventList]:
         # Incrementing this index is like consuming a system or library resource:

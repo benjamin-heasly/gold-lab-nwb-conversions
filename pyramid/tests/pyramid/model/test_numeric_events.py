@@ -154,6 +154,6 @@ def test_list_equality():
     assert bar_events != "wrong type"
     assert baz_events != "wrong type"
 
-# buffer start and end times
-
+# TODO: missing coverage:
+# buffer start and end times -- with data and when empty
 # buffer append and discard

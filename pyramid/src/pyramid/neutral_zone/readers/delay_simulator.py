@@ -26,8 +26,8 @@ class DelaySimulatorReader(Reader):
         if self.stashed_result:
             elapsed = time.time() - self.start_time
             if elapsed >= self.stash_until:
-                stashed = self.stashed_events
-                self.stashed_events = None
+                stashed = self.stashed_result
+                self.stashed_result = None
                 return stashed
             else:
                 return None

@@ -29,11 +29,11 @@ class Reader():
 
         Return an object that we can "read_next()" on -- probably just "return self".
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Release any resources acquired during __enter()__."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def read_next(self) -> dict[str, NumericEventList]:
         """Read/poll for new data at the connected source and convert available data to Pyramid types.
@@ -51,14 +51,14 @@ class Reader():
         Dictionary values must all be Pyramid data model types like NumericEventList.
         Dictionary keys should suggest an interpretation of the interpretation, like "spikes", "event_codes", etc.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 class Transformer():
     """Transform values and/or type of Pyramid data, like NumericEventList."""
 
     def transform(data: NumericEventList) -> NumericEventList:
-        return data
+        raise NotImplementedError  # pragma: no cover
 
 
 @dataclass
@@ -130,19 +130,20 @@ class ReaderRouter():
             if not buffer:
                 continue
 
-            data = result.get(route.reader_name, None).copy()
+            data = result.get(route.reader_name, None)
             if not data:
                 continue
 
+            data_copy = data.copy()
             if route.transformers:
                 try:
                     for transformer in route.transformers:
-                        data = transformer.transform(data)
+                        data_copy = transformer.transform(data_copy)
                 except Exception as exception:
                     logging.error("Route transformer had an exception:", exc_info=True)
                     continue
 
-            buffer.append(data)
+            buffer.append(data_copy)
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.
         buffer_end_times = [buffer.end_time() for buffer in self.buffers.values()]
@@ -155,6 +156,6 @@ class ReaderRouter():
         while self.max_buffer_time < target_time and empty_reads < self.empty_reads_allowed:
             got_data = self.route_next()
             if not got_data:
-                empty_reads +=1
+                empty_reads += 1
 
         return self.max_buffer_time
