@@ -31,12 +31,11 @@ class TrialFileWriter():
         self.file_stream.write("[")
         return self
 
-    def append_trials(self, trials: list[Trial]) -> None:
-        for trial in trials:
-            trial_json = json.dumps(trial.to_interop())
-            self.file_stream.write(self.trial_separator)
-            self.file_stream.write(trial_json)
-            self.trial_separator = ",\n"
+    def append_trial(self, trial: Trial) -> None:
+        trial_json = json.dumps(trial.to_interop())
+        self.file_stream.write(self.trial_separator)
+        self.file_stream.write(trial_json)
+        self.trial_separator = ",\n"
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         if self.file_stream:

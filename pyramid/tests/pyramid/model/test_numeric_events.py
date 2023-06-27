@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList, NumericEventReader, NumericEventSource
+from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
 
 
 def test_list_getters():
@@ -97,6 +97,28 @@ def test_list_copy_value_range():
     assert np.array_equal(event_list.get_values(), 10*np.array(range(100)))
 
 
+def test_list_copy_value_range_no_min():
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+
+    range_event_list = event_list.copy_value_range(max=600)
+    assert np.array_equal(range_event_list.get_times(), np.array(range(60)))
+    assert np.array_equal(range_event_list.get_values(), 10*np.array(range(60)))
+
+
+def test_list_copy_value_range_no_max():
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+
+    range_event_list = event_list.copy_value_range(min=400)
+    assert np.array_equal(range_event_list.get_times(), np.array(range(40, 100)))
+    assert np.array_equal(range_event_list.get_values(), 10*np.array(range(40, 100)))
+
+
 def test_list_copy_time_range():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
@@ -155,136 +177,55 @@ def test_list_equality():
     assert baz_events != "wrong type"
 
 
-class FakeNumericEventReader(NumericEventReader):
+def test_buffer_getters():
+    buffer = NumericEventBuffer()
+    assert buffer.start_time() == 0.0
+    assert buffer.end_time() == 0.0
 
-    def __init__(
-        self,
-        script=[[0, 0],
-                [1, 10],
-                [2, 20],
-                [3, 30],
-                [4, 40],
-                [5, 50],
-                [6, 60],
-                [7, 70],
-                [8, 80],
-                [9, 90]]
-    ) -> None:
-        self.index = -1
-        self.script = script
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+    event_list.shift_times(42)
+    buffer.append(event_list)
 
-    def read_next(self, timeout: float) -> NumericEventList:
-        # Incrementing this index is like consuming a system or library resource:
-        # - advance a file cursor
-        # - increment past a file data block
-        # - poll a network connection
-        self.index += 1
-
-        # Return dummy events from the contrived script, which might contain gaps and require retries.
-        if timeout > 0 and self.index < len(self.script) and self.script[self.index]:
-            return NumericEventList(np.array([self.script[self.index]]))
-        else:
-            return None
+    assert buffer.start_time() == 42
+    assert buffer.end_time() == 141
 
 
-def test_read_idempotent():
-    reader = FakeNumericEventReader()
-    source = NumericEventSource(reader)
-    assert source.start_time() == 0.0
-    assert source.end_time() == 0.0
+def test_buffer_discard():
+    buffer = NumericEventBuffer()
 
-    all_caught_up = source.read_until_time(5)
-    assert all_caught_up
-    assert source.start_time() == 0.0
-    assert source.end_time() == 5.0
-    assert source.event_list.event_count() == 6
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+    buffer.append(event_list)
 
-    # read_until_time sould be idempotent
-    previous_index = reader.index
-    all_caught_up_2 = source.read_until_time(5)
-    assert all_caught_up_2
-    assert reader.index == previous_index
-    assert source.start_time() == 0.0
-    assert source.end_time() == 5.0
-    assert source.event_list.event_count() == 6
+    assert buffer.start_time() == 0
+    assert buffer.end_time() == 99
 
+    # Discard half.
+    buffer.discard_before(50)
+    assert buffer.start_time() == 50
+    assert buffer.end_time() == 99
 
-def test_read_incrementally():
-    reader = FakeNumericEventReader()
-    source = NumericEventSource(reader)
+    # Discard same again has no effect.
+    buffer.discard_before(50)
+    assert buffer.start_time() == 50
+    assert buffer.end_time() == 99
 
-    for until in [2, 4, 6, 8]:
-        all_caught_up = source.read_until_time(until)
-        assert all_caught_up
-        assert source.start_time() == 0.0
-        assert source.end_time() == until
-        assert source.event_list.event_count() == until + 1
+    # Discard before earliest has no effect.
+    buffer.discard_before(25)
+    assert buffer.start_time() == 50
+    assert buffer.end_time() == 99
 
-    all_caught_up = source.read_until_time(10)
-    assert not all_caught_up
-    assert source.start_time() == 0.0
-    assert source.end_time() == 9.0
-    assert source.event_list.event_count() == 10
+    # Discard half again.
+    buffer.discard_before(75)
+    assert buffer.start_time() == 75
+    assert buffer.end_time() == 99
 
-
-def test_read_timeout():
-    reader = FakeNumericEventReader()
-    source = NumericEventSource(reader, reader_timeout=0.0)
-
-    all_caught_up = source.read_until_time(5)
-    assert not all_caught_up
-    assert source.start_time() == 0.0
-    assert source.end_time() == 0.0
-    assert source.event_list.event_count() == 0
-
-
-def test_read_retry_success():
-    # Contrive a script of reader data with a hole in it, to force reader retries.
-    script = [[0, 0],
-            [1, 10],
-            [2, 20],
-            [3, 30],
-            [4, 40],
-            None,
-            [5, 50]]
-    reader = FakeNumericEventReader(script=script)
-
-    # Source will retry empty reads twice, so the hole should be no problem.
-    source = NumericEventSource(reader, max_empty_reads=2)
-
-    all_caught_up = source.read_until_time(5)
-    assert all_caught_up
-    assert source.start_time() == 0.0
-    assert source.end_time() == 5.0
-    assert source.event_list.event_count() == 6
-
-
-def test_read_retries_exhausted():
-    # Contrive a script of reader data with a large hole in it, to force reader retries.
-    script = [[0, 0],
-            [1, 10],
-            [2, 20],
-            [3, 30],
-            [4, 40],
-            None,
-            None,
-            None,
-            [5, 50]]
-    reader = FakeNumericEventReader(script=script)
-
-    # Source will retry empty reads twice, which is smaller than the hole size
-    source = NumericEventSource(reader, max_empty_reads=2)
-
-    all_caught_up = source.read_until_time(5)
-    assert not all_caught_up
-    assert source.start_time() == 0.0
-    assert source.end_time() == 4.0
-    assert source.event_list.event_count() == 5
-
-def test_read_empty_after_exception():
-    reader = FakeNumericEventReader(script=["error!"])
-    source = NumericEventSource(reader, reader_timeout=1.0)
-
-    assert source.read_next() is None
-    assert source.read_next() is None
-    assert source.read_next() is None
+    # Discard the rest and become empty.
+    buffer.discard_before(100)
+    assert buffer.start_time() == 0
+    assert buffer.end_time() == 0
