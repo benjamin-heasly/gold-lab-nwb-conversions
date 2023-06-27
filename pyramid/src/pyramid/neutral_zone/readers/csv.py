@@ -3,19 +3,20 @@ import logging
 import csv
 import numpy as np
 
-from pyramid.neutral_zone.readers.readers import Reader
+from pyramid.model.model import DynamicImport
 from pyramid.model.numeric_events import NumericEventList
+from pyramid.neutral_zone.readers.readers import Reader
 
 
-class CsvNumericEventReader(Reader):
+class CsvNumericEventReader(Reader, DynamicImport):
     """Read numeric events from a CSV of numbers.
 
     Skips lines that contain non-numeric values.
     """
 
-    def __init__(self, csv_file: str, results_name: str = "events", dialect: str = 'excel', **fmtparams) -> None:
+    def __init__(self, csv_file: str, results_key: str = "events", dialect: str = 'excel', **fmtparams) -> None:
         self.csv_file = csv_file
-        self.results_name = results_name
+        self.results_key = results_key
         self.dialect = dialect
         self.fmtparams = fmtparams
 
@@ -40,7 +41,7 @@ class CsvNumericEventReader(Reader):
         try:
             numeric_row = [float(element) for element in next_row]
             return {
-                self.results_name: NumericEventList(np.array([numeric_row]))
+                self.results_key: NumericEventList(np.array([numeric_row]))
             }
         except ValueError as error:
             logging.info(f"Skipping CSV '{self.csv_file}' line {line_num} <{next_row}> because {error.args}")

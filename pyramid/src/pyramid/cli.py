@@ -5,7 +5,7 @@ from contextlib import ExitStack
 from argparse import ArgumentParser
 from typing import Optional, Sequence
 
-from pyramid.__about__ import __version__ as proceed_version
+from pyramid.__about__ import __version__ as pyramid_version
 from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
@@ -14,7 +14,7 @@ from pyramid.trials.trials import TrialDelimiter, TrialExtractor
 from pyramid.trials.trial_file import TrialFileWriter
 from pyramid.plotters.plotters import Plotter, PlotFigureController
 
-version_string = f"Pyramid {proceed_version}"
+version_string = f"Pyramid {pyramid_version}"
 
 
 def set_up_logging():
@@ -142,9 +142,9 @@ def configure_conversion(
 ) -> tuple[TrialDelimiter, TrialExtractor, list[ReaderRouter]]:
     logging.info(f"Using delimiters from {delimiter_csv} start={start_value} wrt={wrt_value}")
     if simulate_delay:
-        delimiter_reader = DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, results_name="delimiters"))
+        delimiter_reader = DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, results_key="delimiters"))
     else:
-        delimiter_reader = CsvNumericEventReader(delimiter_csv, results_name="delimiters")
+        delimiter_reader = CsvNumericEventReader(delimiter_csv, results_key="delimiters")
     start_buffer = NumericEventBuffer()
     start_route = ReaderRoute("delimiters", "start")
     wrt_buffer = NumericEventBuffer()
@@ -160,7 +160,7 @@ def configure_conversion(
         for csv in numeric_event_csvs:
             name = Path(csv).stem
             logging.info(f"  {name}: {csv}")
-            reader = CsvNumericEventReader(csv, results_name=name)
+            reader = CsvNumericEventReader(csv, results_key=name)
             buffer = NumericEventBuffer()
             route = ReaderRoute(name, name)
             router = ReaderRouter(reader, {name: buffer}, [route])

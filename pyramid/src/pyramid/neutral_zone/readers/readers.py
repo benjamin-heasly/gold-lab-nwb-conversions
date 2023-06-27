@@ -2,8 +2,8 @@ from typing import Any
 from dataclasses import dataclass
 import logging
 
-from pyramid.neutral_zone.transformers.transformers import Transformer
 from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
+from pyramid.neutral_zone.transformers.transformers import Transformer
 
 
 class Reader():
@@ -59,7 +59,7 @@ class Reader():
 class ReaderRoute():
     """Specify the mapping from a reader result entry to a named buffer."""
 
-    reader_name: str
+    reader_key: str
     """How the reader referred a result, like "spikes", "events", etc."""
 
     buffer_name: str
@@ -124,7 +124,7 @@ class ReaderRouter():
             if not buffer:
                 continue
 
-            data = result.get(route.reader_name, None)
+            data = result.get(route.reader_key, None)
             if not data:
                 continue
 
@@ -134,13 +134,13 @@ class ReaderRouter():
                     for transformer in route.transformers:
                         data_copy = transformer.transform(data_copy)
                 except Exception as exception:
-                    logging.error(f"Route transformer had an exception, skipping data for {route.reader_name} -> {route.buffer_name}:", exc_info=True)
+                    logging.error(f"Route transformer had an exception, skipping data for {route.reader_key} -> {route.buffer_name}:", exc_info=True)
                     continue
 
             try:
                 buffer.append(data_copy)
             except Exception as exception:
-                logging.error("Route buffer had exception appending, skipping data for {route.reader_name} -> {route.buffer_name}:", exc_info=True)
+                logging.error("Route buffer had exception appending, skipping data for {route.reader_key} -> {route.buffer_name}:", exc_info=True)
                 continue
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.

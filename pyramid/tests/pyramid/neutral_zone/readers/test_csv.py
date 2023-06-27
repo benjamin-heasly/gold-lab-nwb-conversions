@@ -43,7 +43,7 @@ def test_csv_with_header_line(fixture_path):
         # Read 32 lines...
         for t in range(32):
             result = reader.read_next()
-            event_list = result[reader.results_name]
+            event_list = result[reader.results_key]
             expected_event_list = NumericEventList(np.array([[t, t + 100, t + 1000]]))
             assert event_list == expected_event_list
 
@@ -61,7 +61,7 @@ def test_csv_with_no_header_line(fixture_path):
         # Read 32 lines...
         for t in range(32):
             result = reader.read_next()
-            event_list = result[reader.results_name]
+            event_list = result[reader.results_key]
             expected_event_list = NumericEventList(np.array([[t, t + 100, t + 1000]]))
             assert event_list == expected_event_list
 
@@ -83,7 +83,7 @@ def test_csv_skip_nonnumeric_lines(fixture_path):
             if t in nonnumeric_lines:
                 assert result is None
             else:
-                event_list = result[reader.results_name]
+                event_list = result[reader.results_key]
                 expected_event_list = NumericEventList(np.array([[t, t + 100, t + 1000]]))
                 assert event_list == expected_event_list
 
