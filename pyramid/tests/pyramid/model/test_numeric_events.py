@@ -97,6 +97,28 @@ def test_list_copy_value_range():
     assert np.array_equal(event_list.get_values(), 10*np.array(range(100)))
 
 
+def test_list_copy_value_range_no_min():
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+
+    range_event_list = event_list.copy_value_range(max=600)
+    assert np.array_equal(range_event_list.get_times(), np.array(range(60)))
+    assert np.array_equal(range_event_list.get_values(), 10*np.array(range(60)))
+
+
+def test_list_copy_value_range_no_max():
+    event_count = 100
+    raw_data = [[t, 10*t] for t in range(event_count)]
+    event_data = np.array(raw_data)
+    event_list = NumericEventList(event_data)
+
+    range_event_list = event_list.copy_value_range(min=400)
+    assert np.array_equal(range_event_list.get_times(), np.array(range(40, 100)))
+    assert np.array_equal(range_event_list.get_values(), 10*np.array(range(40, 100)))
+
+
 def test_list_copy_time_range():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]

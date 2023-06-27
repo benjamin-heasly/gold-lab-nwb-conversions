@@ -2,6 +2,7 @@ from typing import Any
 from dataclasses import dataclass
 import logging
 
+from pyramid.neutral_zone.transformers.transformers import Transformer
 from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
 
 
@@ -51,13 +52,6 @@ class Reader():
         Dictionary values must all be Pyramid data model types like NumericEventList.
         Dictionary keys should suggest an interpretation of the interpretation, like "spikes", "event_codes", etc.
         """
-        raise NotImplementedError  # pragma: no cover
-
-
-class Transformer():
-    """Transform values and/or type of Pyramid data, like NumericEventList."""
-
-    def transform(data: NumericEventList) -> NumericEventList:
         raise NotImplementedError  # pragma: no cover
 
 
@@ -119,7 +113,7 @@ class ReaderRouter():
             result = self.reader.read_next()
         except Exception as exception:
             self.reader_exception = exception
-            logging.warning("Reader had an exception and will be ignored going forward:", exc_info=True)
+            logging.warning("Reader had an internal error, will be ignored going forward:", exc_info=True)
             return False
 
         if not result:
@@ -140,10 +134,14 @@ class ReaderRouter():
                     for transformer in route.transformers:
                         data_copy = transformer.transform(data_copy)
                 except Exception as exception:
-                    logging.error("Route transformer had an exception:", exc_info=True)
+                    logging.error(f"Route transformer had an exception, skipping data for {route.reader_name} -> {route.buffer_name}:", exc_info=True)
                     continue
 
-            buffer.append(data_copy)
+            try:
+                buffer.append(data_copy)
+            except Exception as exception:
+                logging.error("Route buffer had exception appending, skipping data for {route.reader_name} -> {route.buffer_name}:", exc_info=True)
+                continue
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.
         buffer_end_times = [buffer.end_time() for buffer in self.buffers.values()]
@@ -153,9 +151,11 @@ class ReaderRouter():
 
     def route_until(self, target_time: float) -> float:
         empty_reads = 0
-        while self.max_buffer_time < target_time and empty_reads < self.empty_reads_allowed:
+        while self.max_buffer_time < target_time and empty_reads <= self.empty_reads_allowed:
             got_data = self.route_next()
-            if not got_data:
+            if got_data:
+                empty_reads = 0
+            else:
                 empty_reads += 1
 
         return self.max_buffer_time

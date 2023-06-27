@@ -25,7 +25,7 @@ class NumericEventList(InteropData):
             return (self.event_data.size == 0 and other.event_data.size == 0) or np.array_equal(self.event_data, other.event_data)
         else:
             return False
-    
+
     def copy(self) -> Self:
         return NumericEventList(self.event_data.copy())
 
@@ -136,8 +136,11 @@ class NumericEventList(InteropData):
         self.event_data[:, value_column] += offset
         self.event_data[:, value_column] *= gain
 
-    def copy_value_range(self, min: float, max: float, value_index: int = 0) -> None:
+    def copy_value_range(self, min: float = None, max: float = None, value_index: int = 0) -> None:
         """Make a new list containing only events with values in half open interval [min, max).
+
+        Omit min to copy all events with value strictly less than max.
+        Omit max to copy all events with value greater than or equal to min.
 
         By default min and max apply to the first value per event.
         Pass in value_index>0 to use a different value per event.
@@ -145,7 +148,17 @@ class NumericEventList(InteropData):
         This returns a new NumericEventList with a copy of events in the requested range.
         """
         value_column = value_index + 1
-        rows_in_range = (self.event_data[:, value_column] >= min) & (self.event_data[:, value_column] < max)
+        if min:
+            top_selector = self.event_data[:, value_column] >= min
+        else:
+            top_selector = True
+
+        if max:
+            bottom_selector = self.event_data[:, value_column] < max
+        else:
+            bottom_selector = True
+
+        rows_in_range = top_selector & bottom_selector
         range_event_data = self.event_data[rows_in_range, :]
         return NumericEventList(range_event_data)
 
