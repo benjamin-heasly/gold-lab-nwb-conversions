@@ -1,0 +1,26 @@
+digraph demo_experiment {
+	graph [label=demo_experiment rankdir=LR]
+	delimiter_reader [label="delimiter_reader|CsvNumericEventReader" shape=record]
+	foo_reader [label="foo_reader|CsvNumericEventReader" shape=record]
+	bar_reader [label="bar_reader|CsvNumericEventReader" shape=record]
+	delimiter [label="delimiter|NumericEventBuffer" shape=record]
+	foo [label="foo|NumericEventBuffer" shape=record]
+	bar [label="bar|NumericEventBuffer" shape=record]
+	bar_2 [label="bar_2|NumericEventBuffer" shape=record]
+	delimiter_reader_route_0 [label="as is" shape=record]
+	delimiter_reader -> delimiter_reader_route_0 [label=events]
+	delimiter_reader_route_0 -> delimiter
+	foo_reader_route_0 [label="as is" shape=record]
+	foo_reader -> foo_reader_route_0 [label=events]
+	foo_reader_route_0 -> foo
+	bar_reader_route_0 [label="as is" shape=record]
+	bar_reader -> bar_reader_route_0 [label=events]
+	bar_reader_route_0 -> bar
+	bar_reader_route_1 [label=OffsetThenGain shape=record]
+	bar_reader -> bar_reader_route_1 [label=events]
+	bar_reader_route_1 -> bar_2
+	trial_delimiter [label="TrialDelimiter|start = 1010" shape=record]
+	delimiter -> trial_delimiter [label=start arrowhead=none arrowtail=none]
+	trial_extractor [label="TrialExtractor|wrt = 42" shape=record]
+	delimiter -> trial_extractor [label=wrt arrowhead=none arrowtail=none]
+}

@@ -3,6 +3,7 @@ import logging
 from contextlib import ExitStack
 from dataclasses import dataclass
 import yaml
+import graphviz
 
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
@@ -36,13 +37,14 @@ class PyramidContext():
             experiment_config = yaml.safe_load(f)
 
         # start_reader.csv_file=real.csv
-        for override in reader_overrides:
-            (reader_name, assignment) = override.split(".", maxsplit=1)
-            (property, value) = assignment.split("=", maxsplit=1)
-            reader_config = experiment_config["readers"][reader_name]
-            reader_args = reader_config.get("args", {})
-            reader_args[property] = value
-            reader_config["args"] = reader_args
+        if reader_overrides:
+            for override in reader_overrides:
+                (reader_name, assignment) = override.split(".", maxsplit=1)
+                (property, value) = assignment.split("=", maxsplit=1)
+                reader_config = experiment_config["readers"][reader_name]
+                reader_args = reader_config.get("args", {})
+                reader_args[property] = value
+                reader_config["args"] = reader_args
 
         if subject_yaml:
             with open(subject_yaml) as f:
@@ -165,8 +167,75 @@ class PyramidContext():
                     {"trial_count": self.trial_delimiter.trial_count}
                 )
 
-    def to_graphviz(self):
-        pass
+    def to_graphviz(self, out_name: str):
+        dot = graphviz.Digraph(
+            name=out_name,
+            graph_attr={
+                "rankdir": "LR",
+                "label": out_name
+            }
+        )
+
+        all_routers = self.other_routers.copy()
+        all_routers.append(self.start_router)
+        named_routers = {}
+
+        for name, reader in self.readers.items():
+            label = f"{name}|{reader.__class__.__name__}"
+            dot.node(name=name, label=label, shape="record")
+            for router in all_routers:
+                if router.reader is reader:
+                    named_routers[name] = router
+
+        start_buffer_name = None
+        wrt_buffer_name = None
+        for name, buffer in self.named_buffers.items():
+            label = f"{name}|{buffer.__class__.__name__}"
+            dot.node(name=name, label=label, shape="record")
+            if buffer is self.trial_delimiter.start_buffer:
+                start_buffer_name = name
+            if buffer is self.trial_extractor.wrt_buffer:
+                wrt_buffer_name = name
+
+        for reader_name, router in named_routers.items():
+            for index, route in enumerate(router.routes):
+                route_name = f"{reader_name}_route_{index}"
+                if route.transformers:
+                    labels = [transformer.__class__.__name__ for transformer in route.transformers]
+                    route_label = "|".join(labels)
+                else:
+                    route_label = "as is"
+                dot.node(name=route_name, label=route_label, shape="record")
+
+                dot.edge(reader_name, route_name, label=route.results_key)
+                dot.edge(route_name, route.buffer_name)
+
+        dot.node(
+            name="trial_delimiter",
+            label=f"{self.trial_delimiter.__class__.__name__}|start = {self.trial_delimiter.start_value}",
+            shape="record"
+        )
+        dot.edge(
+            start_buffer_name,
+            "trial_delimiter",
+            label="start",
+            arrowhead="none",
+            arrowtail="none")
+
+        dot.node(
+            name="trial_extractor",
+            label=f"{self.trial_extractor.__class__.__name__}|wrt = {self.trial_extractor.wrt_value}",
+            shape="record"
+        )
+        dot.edge(
+            wrt_buffer_name,
+            "trial_extractor",
+            label=f"wrt",
+            arrowhead="none",
+            arrowtail="none"
+        )
+
+        dot.render(out_name, format="png")
 
 
 def configure_readers(

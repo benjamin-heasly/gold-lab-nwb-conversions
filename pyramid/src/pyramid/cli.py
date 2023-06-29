@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 import logging
 from argparse import ArgumentParser
 from typing import Optional, Sequence
@@ -26,8 +27,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = ArgumentParser(description="Import data and extract trials for viewing and analysis.")
     parser.add_argument("mode",
                         type=str,
-                        choices=["gui", "convert"],
-                        help="mode to run in: interactive gui or noninteractive convert"),
+                        choices=["gui", "convert", "graph"],
+                        help="mode to run in: interactive gui, noninteractive convert, or configuration graph"),
     parser.add_argument("--experiment", '-e',
                         type=str,
                         help="Name of the experiment YAML file")
@@ -77,6 +78,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 exit_code = 0
             except Exception:
                 logging.error(f"Error running conversion:", exc_info=True)
+                exit_code = 2
+
+        case "graph":
+            try:
+                context = PyramidContext.from_yaml_and_reader_overrides(
+                    experiment_yaml=cli_args.experiment,
+                    subject_yaml=cli_args.subject,
+                    reader_overrides=cli_args.readers
+                )
+                graph_name = Path(cli_args.experiment).stem
+                context.to_graphviz(graph_name)
+                exit_code = 0
+            except Exception:
+                logging.error(f"Error generating config graph:", exc_info=True)
                 exit_code = 2
 
         case _:  # pragma: no cover

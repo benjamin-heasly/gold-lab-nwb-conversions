@@ -47,7 +47,7 @@ This will produce a graph of Pyramid data sources and other configuration.
 Having a graph is useful for this demo.
 In general, graphs like this should give you a way to check whether Pyramid interpreted your experiment the way you expected.
 
-![Graph of Pyramid Readers, Buffers, and Trial configuration for demo_experiment.](docs/demo_experiment.png "Overview of demo_experiment")
+![Graph of Pyramid Readers, Buffers, and Trial configuration for demo_experiment.](docs/core-demo/demo_experiment.png "Overview of demo_experiment")
 
 From this graph, we can see that Pyramid intends to:
 
@@ -263,7 +263,7 @@ conda env update -f environment.yml --prune
 
 ## pyramid
 
-No you can install Pyramid from this repo into the `gold_nwb` environment on your machine.
+Now you can install Pyramid from this repo into the `gold_nwb` environment on your machine.
 
 ```
 cd pyramid
