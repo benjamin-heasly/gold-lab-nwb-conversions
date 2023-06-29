@@ -57,7 +57,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 context = PyramidContext.from_yaml_and_reader_overrides(
                     experiment_yaml=cli_args.experiment,
                     subject_yaml=cli_args.subject,
-                    reader_overrides=cli_args.readers
+                    reader_overrides=cli_args.readers,
+                    allow_simulate_delay=True
                 )
                 context.run_with_plots(cli_args.trial_file)
                 exit_code = 0

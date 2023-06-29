@@ -75,7 +75,8 @@ def test_configure_readers():
             },
         }
     }
-    (readers, named_buffers, reader_routers) = configure_readers(readers_config)
+    allow_simulate_delay = True
+    (readers, named_buffers, reader_routers) = configure_readers(readers_config, allow_simulate_delay)
 
     expected_readers = {
         "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", "events")),
@@ -172,7 +173,13 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         f"start_reader.csv_file={delimiter_csv}"
     ]
 
-    context = PyramidContext.from_yaml_and_reader_overrides(experiment_yaml, subject_yaml, reader_overrides)
+    allow_simulate_delay = True
+    context = PyramidContext.from_yaml_and_reader_overrides(
+        experiment_yaml,
+        subject_yaml,
+        reader_overrides,
+        allow_simulate_delay
+    )
 
     with open(subject_yaml) as f:
         expected_subject = yaml.safe_load(f)

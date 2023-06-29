@@ -26,7 +26,12 @@ class PyramidContext():
 
     @classmethod
     def from_yaml_and_reader_overrides(
-            cls, experiment_yaml: str, subject_yaml: str = None, reader_overrides: list[str] = []) -> Self:
+        cls,
+        experiment_yaml: str,
+        subject_yaml: str = None,
+        reader_overrides: list[str] = [],
+        allow_simulate_delay: bool = False
+    ) -> Self:
         with open(experiment_yaml) as f:
             experiment_config = yaml.safe_load(f)
 
@@ -45,12 +50,17 @@ class PyramidContext():
         else:
             subject_config = None
 
-        pyramid_context = PyramidContext.from_dict(experiment_config, subject_config)
+        pyramid_context = cls.from_dict(experiment_config, subject_config, allow_simulate_delay)
         return pyramid_context
 
     @classmethod
-    def from_dict(cls, experiment_config: dict[str, Any], subject_config: dict[str, Any]) -> Self:
-        (readers, named_buffers, reader_routers) = configure_readers(experiment_config["readers"])
+    def from_dict(
+        cls,
+        experiment_config: dict[str, Any],
+        subject_config: dict[str, Any],
+        allow_simulate_delay: bool = False
+    ) -> Self:
+        (readers, named_buffers, reader_routers) = configure_readers(experiment_config["readers"], allow_simulate_delay)
         (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(
             experiment_config["trials"], named_buffers)
 
@@ -160,7 +170,8 @@ class PyramidContext():
 
 
 def configure_readers(
-    readers_config: dict[str, dict]
+    readers_config: dict[str, dict],
+    allow_simulate_delay: bool = False
 ) -> tuple[dict[str, Reader], dict[str, NumericEventBuffer], list[ReaderRouter]]:
     readers = {}
     named_buffers = {}
@@ -169,7 +180,7 @@ def configure_readers(
         # Instantiate the reader by dynamic import.
         reader_class = reader_config["class"]
         reader_args = reader_config.get("args", {})
-        simulate_delay = reader_config.get("simulate_delay", False)
+        simulate_delay = allow_simulate_delay and reader_config.get("simulate_delay", False)
         reader = Reader.from_dynamic_import(reader_class, **reader_args)
         if simulate_delay:
             reader = DelaySimulatorReader(reader)
