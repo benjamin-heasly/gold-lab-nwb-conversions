@@ -194,6 +194,13 @@ class NumericEventBuffer():
     ) -> None:
         self.event_list = NumericEventList(np.empty([0, values_per_event + 1]))
 
+    def __eq__(self, other: object) -> bool:
+        """Compare buffers field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return self.event_list == other.event_list
+        else:  # pragma: no cover
+            return False
+
     def start_time(self, default: float = 0.0) -> float:
         """The time of the earliest event currently in the buffer, or the default when empty."""
         times = self.event_list.get_times()

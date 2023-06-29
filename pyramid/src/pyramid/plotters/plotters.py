@@ -50,6 +50,20 @@ class PlotFigureController():
         self.subject_info = subject_info
         self.figures = {}
 
+    def __eq__(self, other: object) -> bool:
+        """Compare controllers field-wise, to support use of this class in tests."""
+        plotter_counts_equal = len(self.plotters) == len(other.plotters)
+        plotter_types_equal = [isinstance(a, b.__class__) for a, b in zip(self.plotters, other.plotters)]
+        if isinstance(other, self.__class__):
+            return (
+                plotter_counts_equal
+                and all(plotter_types_equal)
+                and self.experiment_info == other.experiment_info
+                and self.subject_info == other.subject_info
+            )
+        else:  # pragma: no cover
+            return False
+
     def __enter__(self) -> Self:
         # Use matplotlib in interactive mode instead of blocking on eg plt.show().
         plt.ion()

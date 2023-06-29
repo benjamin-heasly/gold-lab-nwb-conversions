@@ -15,6 +15,13 @@ class DelaySimulatorReader(Reader):
         self.stash_until = None
         self.start_time = None
 
+    def __eq__(self, other: object) -> bool:
+        """Compare readers field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return self.reader == other.reader
+        else:  # pragma: no cover
+            return False
+
     def __enter__(self) -> Self:
         self.start_time = time.time()
         return self.reader.__enter__()

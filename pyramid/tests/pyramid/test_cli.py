@@ -1,5 +1,7 @@
 from pathlib import Path
+import copy
 import json
+import yaml
 
 from pytest import raises, fixture
 
@@ -30,110 +32,170 @@ def test_invalid_input():
     assert 2 in exception_info.value.args
 
 
+experiment_config = {
+    "readers": {
+        "delimiter_reader": {
+            "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
+            "buffers": {
+                "start": {"results_key": "events"},
+                "wrt": {"results_key": "events"},
+            }
+        },
+        "foo_reader": {
+            "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
+            "buffers": {
+                "foo": {"results_key": "events"},
+            }
+        },
+        "bar_reader": {
+            "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
+            "buffers": {
+                "bar": {"results_key": "events"},
+            }
+        },
+    },
+    "trials": {
+        "start_buffer": "start",
+        "start_value": 1010,
+        "wrt_buffer": "wrt",
+        "wrt_value": 42
+    },
+    "plotters": [
+        {"class": "pyramid.plotters.sample_plotters.SampleSinePlotter"},
+        {"class": "pyramid.plotters.sample_plotters.SampleCosinePlotter"},
+        {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"}
+    ]
+}
+
+
 def test_gui(fixture_path, tmp_path):
-    trial_file = Path(tmp_path, "trial_file.json").as_posix()
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
-    start_value = "1010"
-    wrt_value = "42"
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    trial_file = Path(tmp_path, "trial_file.json").as_posix()
+    experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
+
+    with open(experiment_yaml, "w") as f:
+        yaml.safe_dump(experiment_config, f)
 
     cli_args = [
         "gui",
         "--trial-file", trial_file,
-        "--delimiter-csv", delimiter_csv,
-        "--start-value", start_value,
-        "--wrt-value", wrt_value,
-        "--extra-csvs",
-        foo_csv,
-        bar_csv,
-        "--plotters",
-        "pyramid.plotters.sample_plotters.SampleSinePlotter",
-        "pyramid.plotters.sample_plotters.SampleCosinePlotter"
+        "--experiment", experiment_yaml,
+        "--readers",
+        f"delimiter_reader.csv_file={delimiter_csv}",
+        f"foo_reader.csv_file={foo_csv}",
+        f"bar_reader.csv_file={bar_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 0
 
 
 def test_gui_no_plotters(fixture_path, tmp_path):
-    trial_file = Path(tmp_path, "trial_file.json").as_posix()
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
-    start_value = "1010"
-    wrt_value = "42"
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    trial_file = Path(tmp_path, "trial_file.json").as_posix()
+    experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
+
+    no_plotters_config = {
+        "readers": experiment_config["readers"],
+        "trials": experiment_config["trials"]
+    }
+
+    with open(experiment_yaml, "w") as f:
+        yaml.safe_dump(no_plotters_config, f)
 
     cli_args = [
         "gui",
         "--trial-file", trial_file,
-        "--delimiter-csv", delimiter_csv,
-        "--start-value", start_value,
-        "--wrt-value", wrt_value,
-        "--extra-csvs",
-        foo_csv,
-        bar_csv,
+        "--experiment", experiment_yaml,
+        "--readers",
+        f"delimiter_reader.csv_file={delimiter_csv}",
+        f"foo_reader.csv_file={foo_csv}",
+        f"bar_reader.csv_file={bar_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 0
 
 
 def test_gui_simulate_delay(fixture_path, tmp_path):
-    trial_file = Path(tmp_path, "trial_file.json").as_posix()
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
-    start_value = "1010"
-    wrt_value = "42"
+    foo_csv = Path(fixture_path, "foo.csv").as_posix()
+    bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    trial_file = Path(tmp_path, "trial_file.json").as_posix()
+    experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
+
+    simulate_delay_config = copy.deepcopy(experiment_config)
+    simulate_delay_config["readers"]["delimiter_reader"]["simulate_delay"] = True
+    print(simulate_delay_config)
+
+    with open(experiment_yaml, "w") as f:
+        yaml.safe_dump(simulate_delay_config, f)
 
     cli_args = [
         "gui",
         "--trial-file", trial_file,
-        "--delimiter-csv", delimiter_csv,
-        "--start-value", start_value,
-        "--wrt-value", wrt_value,
-        "--plotters",
-        "pyramid.plotters.sample_plotters.SampleSinePlotter",
-        "pyramid.plotters.sample_plotters.SampleCosinePlotter",
-        "--simulate-delay"
+        "--experiment", experiment_yaml,
+        "--readers",
+        f"delimiter_reader.csv_file={delimiter_csv}",
+        f"foo_reader.csv_file={foo_csv}",
+        f"bar_reader.csv_file={bar_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 0
 
 
 def test_gui_plotter_error(fixture_path, tmp_path):
-    trial_file = Path(tmp_path, "trial_file.json").as_posix()
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
-    start_value = "1010"
-    wrt_value = "42"
+    foo_csv = Path(fixture_path, "foo.csv").as_posix()
+    bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    trial_file = Path(tmp_path, "trial_file.json").as_posix()
+    experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
+
+    error_plotters_config = {
+        "readers": experiment_config["readers"],
+        "trials": experiment_config["trials"],
+        "plotters": [
+            {"class": "no.such.Plotter"},
+        ]
+    }
+
+    with open(experiment_yaml, "w") as f:
+        yaml.safe_dump(error_plotters_config, f)
 
     cli_args = [
         "gui",
         "--trial-file", trial_file,
-        "--delimiter-csv", delimiter_csv,
-        "--start-value", start_value,
-        "--wrt-value", wrt_value,
-        "--plotters", "no.such.Plotter"
+        "--experiment", experiment_yaml,
+        "--readers",
+        f"delimiter_reader.csv_file={delimiter_csv}",
+        f"foo_reader.csv_file={foo_csv}",
+        f"bar_reader.csv_file={bar_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 1
 
 
 def test_convert(fixture_path, tmp_path):
-    trial_file = Path(tmp_path, "trial_file.json").as_posix()
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
-    start_value = "1010"
-    wrt_value = "42"
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    trial_file = Path(tmp_path, "trial_file.json").as_posix()
+    experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
+
+    with open(experiment_yaml, "w") as f:
+        yaml.safe_dump(experiment_config, f)
+
     cli_args = [
         "convert",
         "--trial-file", trial_file,
-        "--delimiter-csv", delimiter_csv,
-        "--start-value", start_value,
-        "--wrt-value", wrt_value,
-        "--extra-csvs",
-        foo_csv,
-        bar_csv
+        "--experiment", experiment_yaml,
+        "--readers",
+        f"delimiter_reader.csv_file={delimiter_csv}",
+        f"foo_reader.csv_file={foo_csv}",
+        f"bar_reader.csv_file={bar_csv}"
     ]
-
     exit_code = main(cli_args)
     assert exit_code == 0
 
@@ -149,12 +211,20 @@ def test_convert(fixture_path, tmp_path):
 
 def test_convert_error(tmp_path):
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
+    experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
+
+    with open(experiment_yaml, "w") as f:
+        yaml.safe_dump(experiment_config, f)
+
     cli_args = [
         "convert",
         "--trial-file", trial_file,
-        "--delimiter-csv", "no_such_file.csv",
+        "--experiment", experiment_yaml,
+        "--readers",
+        "delimiter_reader.csv_file=no_such_file.csv",
+        "foo_reader.csv_file=no_such_file.csv",
+        "bar_reader.csv_file=no_such_file.csv"
     ]
-
     exit_code = main(cli_args)
     assert exit_code == 2
 

@@ -10,6 +10,17 @@ class OffsetThenGain(Transformer):
         self.gain = gain
         self.value_index = value_index
 
+    def __eq__(self, other: object) -> bool:
+        """Compare transformers field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return (
+                self.offset == other.offset
+                and self.gain == other.gain
+                and self.value_index == other.value_index
+            )
+        else:  # pragma: no cover
+            return False
+
     def transform(self, data: NumericEventList) -> NumericEventList:
         data.apply_offset_then_gain(self.offset, self.gain, self.value_index)
         return data

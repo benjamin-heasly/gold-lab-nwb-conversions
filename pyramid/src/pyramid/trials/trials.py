@@ -60,6 +60,19 @@ class TrialDelimiter():
         self.trial_start_time = trial_start_time
         self.trial_count = trial_count
 
+    def __eq__(self, other: object) -> bool:
+        """Compare delimiters field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return (
+                self.start_buffer == other.start_buffer
+                and self.start_value == other.start_value
+                and self.start_value_index == other.start_value_index
+                and self.trial_start_time == other.trial_start_time
+                and self.trial_count == other.trial_count
+            )
+        else:  # pragma: no cover
+            return False
+
     def next(self) -> list[Trial]:
         """Check the start buffer for start events, produce new trials as new start events arrive.
 
@@ -103,6 +116,18 @@ class TrialExtractor():
         self.wrt_value = wrt_value
         self.wrt_value_index = wrt_value_index
         self.named_buffers = named_buffers
+
+    def __eq__(self, other: object) -> bool:
+        """Compare extractors field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return (
+                self.wrt_buffer == other.wrt_buffer
+                and self.wrt_value == other.wrt_value
+                and self.wrt_value_index == other.wrt_value_index
+                and self.named_buffers == other.named_buffers
+            )
+        else:  # pragma: no cover
+            return False
 
     def populate_trial(self, trial: Trial):
         """Fill in the given trial with data from configured buffers, in the trial's time range."""

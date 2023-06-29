@@ -3,18 +3,17 @@ import logging
 import csv
 import numpy as np
 
-from pyramid.model.model import DynamicImport
 from pyramid.model.numeric_events import NumericEventList
 from pyramid.neutral_zone.readers.readers import Reader
 
 
-class CsvNumericEventReader(Reader, DynamicImport):
+class CsvNumericEventReader(Reader):
     """Read numeric events from a CSV of numbers.
 
     Skips lines that contain non-numeric values.
     """
 
-    def __init__(self, csv_file: str, results_key: str = "events", dialect: str = 'excel', **fmtparams) -> None:
+    def __init__(self, csv_file: str = None, results_key: str = "events", dialect: str = 'excel', **fmtparams) -> None:
         self.csv_file = csv_file
         self.results_key = results_key
         self.dialect = dialect
@@ -22,6 +21,18 @@ class CsvNumericEventReader(Reader, DynamicImport):
 
         self.file_stream = None
         self.csv_reader = None
+
+    def __eq__(self, other: object) -> bool:
+        """Compare CSV readers field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return (
+                self.csv_file == other.csv_file
+                and self.results_key == other.results_key
+                and self.dialect == other.dialect
+                and self.fmtparams == other.fmtparams
+            )
+        else:  # pragma: no cover
+            return False
 
     def __enter__(self) -> Self:
         # See https://docs.python.org/3/library/csv.html#id3 for why this has newline=''

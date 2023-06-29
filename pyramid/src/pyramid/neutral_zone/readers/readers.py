@@ -1,12 +1,13 @@
 from typing import Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 
+from pyramid.model.model import DynamicImport
 from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
 from pyramid.neutral_zone.transformers.transformers import Transformer
 
 
-class Reader():
+class Reader(DynamicImport):
     """Interface for consuming data from arbitrary sources and converting to Pyramid data model types.
 
     Each reader implementation should:
@@ -59,13 +60,13 @@ class Reader():
 class ReaderRoute():
     """Specify the mapping from a reader result entry to a named buffer."""
 
-    reader_key: str
+    results_key: str
     """How the reader referred a result, like "spikes", "events", etc."""
 
     buffer_name: str
     """Name for the buffer that will receive reader results "spikes", "ecodes", etc."""
 
-    transformers: list[Transformer] = None
+    transformers: list[Transformer] = field(default_factory=list)
     """Optional data transformations between reader and buffer.
 
     I think we can add per-event transformations here, like:
@@ -102,6 +103,18 @@ class ReaderRouter():
         self.max_buffer_time = 0.0
         self.empty_reads_allowed = empty_reads_allowed
 
+    def __eq__(self, other: object) -> bool:
+        """Compare routers field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return (
+                self.reader == other.reader
+                and self.buffers == other.buffers
+                and self.routes == other.routes
+                and self.empty_reads_allowed == other.empty_reads_allowed
+            )
+        else:  # pragma: no cover
+            return False
+
     def still_going(self) -> bool:
         return not self.reader_exception
 
@@ -124,7 +137,7 @@ class ReaderRouter():
             if not buffer:
                 continue
 
-            data = result.get(route.reader_key, None)
+            data = result.get(route.results_key, None)
             if not data:
                 continue
 
@@ -134,13 +147,17 @@ class ReaderRouter():
                     for transformer in route.transformers:
                         data_copy = transformer.transform(data_copy)
                 except Exception as exception:
-                    logging.error(f"Route transformer had an exception, skipping data for {route.reader_key} -> {route.buffer_name}:", exc_info=True)
+                    logging.error(
+                        f"Route transformer had an exception, skipping data for {route.results_key} -> {route.buffer_name}:",
+                        exc_info=True)
                     continue
 
             try:
                 buffer.append(data_copy)
             except Exception as exception:
-                logging.error("Route buffer had exception appending, skipping data for {route.reader_key} -> {route.buffer_name}:", exc_info=True)
+                logging.error(
+                    "Route buffer had exception appending, skipping data for {route.results_key} -> {route.buffer_name}:",
+                    exc_info=True)
                 continue
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.

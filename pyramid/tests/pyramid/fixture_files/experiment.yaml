@@ -9,47 +9,42 @@ experiment:
     - fictional
     - test
 readers:
-  # The keys here like "start_reader" and "foo_reader" are names of readers.
-  # Each one can have arbitrary args to pass to the reader class constructor.
-  # The csv reader produces one stream of numeric events with the name "events"
-  # A Plexon reader might produce multiple event and signal streams under multiple keys.  
   start_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
       csv_file: default.csv # override on cli with --readers start_reader.csv_file=real.csv
       results_key: events
+    buffers:
+      start:
+        results_key: events
+    simulate_delay: True
   wrt_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
+    buffers:
+      wrt:
+        results_key: events
   foo_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
+    buffers:
+      foo:
+        results_key: events
   bar_reader:
-      class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
-buffers:
-  # The keys here like "start" and "foo" are named buffers that Trials pull data from.
-  # Since each reader might produce multiple data streams, we specify both reader name and key.
-  # Each one gets its data from a reader, with optional transformations along the way.
-  start:
-    reader: start
-    reader_key: events
-  wrt:
-    reader: wrt
-    reader_key: events
-  foo:
-    reader: foo
-    reader_key: events
-  bar:
-    reader: bar
-    reader_key: events
-    transformers:
-      - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
-        args:
-          offset: 10
-          gain: -2
+    class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
+    buffers:
+      bar:
+        results_key: events
+      bar_2:
+        results_key: events
+        transformers:
+          - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
+            args:
+              offset: 10
+              gain: -2
 trials:
   # The values here tell Pyramid how to delimit Trials in time, before adding data from other buffers.
   start_buffer: start
   start_value: 1010
-  wrt_reader: wrt
+  wrt_buffer: wrt
   wrt_value: 42
 plotters:
   # In "gui" mode, Pyramid will set up these plotters and update after each trial.
