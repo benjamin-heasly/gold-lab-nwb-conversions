@@ -14,7 +14,7 @@ from pyramid.plotters.plotters import PlotFigureController
 from pyramid.plotters.standard_plotters import BasicInfoPlotter
 from pyramid.plotters.sample_plotters import SampleSinePlotter, SampleCosinePlotter
 
-from pyramid.config import PyramidConfig, configure_readers, configure_trials, configure_plotters
+from pyramid.context import PyramidContext, configure_readers, configure_trials, configure_plotters
 
 
 @fixture
@@ -172,7 +172,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         f"start_reader.csv_file={delimiter_csv}"
     ]
 
-    config = PyramidConfig.from_yaml_and_reader_overrides(experiment_yaml, subject_yaml, reader_overrides)
+    context = PyramidContext.from_yaml_and_reader_overrides(experiment_yaml, subject_yaml, reader_overrides)
 
     with open(subject_yaml) as f:
         expected_subject = yaml.safe_load(f)
@@ -238,7 +238,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         plotters=[BasicInfoPlotter(), SampleSinePlotter(), SampleCosinePlotter()]
     )
 
-    expected_config = PyramidConfig(
+    expected_context = PyramidContext(
         subject=expected_subject,
         experiment=expected_experiment["experiment"],
         readers=expected_readers,
@@ -249,4 +249,4 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         trial_extractor=expected_trial_extractor,
         plot_figure_controller=expected_plot_figure_controller
     )
-    assert config == expected_config
+    assert context == expected_context

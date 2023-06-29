@@ -1,5 +1,6 @@
 from typing import Any, Self
 import logging
+from contextlib import ExitStack
 from dataclasses import dataclass
 import yaml
 
@@ -7,11 +8,12 @@ from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRout
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.model.numeric_events import NumericEventBuffer
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor
+from pyramid.trials.trial_file import TrialFileWriter
 from pyramid.plotters.plotters import Plotter, PlotFigureController
 
 
 @dataclass
-class PyramidConfig():
+class PyramidContext():
     subject: dict[str, Any]
     experiment: dict[str, Any]
     readers: dict[str, Reader]
@@ -22,11 +24,9 @@ class PyramidConfig():
     trial_extractor: TrialExtractor
     plot_figure_controller: PlotFigureController
 
-    def to_graphviz(self):
-        pass
-
     @classmethod
-    def from_yaml_and_reader_overrides(cls, experiment_yaml: str, subject_yaml: str = None, reader_overrides: list[str] = []) -> Self:
+    def from_yaml_and_reader_overrides(
+            cls, experiment_yaml: str, subject_yaml: str = None, reader_overrides: list[str] = []) -> Self:
         with open(experiment_yaml) as f:
             experiment_config = yaml.safe_load(f)
 
@@ -45,13 +45,14 @@ class PyramidConfig():
         else:
             subject_config = None
 
-        pyramid_config = PyramidConfig.from_dict(experiment_config, subject_config)
-        return pyramid_config
+        pyramid_context = PyramidContext.from_dict(experiment_config, subject_config)
+        return pyramid_context
 
     @classmethod
     def from_dict(cls, experiment_config: dict[str, Any], subject_config: dict[str, Any]) -> Self:
         (readers, named_buffers, reader_routers) = configure_readers(experiment_config["readers"])
-        (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(experiment_config["trials"], named_buffers)
+        (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(
+            experiment_config["trials"], named_buffers)
 
         # Rummage around in the configured reader routers for the one associated with the trial "start" delimiter.
         start_router = None
@@ -62,7 +63,7 @@ class PyramidConfig():
         other_routers = [router for router in reader_routers if router != start_router]
 
         plot_figure_controller = configure_plotters(experiment_config.get("plotters", []))
-        return PyramidConfig(
+        return PyramidContext(
             subject=subject_config,
             experiment=experiment_config.get("experiment", {}),
             readers=readers,
@@ -73,6 +74,89 @@ class PyramidConfig():
             trial_extractor=trial_extractor,
             plot_figure_controller=plot_figure_controller
         )
+
+    def run_without_plots(self, trial_file: str) -> None:
+        """Run without plots as fast as the data allow.
+
+        Similar to run_with_plots(), below.
+        It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
+        run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
+        """
+        with ExitStack() as stack:
+            # All these "context managers" will clean up automatically when the "with" exits.
+            writer = stack.enter_context(TrialFileWriter(trial_file))
+            for reader in self.readers.values():
+                stack.enter_context(reader)
+
+            # Extract trials indefinitely, as they come.
+            while self.start_router.still_going():
+                got_start_data = self.start_router.route_next()
+                if got_start_data:
+                    new_trials = self.trial_delimiter.next()
+                    for new_trial in new_trials:
+                        for router in self.other_routers:
+                            router.route_until(new_trial.end_time)
+                            self.trial_extractor.populate_trial(new_trial)
+                        writer.append_trial(new_trial)
+                        self.trial_delimiter.discard_before(new_trial.start_time)
+                        self.trial_extractor.discard_before(new_trial.start_time)
+
+            # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
+            self.start_router.route_next()
+            for router in self.other_routers:
+                router.route_next()
+            last_trial = self.trial_delimiter.last()
+            if last_trial:
+                self.trial_extractor.populate_trial(last_trial)
+                writer.append_trial(last_trial)
+
+    def run_with_plots(self, trial_file: str) -> None:
+        """Run with plots and interactive GUI updates.
+
+        Similar to run_without_plots(), above.
+        It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
+        run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
+        """
+        with ExitStack() as stack:
+            # All these "context managers" will clean up automatically when the "with" exits.
+            writer = stack.enter_context(TrialFileWriter(trial_file))
+            for reader in self.readers.values():
+                stack.enter_context(reader)
+            stack.enter_context(self.plot_figure_controller)
+
+            # Extract trials indefinitely, as they come.
+            while self.start_router.still_going() and self.plot_figure_controller.get_open_figures():
+                self.plot_figure_controller.update()
+                got_start_data = self.start_router.route_next()
+                if got_start_data:
+                    new_trials = self.trial_delimiter.next()
+                    for new_trial in new_trials:
+                        for router in self.other_routers:
+                            router.route_until(new_trial.end_time)
+                            self.trial_extractor.populate_trial(new_trial)
+                        writer.append_trial(new_trial)
+                        self.plot_figure_controller.plot_next(
+                            new_trial,
+                            {"trial_count": self.trial_delimiter.trial_count}
+                        )
+                        self.trial_delimiter.discard_before(new_trial.start_time)
+                        self.trial_extractor.discard_before(new_trial.start_time)
+
+            # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
+            self.start_router.route_next()
+            for router in self.other_routers:
+                router.route_next()
+            last_trial = self.trial_delimiter.last()
+            if last_trial:
+                self.trial_extractor.populate_trial(last_trial)
+                writer.append_trial(last_trial)
+                self.plot_figure_controller.plot_next(
+                    last_trial,
+                    {"trial_count": self.trial_delimiter.trial_count}
+                )
+
+    def to_graphviz(self):
+        pass
 
 
 def configure_readers(
@@ -140,7 +224,8 @@ def configure_trials(
     wrt_value = trials_config.get("wrt_value", 0.0)
     wrt_value_index = trials_config.get("wrt_value_index", 0)
 
-    other_buffers = {name: buffer for name, buffer in named_buffers.items() if name != start_buffer_name and name != wrt_buffer_name}
+    other_buffers = {name: buffer for name, buffer in named_buffers.items()
+                     if name != start_buffer_name and name != wrt_buffer_name}
     trial_extractor = TrialExtractor(
         wrt_buffer=named_buffers[wrt_buffer_name],
         wrt_value=wrt_value,
