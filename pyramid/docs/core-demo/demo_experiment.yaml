@@ -1,4 +1,5 @@
 experiment:
+  # Basic info suitable for inclusion in an NWB file.
   experimenter:
     - Last, First M
     - Last, First Middle
@@ -9,20 +10,16 @@ experiment:
     - fictional
     - test
 readers:
-  start_reader:
+  # Where to read data from, and how to map/transform it into buffers that trials can pick from.
+  delimiter_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
       csv_file: default.csv # override on cli with --readers start_reader.csv_file=real.csv
-      results_key: events
+      results_key: events # readers can expose results under various keys, but CSV just has one.
     buffers:
-      start:
+      delimiter:
         results_key: events
-    simulate_delay: True
-  wrt_reader:
-    class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
-    buffers:
-      wrt:
-        results_key: events
+    simulate_delay: True # wait between events, gui demonstration
   foo_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     buffers:
@@ -41,11 +38,11 @@ readers:
               offset: 10
               gain: -2
 trials:
-  # The values here tell Pyramid how to delimit Trials in time, before adding data from other buffers.
-  start_buffer: start
+  # How to delimit Trials in time, and how to align data within each trial.
+  start_buffer: delimiter
   start_value: 1010
-  wrt_buffer: wrt
+  wrt_buffer: delimiter
   wrt_value: 42
 plotters:
-  # In "gui" mode, Pyramid will set up plotters and update each one after each trial.
+  # In "gui" mode, Pyramid will set up plotters and update each plotter after each trial.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
