@@ -47,6 +47,7 @@ This will produce a graph of Pyramid data sources and other configuration.
 Having a graph is useful for this demo.
 In general, graphs like this should give you a way to check whether Pyramid interpreted your experiment the way you expected.
 
+`demo_experiment.png`
 ![Graph of Pyramid Readers, Buffers, and Trial configuration for demo_experiment.](docs/core-demo/demo_experiment.png "Overview of demo_experiment")
 
 From this graph, we can see that Pyramid intends to:
