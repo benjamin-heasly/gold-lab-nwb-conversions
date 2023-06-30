@@ -55,9 +55,9 @@ From this graph, we can see that Pyramid intends to:
  - read event data from 3 different CSV files
  - deal events as they arrive into 4 different named buffers
  - transform event values on the way into one of those buffers
- - delimit trials based on events in buffer named "start"
- - align data within each trial based on events in a buffer named "wrt"
- - add additional data to trials from buffers named "foo" and "bar"
+ - delimit trials based on events in buffer named "delimiter"
+ - align data within each trial based on other events in the buffer named "delimiter"
+ - add additional data to trials from buffers named "foo", "bar", and "bar_2"
 
 
 ## configuration with YAML
