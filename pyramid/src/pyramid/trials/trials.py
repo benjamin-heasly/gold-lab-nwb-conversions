@@ -2,7 +2,7 @@ from typing import Any, Self
 from dataclasses import dataclass, field
 
 from pyramid.model.model import InteropData
-from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
+from pyramid.model.events import NumericEventList, NumericEventBuffer
 
 # Construct a trials "IOC container" / context declared in YAML.
 

@@ -2,20 +2,19 @@ from typing import Any
 from dataclasses import dataclass, field
 import logging
 
-from pyramid.model.model import DynamicImport
-from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
+from pyramid.model.model import DynamicImport, BufferData, Buffer
 from pyramid.neutral_zone.transformers.transformers import Transformer
 
 
 class Reader(DynamicImport):
-    """Interface for consuming data from arbitrary sources and converting to Pyramid data model types.
+    """Interface for consuming data from arbitrary sources and converting to Pyramid BufferData types.
 
     Each reader implementation should:
      - Encapsulate the details of how to connect to a data source and get data from it.
      - Maintain internal state related to the data source, like a file handle and cursor, data block index,
        socket descriptor, etc.
      - Implement read_next() to consume an increment of available data from the source, update internal state
-       to reflect this, and return results in the form of named Pyramid data model types.
+       to reflect this, and return results in the form of named Pyramid BufferData types.
      - Implement __enter__() and __exit__() to confirm to Python's "context manager protocol"", which
        is how Pyramid manages acquisition and release of system and libarary resources.
        See: https://peps.python.org/pep-0343/#standard-terminology
@@ -23,7 +22,7 @@ class Reader(DynamicImport):
     Pyramid takes the results of read_next() from each reader and handles how the results are copied into
     connected buffers, filtered and transformed into desired forms, and eventually assigned to trials.
     So, the focus of a reader implementation can just be getting data out of the source incrementally
-    and converting each increment into Pyramid data model types, like NumericEventList.
+    and converting each increment into Pyramid BufferData types.
     """
 
     def __enter__(self) -> Any:
@@ -37,8 +36,8 @@ class Reader(DynamicImport):
         """Release any resources acquired during __enter()__."""
         raise NotImplementedError  # pragma: no cover
 
-    def read_next(self) -> dict[str, NumericEventList]:
-        """Read/poll for new data at the connected source and convert available data to Pyramid types.
+    def read_next(self) -> dict[str, BufferData]:
+        """Read/poll for new data at the connected source and convert available data to Pyramid BufferData types.
 
         This must not block when reading from its data source.
         Rather, it should read/poll for data once and just return None if no data are available yet.
@@ -47,13 +46,15 @@ class Reader(DynamicImport):
         and for the readers to be interleaved with other tasks like interactive GUI user event handling.
 
         The implementation can choose its own read/poll strategy or timeout.
-        Returning from read_next() within 1-5 milliseconds should be good.
+        Returning from read_next() within ~1 millisecond should be good.
 
         Return a dicitonary of any data consumed during the read increment, or None if no data available.
-        Dictionary values must all be Pyramid data model types like NumericEventList.
+        Dictionary values must all be Pyramid BufferData types.
         Dictionary keys should suggest an interpretation of the interpretation, like "spikes", "event_codes", etc.
         """
         raise NotImplementedError  # pragma: no cover
+
+    # TODO: get initial dictionary with expected keys and initial buffers and initial BufferData
 
 
 @dataclass
@@ -91,7 +92,7 @@ class ReaderRouter():
     def __init__(
         self,
         reader: Reader,
-        buffers: dict[str, NumericEventBuffer],
+        buffers: dict[str, Buffer],
         routes: list[ReaderRoute],
         empty_reads_allowed: int = 3
     ) -> None:
@@ -153,7 +154,7 @@ class ReaderRouter():
                     continue
 
             try:
-                buffer.append(data_copy)
+                buffer.data.append(data_copy)
             except Exception as exception:
                 logging.error(
                     "Route buffer had exception appending, skipping data for {route.results_key} -> {route.buffer_name}:",
@@ -161,7 +162,7 @@ class ReaderRouter():
                 continue
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.
-        buffer_end_times = [buffer.end_time() for buffer in self.buffers.values()]
+        buffer_end_times = [buffer.data.get_end_time() for buffer in self.buffers.values()]
         self.max_buffer_time = max(buffer_end_times)
 
         return True

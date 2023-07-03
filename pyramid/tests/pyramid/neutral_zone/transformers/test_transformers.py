@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList
+from pyramid.model.events import NumericEventList
 from pyramid.neutral_zone.transformers.transformers import Transformer
 from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGain, FilterRange
 

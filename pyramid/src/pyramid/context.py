@@ -8,7 +8,7 @@ import graphviz
 
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
-from pyramid.model.numeric_events import NumericEventBuffer
+from pyramid.model.events import NumericEventBuffer
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor
 from pyramid.trials.trial_file import TrialFileWriter
 from pyramid.plotters.plotters import Plotter, PlotFigureController

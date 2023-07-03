@@ -2,7 +2,7 @@ from pathlib import Path
 from pytest import fixture
 import yaml
 
-from pyramid.model.numeric_events import NumericEventBuffer
+from pyramid.model.events import NumericEventBuffer
 from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader

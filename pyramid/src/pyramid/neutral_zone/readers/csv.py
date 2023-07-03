@@ -3,7 +3,7 @@ import logging
 import csv
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList
+from pyramid.model.events import NumericEventList
 from pyramid.neutral_zone.readers.readers import Reader
 
 
