@@ -101,14 +101,14 @@ class NumericEventList(InteropData):
     def append(self, other: Self) -> None:
         """Add new events at the end of the existing list.
 
-        This modifies the event_data in place.
+        This modifies the event_data of this object.
         """
         self.event_data = np.concatenate([self.event_data, other.event_data])
 
     def discard_before(self, start_time: float) -> None:
         """Discard events that have times strictly less than the given start_time.
 
-        This modifies the event_data in place.
+        This modifies the event_data of this object.
         """
         rows_to_keep = self.event_data[:, 0] >= start_time
         self.event_data = self.event_data[rows_to_keep, :]
@@ -116,7 +116,7 @@ class NumericEventList(InteropData):
     def shift_times(self, shift: float) -> None:
         """Shift all event times by a constant.
 
-        This modifies the event_data in place.
+        This modifies the event_data of this object, in place.
         """
         if self.event_data.size > 0:
             self.event_data[:, 0] += shift
@@ -130,7 +130,7 @@ class NumericEventList(InteropData):
         By default this modifies the first value per event.
         Pass in value_index>0 to use a different value per event.
 
-        This modifies the event_data in place.        
+        This modifies the event_data of this object, in place.
         """
         value_column = value_index + 1
         self.event_data[:, value_column] += offset
