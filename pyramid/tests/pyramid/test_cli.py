@@ -51,6 +51,15 @@ experiment_config = {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
             "buffers": {
                 "bar": {"results_key": "events"},
+                "bar_2": {
+                    "results_key": "events",
+                    "transformers": [
+                      {
+                          "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",
+                          "args": {"offset": 10, "gain": -2}
+                      }
+                    ]
+                },
             }
         },
     },
@@ -232,3 +241,37 @@ def test_convert_error(tmp_path):
         trials = json.load(f)
 
     assert trials == []
+
+
+def test_graph(tmp_path):
+    experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
+    graph_file = Path(tmp_path, "graph.png").as_posix()
+
+    with open(experiment_yaml, "w") as f:
+        yaml.safe_dump(experiment_config, f)
+
+    cli_args = [
+        "graph",
+        "--graph-file", graph_file,
+        "--experiment", experiment_yaml
+    ]
+    exit_code = main(cli_args)
+    assert exit_code == 0
+
+    assert Path(graph_file).exists()
+    assert Path(tmp_path, "graph.dot").exists()
+
+
+def test_graph_error(tmp_path):
+    graph_file = Path(tmp_path, "graph.png").as_posix()
+
+    cli_args = [
+        "graph",
+        "--graph-file", graph_file,
+        "--experiment", "no_such_experiment.yaml"
+    ]
+    exit_code = main(cli_args)
+    assert exit_code == 2
+
+    assert not Path(graph_file).exists()
+    assert not Path(tmp_path, "graph.dot").exists()

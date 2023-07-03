@@ -1,4 +1,5 @@
 from typing import Any, Self
+from pathlib import Path
 import logging
 from contextlib import ExitStack
 from dataclasses import dataclass
@@ -167,12 +168,12 @@ class PyramidContext():
                     {"trial_count": self.trial_delimiter.trial_count}
                 )
 
-    def to_graphviz(self, out_name: str):
+    def to_graphviz(self, graph_name: str, out_file: str):
         dot = graphviz.Digraph(
-            name=out_name,
+            name=graph_name,
             graph_attr={
                 "rankdir": "LR",
-                "label": out_name
+                "label": graph_name
             }
         )
 
@@ -235,7 +236,9 @@ class PyramidContext():
             arrowtail="none"
         )
 
-        dot.render(out_name, format="png")
+        out_path = Path(out_file)
+        file_name = f"{out_path.stem}.dot"
+        dot.render(directory=out_path.parent, filename=file_name, outfile=out_path)
 
 
 def configure_readers(

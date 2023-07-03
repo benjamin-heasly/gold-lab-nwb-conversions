@@ -40,7 +40,7 @@ Then you can generate run the following:
 
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/core-demo
-pyramid graph --experiment demo_experiment.yaml
+pyramid graph --experiment demo_experiment.yaml --graph-file demo_experiment.png
 ```
 
 This will produce a graph of Pyramid data sources and other configuration.

@@ -36,14 +36,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         type=str,
                         default=None,
                         help="Name of the subject YAML file")
-    parser.add_argument("--readers",
-                        '-r',
+    parser.add_argument("--readers", '-r',
                         type=str,
                         nargs="+",
                         help="Reader args eg: --readers reader_name.arg_name=value reader_name.arg_name=value ...")
     parser.add_argument("--trial-file", '-f',
                         type=str,
                         help="JSON trial file to write")
+    parser.add_argument("--graph-file", '-g',
+                        type=str,
+                        help="Graph file to write")
     parser.add_argument("--version", "-v",
                         action="version",
                         version=version_string)
@@ -88,7 +90,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     reader_overrides=cli_args.readers
                 )
                 graph_name = Path(cli_args.experiment).stem
-                context.to_graphviz(graph_name)
+                context.to_graphviz(graph_name, cli_args.graph_file)
                 exit_code = 0
             except Exception:
                 logging.error(f"Error generating config graph:", exc_info=True)
