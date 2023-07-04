@@ -3,7 +3,7 @@ import json
 
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList
+from pyramid.model.events import NumericEventList
 from pyramid.trials.trials import Trial
 from pyramid.trials.trial_file import TrialFileWriter
 

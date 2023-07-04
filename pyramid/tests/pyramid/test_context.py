@@ -1,8 +1,10 @@
 from pathlib import Path
 from pytest import fixture
 import yaml
+import numpy as np
 
-from pyramid.model.numeric_events import NumericEventBuffer
+from pyramid.model.model import Buffer
+from pyramid.model.events import NumericEventList
 from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
@@ -87,33 +89,29 @@ def test_configure_readers():
     assert readers == expected_readers
 
     expected_named_buffers = {
-        "start": NumericEventBuffer(),
-        "wrt": NumericEventBuffer(),
-        "foo": NumericEventBuffer(),
-        "bar": NumericEventBuffer(),
-        "bar_2": NumericEventBuffer(),
+        "start": Buffer(NumericEventList(np.empty([0,2]))),
+        "wrt": Buffer(NumericEventList(np.empty([0,2]))),
+        "foo": Buffer(NumericEventList(np.empty([0,2]))),
+        "bar": Buffer(NumericEventList(np.empty([0,2]))),
+        "bar_2": Buffer(NumericEventList(np.empty([0,2]))),
     }
     assert named_buffers == expected_named_buffers
 
     expected_reader_routers = [
         ReaderRouter(
             expected_readers["start_reader"],
-            {"start": expected_named_buffers["start"]},
             [ReaderRoute("events", "start")]
         ),
         ReaderRouter(
             expected_readers["wrt_reader"],
-            {"wrt": expected_named_buffers["wrt"]},
             [ReaderRoute("events", "wrt")]
         ),
         ReaderRouter(
             expected_readers["foo_reader"],
-            {"foo": expected_named_buffers["foo"]},
             [ReaderRoute("events", "foo")]
         ),
         ReaderRouter(
             expected_readers["bar_reader"],
-            {"bar": expected_named_buffers["bar"], "bar_2": expected_named_buffers["bar_2"]},
             [
                 ReaderRoute("events", "bar"),
                 ReaderRoute("events", "bar_2", transformers=[OffsetThenGain(offset=10, gain=-2)])
@@ -131,8 +129,8 @@ def test_configure_trials():
         "wrt_value": 42
     }
     named_buffers = {
-        "start": NumericEventBuffer(),
-        "wrt": NumericEventBuffer()
+        "start": Buffer(NumericEventList(np.empty([0,2]))),
+        "wrt": Buffer(NumericEventList(np.empty([0,2])))
     }
     (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(trials_config, named_buffers)
 
@@ -195,32 +193,28 @@ def test_from_yaml_and_reader_overrides(fixture_path):
     }
 
     expected_named_buffers = {
-        "start": NumericEventBuffer(),
-        "wrt": NumericEventBuffer(),
-        "foo": NumericEventBuffer(),
-        "bar": NumericEventBuffer(),
-        "bar_2": NumericEventBuffer(),
+        "start": Buffer(NumericEventList(np.empty([0,2]))),
+        "wrt": Buffer(NumericEventList(np.empty([0,2]))),
+        "foo": Buffer(NumericEventList(np.empty([0,2]))),
+        "bar": Buffer(NumericEventList(np.empty([0,2]))),
+        "bar_2": Buffer(NumericEventList(np.empty([0,2]))),
     }
 
     expected_reader_routers = [
         ReaderRouter(
             expected_readers["start_reader"],
-            {"start": expected_named_buffers["start"]},
             [ReaderRoute("events", "start")]
         ),
         ReaderRouter(
             expected_readers["wrt_reader"],
-            {"wrt": expected_named_buffers["wrt"]},
             [ReaderRoute("events", "wrt")]
         ),
         ReaderRouter(
             expected_readers["foo_reader"],
-            {"foo": expected_named_buffers["foo"]},
             [ReaderRoute("events", "foo")]
         ),
         ReaderRouter(
             expected_readers["bar_reader"],
-            {"bar": expected_named_buffers["bar"], "bar_2": expected_named_buffers["bar_2"]},
             [
                 ReaderRoute("events", "bar"),
                 ReaderRoute("events", "bar_2", transformers=[OffsetThenGain(offset=10, gain=-2)])

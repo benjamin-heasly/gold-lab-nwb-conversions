@@ -1,9 +1,8 @@
-from pyramid.model.model import DynamicImport
-from pyramid.model.numeric_events import NumericEventList
+from pyramid.model.model import DynamicImport, BufferData
 
 
 class Transformer(DynamicImport):
-    """Transform values and/or type of Pyramid data, like NumericEventList."""
+    """Transform values and/or type of Pyramid BufferData, en route from Reader to Trial."""
 
-    def transform(self, data: NumericEventList) -> NumericEventList:
+    def transform(self, data: BufferData) -> BufferData:
         raise NotImplementedError  # pragma: no cover

@@ -1,9 +1,9 @@
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
+from pyramid.model.events import NumericEventList
 
 
-def test_list_getters():
+def test_numeric_list_getters():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -30,7 +30,7 @@ def test_list_getters():
     assert np.array_equal(event_list.get_times_of(50.0, start_time=4.0, end_time=6.0), np.array([5.0]))
 
 
-def test_list_append():
+def test_numeric_list_append():
     event_count = 100
     half_count = int(event_count / 2)
     event_list_a = NumericEventList(np.array([[t, 10*t] for t in range(half_count)]))
@@ -43,7 +43,7 @@ def test_list_append():
     assert np.array_equal(event_list_a.get_values(), 10*np.array(range(event_count)))
 
 
-def test_list_discard_before():
+def test_numeric_list_discard_before():
     event_count = 100
     half_count = int(event_count / 2)
     raw_data = [[t, 10*t] for t in range(event_count)]
@@ -55,7 +55,7 @@ def test_list_discard_before():
     assert np.array_equal(event_list.get_values(), 10*np.array(range(half_count, event_count)))
 
 
-def test_list_shift_times():
+def test_numeric_list_shift_times():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -65,13 +65,13 @@ def test_list_shift_times():
     assert np.array_equal(event_list.get_times(), 5 + np.array(range(100)))
 
 
-def test_list_shift_times_empty():
+def test_numeric_list_shift_times_empty():
     event_list = NumericEventList(np.empty([0, 2]))
     event_list.shift_times(5)
     assert event_list.get_times().size == 0
 
 
-def test_list_transform_values():
+def test_numeric_list_transform_values():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -82,7 +82,7 @@ def test_list_transform_values():
     assert np.array_equal(event_list.get_values(), 2*10*np.array(range(-50, 50)))
 
 
-def test_list_copy_value_range():
+def test_numeric_list_copy_value_range():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -97,7 +97,7 @@ def test_list_copy_value_range():
     assert np.array_equal(event_list.get_values(), 10*np.array(range(100)))
 
 
-def test_list_copy_value_range_no_min():
+def test_numeric_list_copy_value_range_no_min():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -108,7 +108,7 @@ def test_list_copy_value_range_no_min():
     assert np.array_equal(range_event_list.get_values(), 10*np.array(range(60)))
 
 
-def test_list_copy_value_range_no_max():
+def test_numeric_list_copy_value_range_no_max():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -119,7 +119,7 @@ def test_list_copy_value_range_no_max():
     assert np.array_equal(range_event_list.get_values(), 10*np.array(range(40, 100)))
 
 
-def test_list_copy_time_range():
+def test_numeric_list_copy_time_range():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -142,7 +142,7 @@ def test_list_copy_time_range():
     assert np.array_equal(event_list.get_values(), 10*np.array(range(100)))
 
 
-def test_list_interop():
+def test_numeric_list_interop():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_data = np.array(raw_data)
@@ -156,7 +156,7 @@ def test_list_interop():
     assert interop_2 == interop
 
 
-def test_list_equality():
+def test_numeric_list_equality():
     foo_events = NumericEventList(np.array([[t, 10*t] for t in range(100)]))
     bar_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))
     baz_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))
@@ -175,57 +175,3 @@ def test_list_equality():
     assert foo_events != "wrong type"
     assert bar_events != "wrong type"
     assert baz_events != "wrong type"
-
-
-def test_buffer_getters():
-    buffer = NumericEventBuffer()
-    assert buffer.start_time() == 0.0
-    assert buffer.end_time() == 0.0
-
-    event_count = 100
-    raw_data = [[t, 10*t] for t in range(event_count)]
-    event_data = np.array(raw_data)
-    event_list = NumericEventList(event_data)
-    event_list.shift_times(42)
-    buffer.append(event_list)
-
-    assert buffer.start_time() == 42
-    assert buffer.end_time() == 141
-
-
-def test_buffer_discard():
-    buffer = NumericEventBuffer()
-
-    event_count = 100
-    raw_data = [[t, 10*t] for t in range(event_count)]
-    event_data = np.array(raw_data)
-    event_list = NumericEventList(event_data)
-    buffer.append(event_list)
-
-    assert buffer.start_time() == 0
-    assert buffer.end_time() == 99
-
-    # Discard half.
-    buffer.discard_before(50)
-    assert buffer.start_time() == 50
-    assert buffer.end_time() == 99
-
-    # Discard same again has no effect.
-    buffer.discard_before(50)
-    assert buffer.start_time() == 50
-    assert buffer.end_time() == 99
-
-    # Discard before earliest has no effect.
-    buffer.discard_before(25)
-    assert buffer.start_time() == 50
-    assert buffer.end_time() == 99
-
-    # Discard half again.
-    buffer.discard_before(75)
-    assert buffer.start_time() == 75
-    assert buffer.end_time() == 99
-
-    # Discard the rest and become empty.
-    buffer.discard_before(100)
-    assert buffer.start_time() == 0
-    assert buffer.end_time() == 0

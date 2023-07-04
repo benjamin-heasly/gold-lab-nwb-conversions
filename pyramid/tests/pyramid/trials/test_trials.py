@@ -1,6 +1,7 @@
 import numpy as np
 
-from pyramid.model.numeric_events import NumericEventList, NumericEventBuffer
+from pyramid.model.model import BufferData
+from pyramid.model.events import NumericEventList
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
 from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor
 
@@ -12,13 +13,13 @@ def test_trial_interop():
     trial = Trial(start_time, end_time, wrt_time)
 
     foo_events = NumericEventList(np.array([[t, 10*t] for t in range(100)]))
-    trial.add_numeric_events("foo", foo_events)
+    trial.add_data("foo", foo_events)
 
     bar_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))
-    trial.add_numeric_events("bar", bar_events)
+    trial.add_data("bar", bar_events)
 
     empty_events = NumericEventList(np.empty([0, 2]))
-    trial.add_numeric_events("empty", empty_events)
+    trial.add_data("empty", empty_events)
 
     interop = trial.to_interop()
     trial_2 = Trial.from_interop(interop)
@@ -49,14 +50,18 @@ class FakeNumericEventReader(Reader):
         else:
             return None
 
+    def get_initial(self) -> dict[str, BufferData]:
+        return {
+            "events": NumericEventList(np.empty([0, 2]))
+        }
+
 
 def test_delimit_trials_from_pivate_buffer():
     start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2, 1010]], [[3, 1010]]])
-    start_buffer = NumericEventBuffer()
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
+    start_router = ReaderRouter(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_buffer, 1010)
+    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # trial zero will be garbage, whatever happens before the first start event
     assert start_router.route_next() == True
@@ -95,11 +100,10 @@ def test_delimit_trials_from_shared_buffer():
             [[3.5, 42]],
         ]
     )
-    start_buffer = NumericEventBuffer()
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
+    start_router = ReaderRouter(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_buffer, 1010)
+    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # trial zero will be garbage, whatever happens before the first start event
     assert start_router.route_next() == True
@@ -138,11 +142,10 @@ def test_delimit_multiple_trials_per_read():
             [[2, 1010], [2.5, 42], [2.6, 42], [3, 1010], [3.5, 42]]
         ]
     )
-    start_buffer = NumericEventBuffer()
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
+    start_router = ReaderRouter(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_buffer, 1010)
+    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # trial zero will be garbage, whatever happens before the first start event
     assert start_router.route_next() == True
@@ -168,36 +171,32 @@ def test_delimit_multiple_trials_per_read():
 def test_populate_trials_from_private_buffers():
     # Expect trials starting at times 0, 1, 2, and 3.
     start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2, 1010]], [[3, 1010]]])
-    start_buffer = NumericEventBuffer()
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, {"start": start_buffer}, [start_route])
+    start_router = ReaderRouter(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_buffer, 1010)
+    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # Expect wrt times half way through trials 1, 2, and 3.
     wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42], [2.6, 42]], [[3.5, 42]]])
-    wrt_buffer = NumericEventBuffer()
     wrt_route = ReaderRoute("events", "wrt")
-    wrt_router = ReaderRouter(wrt_reader, {"wrt": wrt_buffer}, [wrt_route])
+    wrt_router = ReaderRouter(wrt_reader, [wrt_route])
 
     # Expect "foo" events in trials 0, 1, and 2, before the wrt times.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
-    foo_buffer = NumericEventBuffer()
     foo_route = ReaderRoute("events", "foo")
-    foo_router = ReaderRouter(foo_reader, {"foo": foo_buffer}, [foo_route])
+    foo_router = ReaderRouter(foo_reader, [foo_route])
 
     # Expect "bar" events in trials 0 and 3, before the wrt times.
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
-    bar_buffer = NumericEventBuffer()
     bar_route = ReaderRoute("events", "bar")
-    bar_router = ReaderRouter(bar_reader, {"bar": bar_buffer}, [bar_route])
+    bar_router = ReaderRouter(bar_reader, [bar_route])
 
     extractor = TrialExtractor(
-        wrt_buffer,
+        wrt_router.buffers["wrt"],
         wrt_value=42,
         named_buffers={
-            "foo": foo_buffer,
-            "bar": bar_buffer
+            "foo": foo_router.buffers["foo"],
+            "bar": bar_router.buffers["bar"]
         }
     )
 
@@ -300,32 +299,28 @@ def test_populate_trials_from_shared_buffers():
             [[3.5, 42]]
         ]
     )
-    start_buffer = NumericEventBuffer()
     start_route = ReaderRoute("events", "start")
-    wrt_buffer = NumericEventBuffer()
     wrt_route = ReaderRoute("events", "wrt")
-    start_router = ReaderRouter(start_reader, {"start": start_buffer, "wrt": wrt_buffer}, [start_route, wrt_route])
+    start_router = ReaderRouter(start_reader, [start_route, wrt_route])
 
-    delimiter = TrialDelimiter(start_buffer, 1010)
+    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # Expect "foo" events in trials 0, 1, and 2, before the wrt times.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
-    foo_buffer = NumericEventBuffer()
     foo_route = ReaderRoute("events", "foo")
-    foo_router = ReaderRouter(foo_reader, {"foo": foo_buffer}, [foo_route])
+    foo_router = ReaderRouter(foo_reader, [foo_route])
 
     # Expect "bar" events in trials 0 and 3, before the wrt times.
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
-    bar_buffer = NumericEventBuffer()
     bar_route = ReaderRoute("events", "bar")
-    bar_router = ReaderRouter(bar_reader, {"bar": bar_buffer}, [bar_route])
+    bar_router = ReaderRouter(bar_reader, [bar_route])
 
     extractor = TrialExtractor(
-        wrt_buffer,
+        start_router.buffers["wrt"],
         wrt_value=42,
         named_buffers={
-            "foo": foo_buffer,
-            "bar": bar_buffer
+            "foo": foo_router.buffers["foo"],
+            "bar": bar_router.buffers["bar"]
         }
     )
 
