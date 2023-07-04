@@ -43,3 +43,6 @@ class DelaySimulatorReader(Reader):
             end_times = [result.get_end_time() for result in next_result.values()]
             self.stash_until = max(end_times)
             self.stashed_result = next_result
+
+    def get_initial(self) -> dict[str, BufferData]:
+        return self.reader.get_initial()

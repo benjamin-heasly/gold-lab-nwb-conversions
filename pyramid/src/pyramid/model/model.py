@@ -89,13 +89,9 @@ class BufferData(InteropData):
         """Shift data times, in place -- allows allows Trial "wrt" alignment and Reader clock adjustments."""
         raise NotImplemented  # pragma: no cover
 
-    def get_start_time(self) -> float:
-        """Report the time of the earliest data item still in the buffer."""
-        raise NotImplemented
-
     def get_end_time(self) -> float:
         """Report the time of the latest data item still in the buffer."""
-        raise NotImplemented
+        raise NotImplemented  # pragma: no cover
 
 
 class Buffer():

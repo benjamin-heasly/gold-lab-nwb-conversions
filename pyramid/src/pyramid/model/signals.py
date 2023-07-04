@@ -89,10 +89,6 @@ class SignalChunk(InteropData):
         """Implementing BufferData superclass."""
         self.first_sample_time += shift
 
-    def get_start_time(self) -> float:
-        """Implementing BufferData superclass."""
-        return self.first_sample_time
-
     def get_end_time(self) -> float:
         """Implementing BufferData superclass."""
         duration = self.sample_count() / self.sample_frequency

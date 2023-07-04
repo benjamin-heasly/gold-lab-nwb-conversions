@@ -18,11 +18,13 @@ class Reader(DynamicImport):
      - Implement __enter__() and __exit__() to confirm to Python's "context manager protocol"", which
        is how Pyramid manages acquisition and release of system and libarary resources.
        See: https://peps.python.org/pep-0343/#standard-terminology
+     - Implement get_initial() to return a dictionary of name - BufferData entries, allowing users of the
+       Reader to see the expected names and BufferData sub-types that the reader will produce.
 
-    Pyramid takes the results of read_next() from each reader and handles how the results are copied into
-    connected buffers, filtered and transformed into desired forms, and eventually assigned to trials.
-    So, the focus of a reader implementation can just be getting data out of the source incrementally
-    and converting each increment into Pyramid BufferData types.
+    Pyramid takes the results of get_initial() and read_next() from each reader and handles how the data
+    are copied into connected buffers, filtered and transformed into desired forms, and eventually
+    assigned to trials. So, the focus of a reader implementation can just be getting data out of the source
+    incrementally and converting each increment into Pyramid BufferData types.
     """
 
     def __enter__(self) -> Any:
@@ -54,7 +56,15 @@ class Reader(DynamicImport):
         """
         raise NotImplementedError  # pragma: no cover
 
-    # TODO: get initial dictionary with expected keys and initial buffers and initial BufferData
+    def get_initial(self) -> dict[str, BufferData]:
+        """Create an initial dictionary indiciting the expected names and BufferData sub-types this Reader will produce.
+
+        This is called before __enter__() and before the first call to read_next().
+        It's intended to inform Pyramid what result keys this Reader will produce, and the BufferData sub-types that it will use.
+        These help setting up downstream components that receive the results of read_next().
+        The initial dictionary returned here can (and should!) depend on the kwargs passed to the Reader's constructor. 
+        """
+        raise NotImplementedError  # pragma: no cover
 
 
 @dataclass
@@ -92,17 +102,22 @@ class ReaderRouter():
     def __init__(
         self,
         reader: Reader,
-        buffers: dict[str, Buffer],
         routes: list[ReaderRoute],
         empty_reads_allowed: int = 3
     ) -> None:
         self.reader = reader
-        self.buffers = buffers
         self.routes = routes
 
         self.reader_exception = None
         self.max_buffer_time = 0.0
         self.empty_reads_allowed = empty_reads_allowed
+
+        initial_data = self.reader.get_initial()
+        self.buffers = {}
+        for route in self.routes:
+            data = initial_data.get(route.results_key, None)
+            if data:
+                self.buffers[route.buffer_name] = Buffer(data.copy())
 
     def __eq__(self, other: object) -> bool:
         """Compare routers field-wise, to support use of this class in tests."""
@@ -162,8 +177,10 @@ class ReaderRouter():
                 continue
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.
-        buffer_end_times = [buffer.data.get_end_time() for buffer in self.buffers.values()]
-        self.max_buffer_time = max(buffer_end_times)
+        for buffer in self.buffers.values():
+            buffer_end_time = buffer.data.get_end_time()
+            if buffer_end_time and buffer_end_time > self.max_buffer_time:
+                self.max_buffer_time = buffer_end_time
 
         return True
 

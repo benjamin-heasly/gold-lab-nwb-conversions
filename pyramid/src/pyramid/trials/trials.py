@@ -1,10 +1,8 @@
 from typing import Any, Self
 from dataclasses import dataclass, field
 
-from pyramid.model.model import InteropData
-from pyramid.model.events import NumericEventList, NumericEventBuffer
-
-# Construct a trials "IOC container" / context declared in YAML.
+from pyramid.model.model import InteropData, Buffer, BufferData
+from pyramid.model.events import NumericEventList
 
 
 @dataclass
@@ -35,12 +33,13 @@ class Trial(InteropData):
     def from_interop(cls, interop) -> Self:
         trial = Trial(interop["start_time"], interop["end_time"], interop["wrt_time"])
         for (name, event_list) in interop["numeric_events"].items():
-            trial.add_numeric_events(name, NumericEventList.from_interop(event_list))
+            trial.add_data(name, NumericEventList.from_interop(event_list))
         return trial
 
-    def add_numeric_events(self, name: str, event_list: NumericEventList):
-        """Add a numeric event list to this trial, as-is."""
-        self.numeric_events[name] = event_list
+    def add_data(self, name: str, data: BufferData):
+        """Add named data to this trial (as-is)."""
+        # TODO: choose field to add to, depending of BufferData sub-type
+        self.numeric_events[name] = data
 
 
 class TrialDelimiter():
@@ -48,7 +47,7 @@ class TrialDelimiter():
 
     def __init__(
         self,
-        start_buffer: NumericEventBuffer,
+        start_buffer: Buffer,
         start_value: float,
         start_value_index: int = 0,
         trial_start_time: float = 0.0,
@@ -79,7 +78,7 @@ class TrialDelimiter():
         This has the side-effects of incrementing trial_start_time and trial_count.
         """
         trials = []
-        next_start_times = self.start_buffer.event_list.get_times_of(self.start_value, self.start_value_index)
+        next_start_times = self.start_buffer.data.get_times_of(self.start_value, self.start_value_index)
         for next_start_time in next_start_times:
             if next_start_time > self.trial_start_time:
                 trial = Trial(start_time=self.trial_start_time, end_time=next_start_time)
@@ -99,7 +98,7 @@ class TrialDelimiter():
 
     def discard_before(self, time: float):
         """Let event buffer discard data no longer needed."""
-        self.start_buffer.discard_before(time)
+        self.start_buffer.data.discard_before(time)
 
 
 class TrialExtractor():
@@ -107,10 +106,10 @@ class TrialExtractor():
 
     def __init__(
         self,
-        wrt_buffer: NumericEventBuffer,
+        wrt_buffer: Buffer,
         wrt_value: float,
         wrt_value_index: int = 0,
-        named_buffers: dict[str, NumericEventBuffer] = {}
+        named_buffers: dict[str, Buffer] = {}
     ) -> None:
         self.wrt_buffer = wrt_buffer
         self.wrt_value = wrt_value
@@ -131,7 +130,7 @@ class TrialExtractor():
 
     def populate_trial(self, trial: Trial):
         """Fill in the given trial with data from configured buffers, in the trial's time range."""
-        trial_wrt_times = self.wrt_buffer.event_list.get_times_of(
+        trial_wrt_times = self.wrt_buffer.data.get_times_of(
             self.wrt_value,
             self.wrt_value_index,
             trial.start_time,
@@ -143,13 +142,12 @@ class TrialExtractor():
             trial.wrt_time = 0.0
 
         for name, buffer in self.named_buffers.items():
-            # TODO: will be other buffer types here, besides NumericEventBuffer
-            events = buffer.event_list.copy_time_range(trial.start_time, trial.end_time)
+            events = buffer.data.copy_time_range(trial.start_time, trial.end_time)
             events.shift_times(-trial.wrt_time)
-            trial.add_numeric_events(name, events)
+            trial.add_data(name, events)
 
     def discard_before(self, time: float):
         """Let event wrt and named buffers discard data no longer needed."""
-        self.wrt_buffer.discard_before(time)
+        self.wrt_buffer.data.discard_before(time)
         for buffer in self.named_buffers.values():
-            buffer.discard_before(time)
+            buffer.data.discard_before(time)

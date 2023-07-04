@@ -60,13 +60,6 @@ class NumericEventList(BufferData):
         if self.event_data.size > 0:
             self.event_data[:, 0] += shift
 
-    def get_start_time(self) -> float:
-        """Implementing BufferData superclass."""
-        if self.event_count():
-            return self.event_data[:, 0].min()
-        else:
-            return None
-
     def get_end_time(self) -> float:
         """Implementing BufferData superclass."""
         if self.event_count():

@@ -6,9 +6,9 @@ from dataclasses import dataclass
 import yaml
 import graphviz
 
+from pyramid.model.model import Buffer
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
-from pyramid.model.events import NumericEventBuffer
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor
 from pyramid.trials.trial_file import TrialFileWriter
 from pyramid.plotters.plotters import Plotter, PlotFigureController
@@ -19,7 +19,7 @@ class PyramidContext():
     subject: dict[str, Any]
     experiment: dict[str, Any]
     readers: dict[str, Reader]
-    named_buffers: dict[str, NumericEventBuffer]
+    named_buffers: dict[str, Buffer]
     start_router: ReaderRouter
     other_routers: list[ReaderRouter]
     trial_delimiter: TrialDelimiter
@@ -191,7 +191,7 @@ class PyramidContext():
         start_buffer_name = None
         wrt_buffer_name = None
         for name, buffer in self.named_buffers.items():
-            label = f"{name}|{buffer.__class__.__name__}"
+            label = f"{name}|{buffer.__class__.__name__}|{buffer.data.__class__.__name__}"
             dot.node(name=name, label=label, shape="record")
             if buffer is self.trial_delimiter.start_buffer:
                 start_buffer_name = name
@@ -244,7 +244,7 @@ class PyramidContext():
 def configure_readers(
     readers_config: dict[str, dict],
     allow_simulate_delay: bool = False
-) -> tuple[dict[str, Reader], dict[str, NumericEventBuffer], list[ReaderRouter]]:
+) -> tuple[dict[str, Reader], dict[str, Buffer], list[ReaderRouter]]:
     readers = {}
     named_buffers = {}
     routers = []
@@ -258,12 +258,11 @@ def configure_readers(
             reader = DelaySimulatorReader(reader)
         readers[reader_name] = reader
 
-        # Instantiate buffers and routes for this reader.
+        # Instantiate routes and their buffers for this reader.
         reader_buffers = {}
         reader_routes = []
         buffers_config = reader_config.get("buffers", {})
         for buffer_name, buffer_config in buffers_config.items():
-            reader_buffers[buffer_name] = NumericEventBuffer()
 
             # Instantiate transformers by dynamic import.
             transformers = []
@@ -279,16 +278,16 @@ def configure_readers(
             reader_routes.append(route)
 
         # A router to route data from the reader along each configured route to its buffer.
-        reader_router = ReaderRouter(reader, reader_buffers, reader_routes)
+        reader_router = ReaderRouter(reader, reader_routes)
         routers.append(reader_router)
-        named_buffers.update(reader_buffers)
+        named_buffers.update(reader_router.buffers)
 
     return (readers, named_buffers, routers)
 
 
 def configure_trials(
     trials_config: dict[str, Any],
-    named_buffers: dict[str, NumericEventBuffer]
+    named_buffers: dict[str, Buffer]
 ) -> tuple[TrialDelimiter, TrialExtractor, str]:
     start_buffer_name = trials_config.get("start_buffer", "start")
     start_value = trials_config.get("start_value", 0.0)

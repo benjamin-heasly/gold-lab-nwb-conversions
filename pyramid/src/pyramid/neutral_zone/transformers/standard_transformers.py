@@ -9,7 +9,7 @@ from pyramid.neutral_zone.transformers.transformers import Transformer
 class OffsetThenGain(Transformer):
     """Apply an offset, then gain, to values in a Pyramid BufferData type."""
 
-    def __init__(self, offset: float = 0.0, gain: float = 1.0, value_id: int|str = 0, **kwargs) -> None:
+    def __init__(self, offset: float = 0.0, gain: float = 1.0, value_id: int | str = 0, **kwargs) -> None:
         self.offset = offset
         self.gain = gain
         self.value_id = value_id
@@ -26,12 +26,10 @@ class OffsetThenGain(Transformer):
             return False
 
     def transform(self, data: BufferData) -> BufferData:
-        if isinstance(data, NumericEventList):
+        if isinstance(data, NumericEventList) or isinstance(data, SignalChunk):
             data.apply_offset_then_gain(self.offset, self.gain, self.value_id)
-        elif isinstance(data, SignalChunk):
-            data.apply_offset_then_gain(self.offset, self.gain, self.value_id)
-        else:
-            logging.warning(f"OffsetThenGain doesn't know how to apply to data of this class: {data.__class__.__name__}")
+        else:  # pragma: no cover
+            logging.warning(f"OffsetThenGain doesn't know how to apply to {data.__class__.__name__}")
         return data
 
 
@@ -46,6 +44,6 @@ class FilterRange(Transformer):
     def transform(self, data: BufferData) -> BufferData:
         if isinstance(data, NumericEventList):
             return data.copy_value_range(self.min, self.max, self.value_index)
-        else:
-            logging.warning(f"FilterRange doesn't know how to apply to data of this class: {data.__class__.__name__}")
-        return data
+        else:  # pragma: no cover
+            logging.warning(f"FilterRange doesn't know how to apply to {data.__class__.__name__}")
+            return data

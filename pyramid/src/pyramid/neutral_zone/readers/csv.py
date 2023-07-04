@@ -4,6 +4,7 @@ import csv
 import numpy as np
 
 from pyramid.model.events import NumericEventList
+from pyramid.model.model import BufferData
 from pyramid.neutral_zone.readers.readers import Reader
 
 
@@ -13,7 +14,13 @@ class CsvNumericEventReader(Reader):
     Skips lines that contain non-numeric values.
     """
 
-    def __init__(self, csv_file: str = None, results_key: str = "events", dialect: str = 'excel', **fmtparams) -> None:
+    def __init__(
+        self,
+        csv_file: str = None,
+        results_key: str = "events",
+        dialect: str = 'excel',
+        **fmtparams
+    ) -> None:
         self.csv_file = csv_file
         self.results_key = results_key
         self.dialect = dialect
@@ -57,3 +64,18 @@ class CsvNumericEventReader(Reader):
         except ValueError as error:
             logging.info(f"Skipping CSV '{self.csv_file}' line {line_num} <{next_row}> because {error.args}")
             return None
+
+    def get_initial(self) -> dict[str, BufferData]:
+        try:
+            # Peek at the first line of the CSV to get the column count.
+            with open(self.csv_file, mode='r', newline='') as peek_stream:
+                peek_reader = csv.reader(peek_stream, self.dialect, **self.fmtparams)
+                first_row = peek_reader.__next__()
+            column_count = len(first_row)
+        except Exception:
+            column_count = 2
+            logging.error(f"Unable to read column count from CSV file {self.csv_file}, using default {column_count}", exc_info=True)
+
+        return {
+            self.results_key: NumericEventList(np.empty([0, column_count]))
+        }
