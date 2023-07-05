@@ -205,7 +205,7 @@ pyramid gui --experiment demo_experiment.yaml --readers delimiter_reader.csv_fil
 
 This command is identical to the `convert` command above, except for the mode argument, which is now `gui`.
 
-A figure window should open and update every few second as new trials arrive.
+A figure window should open and update every second as new trials arrive.
 The plot in this example just shows basic trial extraction progress.
 Custom plots can also be created, and configured in the `plotters` section of the experiment YAML.
 
