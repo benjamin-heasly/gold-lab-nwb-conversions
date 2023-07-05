@@ -2,26 +2,72 @@ import numpy as np
 
 from pyramid.model.model import BufferData
 from pyramid.model.events import NumericEventList
+from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
 from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor
 
 
-def test_trial_interop():
+def test_trial_interop_no_data():
+    start_time = 0
+    end_time = 100
+    wrt_time = 50
+    trial = Trial(start_time, end_time, wrt_time)
+
+    assert not trial.add_data("ignored type", {})
+
+    interop = trial.to_interop()
+    assert "numeric_events" not in interop.keys()
+    assert "signals" not in interop.keys()
+
+    trial_2 = Trial.from_interop(interop)
+    assert trial_2 == trial
+
+    interop_2 = trial_2.to_interop()
+    assert interop_2 == interop
+
+
+def test_trial_interop_with_numeric_events():
     start_time = 0
     end_time = 100
     wrt_time = 50
     trial = Trial(start_time, end_time, wrt_time)
 
     foo_events = NumericEventList(np.array([[t, 10*t] for t in range(100)]))
-    trial.add_data("foo", foo_events)
+    assert trial.add_data("foo", foo_events)
 
     bar_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))
-    trial.add_data("bar", bar_events)
+    assert trial.add_data("bar", bar_events)
 
     empty_events = NumericEventList(np.empty([0, 2]))
-    trial.add_data("empty", empty_events)
+    assert trial.add_data("empty", empty_events)
 
     interop = trial.to_interop()
+    assert "numeric_events" in interop.keys()
+    assert "signals" not in interop.keys()
+
+    trial_2 = Trial.from_interop(interop)
+    assert trial_2 == trial
+
+    interop_2 = trial_2.to_interop()
+    assert interop_2 == interop
+
+def test_trial_interop_with_signals():
+    start_time = 0
+    end_time = 100
+    wrt_time = 50
+    trial = Trial(start_time, end_time, wrt_time)
+
+    sample_data = np.array([[v, 10*v] for v in range(100)])
+    foo_signal = SignalChunk(sample_data, sample_frequency=10, first_sample_time=0, channel_ids=["a", "b"])
+    assert trial.add_data("foo", foo_signal)
+
+    empty_signal = SignalChunk(np.empty([0, 2]), sample_frequency=10, first_sample_time=0, channel_ids=["c", "d"])
+    assert trial.add_data("empty", empty_signal)
+
+    interop = trial.to_interop()
+    assert "numeric_events" not in interop.keys()
+    assert "signals" in interop.keys()
+
     trial_2 = Trial.from_interop(interop)
     assert trial_2 == trial
 

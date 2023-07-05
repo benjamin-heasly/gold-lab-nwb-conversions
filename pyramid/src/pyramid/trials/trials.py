@@ -1,8 +1,10 @@
 from typing import Any, Self
 from dataclasses import dataclass, field
+import logging
 
 from pyramid.model.model import InteropData, Buffer, BufferData
 from pyramid.model.events import NumericEventList
+from pyramid.model.signals import SignalChunk
 
 
 @dataclass
@@ -21,25 +23,55 @@ class Trial(InteropData):
     numeric_events: dict[str, NumericEventList] = field(default_factory=dict)
     """Named lists of numeric events assigned to this trial."""
 
+    signals: dict[str, SignalChunk] = field(default_factory=dict)
+    """Named signal chunks assigned to this trial."""
+
     def to_interop(self) -> Any:
-        return {
+        interop = {
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "wrt_time": self.wrt_time,
-            "numeric_events": {name: event_list.to_interop() for (name, event_list) in self.numeric_events.items()}
+            "wrt_time": self.wrt_time
         }
+        if self.numeric_events:
+            interop["numeric_events"] = {
+                name: event_list.to_interop() for name, event_list in self.numeric_events.items()
+            }
+        if self.signals:
+            interop["signals"] = {
+                name: signal_chunk.to_interop() for name, signal_chunk in self.signals.items()
+            }
+        return interop
 
     @classmethod
     def from_interop(cls, interop) -> Self:
-        trial = Trial(interop["start_time"], interop["end_time"], interop["wrt_time"])
-        for (name, event_list) in interop["numeric_events"].items():
-            trial.add_data(name, NumericEventList.from_interop(event_list))
+        numeric_events = {
+            name: NumericEventList.from_interop(event_data)
+            for name, event_data in interop.get("numeric_events", {}).items()
+        }
+        signals = {
+            name: SignalChunk.from_interop(sample_data)
+            for name, sample_data in interop.get("signals", {}).items()
+        }
+        trial = Trial(
+            start_time=interop["start_time"],
+            end_time=interop["end_time"],
+            wrt_time=interop["wrt_time"],
+            numeric_events=numeric_events,
+            signals=signals
+        )
         return trial
 
-    def add_data(self, name: str, data: BufferData):
+    def add_data(self, name: str, data: BufferData) -> bool:
         """Add named data to this trial (as-is)."""
-        # TODO: choose field to add to, depending of BufferData sub-type
-        self.numeric_events[name] = data
+        if isinstance(data, NumericEventList):
+            self.numeric_events[name] = data
+            return True
+        elif isinstance(data, SignalChunk):
+            self.signals[name] = data
+            return True
+        else:
+            logging.warning(f"Data for name {name} not added to trial because class {data.__class__.__name__} is not supported.")
+            return False
 
 
 class TrialDelimiter():
