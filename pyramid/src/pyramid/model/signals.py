@@ -69,10 +69,14 @@ class SignalChunk(InteropData):
 
         rows_in_range = tail_selector & head_selector
         range_sample_data = self.sample_data[rows_in_range, :]
+        if range_sample_data.size > 0:
+            range_first_sample_time = sample_times[rows_in_range][0]
+        else:
+            range_first_sample_time = None
         return SignalChunk(
             range_sample_data,
             self.sample_frequency,
-            self.first_sample_time,
+            range_first_sample_time,
             self.channel_ids
         )
 
@@ -82,7 +86,9 @@ class SignalChunk(InteropData):
 
     def discard_before(self, start_time: float) -> None:
         """Implementing BufferData superclass."""
-        rows_to_keep = self.get_times() >= start_time
+        sample_times = self.get_times()
+        rows_to_keep = sample_times >= start_time
+        self.first_sample_time = sample_times[rows_to_keep][0]
         self.sample_data = self.sample_data[rows_to_keep, :]
 
     def shift_times(self, shift: float) -> None:
@@ -91,8 +97,12 @@ class SignalChunk(InteropData):
 
     def get_end_time(self) -> float:
         """Implementing BufferData superclass."""
-        duration = self.sample_count() / self.sample_frequency
-        return self.first_sample_time + duration
+        sample_count = self.sample_count()
+        if sample_count > 0:
+            duration = (self.sample_count() - 1) / self.sample_frequency
+            return self.first_sample_time + duration
+        else:
+            return None
 
     def to_interop(self) -> Any:
         """Implementing InteropData superclass."""
@@ -128,8 +138,8 @@ class SignalChunk(InteropData):
         else:
             channel_index = True
 
-        self.event_data[:, channel_index] += offset
-        self.event_data[:, channel_index] *= gain
+        self.sample_data[:, channel_index] += offset
+        self.sample_data[:, channel_index] *= gain
 
     def sample_count(self) -> int:
         """Get the number of samples in the chunk."""

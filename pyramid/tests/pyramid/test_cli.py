@@ -137,7 +137,6 @@ def test_gui_simulate_delay(fixture_path, tmp_path):
 
     simulate_delay_config = copy.deepcopy(experiment_config)
     simulate_delay_config["readers"]["delimiter_reader"]["simulate_delay"] = True
-    print(simulate_delay_config)
 
     with open(experiment_yaml, "w") as f:
         yaml.safe_dump(simulate_delay_config, f)
