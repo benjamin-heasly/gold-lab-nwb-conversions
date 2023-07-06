@@ -51,7 +51,7 @@ class PyramidContext():
             with open(subject_yaml) as f:
                 subject_config = yaml.safe_load(f)
         else:
-            subject_config = None
+            subject_config = {}
 
         pyramid_context = cls.from_dict(experiment_config, subject_config, allow_simulate_delay)
         return pyramid_context
@@ -75,10 +75,17 @@ class PyramidContext():
                     start_router = router
         other_routers = [router for router in reader_routers if router != start_router]
 
-        plot_figure_controller = configure_plotters(experiment_config.get("plotters", []))
+        plotters = configure_plotters(experiment_config.get("plotters", []))
+        subject = subject_config.get("subject", {})
+        experiment = experiment_config.get("experiment", {})
+        plot_figure_controller = PlotFigureController(
+            plotters=plotters,
+            experiment_info=experiment,
+            subject_info=subject,
+        )
         return PyramidContext(
-            subject=subject_config,
-            experiment=experiment_config.get("experiment", {}),
+            subject=subject,
+            experiment=experiment,
             readers=readers,
             named_buffers=named_buffers,
             start_router=start_router,
@@ -259,7 +266,6 @@ def configure_readers(
         readers[reader_name] = reader
 
         # Instantiate routes and their buffers for this reader.
-        reader_buffers = {}
         reader_routes = []
         buffers_config = reader_config.get("buffers", {})
         for buffer_name, buffer_config in buffers_config.items():
@@ -318,10 +324,10 @@ def configure_trials(
     return (trial_delimiter, trial_extractor, start_buffer_name)
 
 
-def configure_plotters(plotters_config: list[dict[str, str]]) -> PlotFigureController:
+def configure_plotters(plotters_config: list[dict[str, str]]) -> list[Plotter]:
     if not plotters_config:
         logging.info(f"No plotters.")
-        return PlotFigureController(plotters=[])
+        return []
 
     logging.info(f"Using {len(plotters_config)} plotters.")
     plotters = []
@@ -331,4 +337,4 @@ def configure_plotters(plotters_config: list[dict[str, str]]) -> PlotFigureContr
         logging.info(f"  {plotter_class}")
         plotters.append(Plotter.from_dynamic_import(plotter_class, **plotter_args))
 
-    return PlotFigureController(plotters)
+    return plotters

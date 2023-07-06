@@ -33,6 +33,13 @@ def test_invalid_input():
 
 
 experiment_config = {
+    "experiment": {
+        "experimenter": ["Last, First M", "Last, First Middle"],
+        "experiment_description": "A test experiment.",
+        "institution": "University of Fiction",
+        "lab": "The Fiction Lab",
+        "keywords": ["fictional", "test"]
+    },
     "readers": {
         "delimiter_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
@@ -80,8 +87,6 @@ experiment_config = {
         "wrt_value": 42
     },
     "plotters": [
-        {"class": "pyramid.plotters.sample_plotters.SampleSinePlotter"},
-        {"class": "pyramid.plotters.sample_plotters.SampleCosinePlotter"},
         {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"}
     ]
 }
@@ -92,6 +97,7 @@ def test_gui_success(fixture_path, tmp_path):
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
     signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
+    subject_yaml = Path(fixture_path, "subject.yaml").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -102,6 +108,7 @@ def test_gui_success(fixture_path, tmp_path):
         "gui",
         "--trial-file", trial_file,
         "--experiment", experiment_yaml,
+        "--subject", subject_yaml,
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
@@ -117,6 +124,7 @@ def test_gui_no_plotters(fixture_path, tmp_path):
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
     signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
+    subject_yaml = Path(fixture_path, "subject.yaml").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -132,6 +140,7 @@ def test_gui_no_plotters(fixture_path, tmp_path):
         "gui",
         "--trial-file", trial_file,
         "--experiment", experiment_yaml,
+        "--subject", subject_yaml,
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
@@ -147,6 +156,7 @@ def test_gui_simulate_delay(fixture_path, tmp_path):
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
     signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
+    subject_yaml = Path(fixture_path, "subject.yaml").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -160,6 +170,7 @@ def test_gui_simulate_delay(fixture_path, tmp_path):
         "gui",
         "--trial-file", trial_file,
         "--experiment", experiment_yaml,
+        "--subject", subject_yaml,
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
@@ -175,6 +186,7 @@ def test_gui_plotter_error(fixture_path, tmp_path):
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
     signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
+    subject_yaml = Path(fixture_path, "subject.yaml").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -193,6 +205,7 @@ def test_gui_plotter_error(fixture_path, tmp_path):
         "gui",
         "--trial-file", trial_file,
         "--experiment", experiment_yaml,
+        "--subject", subject_yaml,
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
@@ -208,6 +221,7 @@ def test_convert(fixture_path, tmp_path):
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
     signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
+    subject_yaml = Path(fixture_path, "subject.yaml").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -218,6 +232,7 @@ def test_convert(fixture_path, tmp_path):
         "convert",
         "--trial-file", trial_file,
         "--experiment", experiment_yaml,
+        "--subject", subject_yaml,
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",

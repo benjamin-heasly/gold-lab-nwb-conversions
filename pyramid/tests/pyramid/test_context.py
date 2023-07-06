@@ -154,12 +154,13 @@ def test_configure_plotters():
         {"class": "pyramid.plotters.sample_plotters.SampleSinePlotter"},
         {"class": "pyramid.plotters.sample_plotters.SampleCosinePlotter"}
     ]
-    plot_figure_controller = configure_plotters(plotters_config)
+    plotters = configure_plotters(plotters_config)
 
-    expected_plot_figure_controller = PlotFigureController(
-        plotters=[BasicInfoPlotter(), SampleSinePlotter(), SampleCosinePlotter()]
-    )
-    assert plot_figure_controller == expected_plot_figure_controller
+    expected_plotters=[BasicInfoPlotter(), SampleSinePlotter(), SampleCosinePlotter()]
+
+    assert len(plotters) == len(expected_plotters)
+    plotter_types_equal = [isinstance(a, b.__class__) for a, b in zip(plotters, expected_plotters)]
+    assert all(plotter_types_equal)
 
 
 def test_from_yaml_and_reader_overrides(fixture_path):
@@ -236,11 +237,13 @@ def test_from_yaml_and_reader_overrides(fixture_path):
     )
 
     expected_plot_figure_controller = PlotFigureController(
-        plotters=[BasicInfoPlotter(), SampleSinePlotter(), SampleCosinePlotter()]
+        plotters=[BasicInfoPlotter(), SampleSinePlotter(), SampleCosinePlotter()],
+        subject_info=expected_subject["subject"],
+        experiment_info=expected_experiment["experiment"]
     )
 
     expected_context = PyramidContext(
-        subject=expected_subject,
+        subject=expected_subject["subject"],
         experiment=expected_experiment["experiment"],
         readers=expected_readers,
         named_buffers=expected_named_buffers,

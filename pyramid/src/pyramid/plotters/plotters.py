@@ -52,9 +52,9 @@ class PlotFigureController():
 
     def __eq__(self, other: object) -> bool:
         """Compare controllers field-wise, to support use of this class in tests."""
-        plotter_counts_equal = len(self.plotters) == len(other.plotters)
-        plotter_types_equal = [isinstance(a, b.__class__) for a, b in zip(self.plotters, other.plotters)]
         if isinstance(other, self.__class__):
+            plotter_counts_equal = len(self.plotters) == len(other.plotters)
+            plotter_types_equal = [isinstance(a, b.__class__) for a, b in zip(self.plotters, other.plotters)]
             return (
                 plotter_counts_equal
                 and all(plotter_types_equal)
