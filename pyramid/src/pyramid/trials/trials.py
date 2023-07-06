@@ -174,9 +174,9 @@ class TrialExtractor():
             trial.wrt_time = 0.0
 
         for name, buffer in self.named_buffers.items():
-            events = buffer.data.copy_time_range(trial.start_time, trial.end_time)
-            events.shift_times(-trial.wrt_time)
-            trial.add_data(name, events)
+            data = buffer.data.copy_time_range(trial.start_time, trial.end_time)
+            data.shift_times(-trial.wrt_time)
+            trial.add_data(name, data)
 
     def discard_before(self, time: float):
         """Let event wrt and named buffers discard data no longer needed."""

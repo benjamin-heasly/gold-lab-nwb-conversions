@@ -144,7 +144,7 @@ def test_signals_empty_file(fixture_path):
     assert reader.file_stream is None
 
 
-def test_signals_complete_chunks(fixture_path):
+def test_signals_only_complete_chunks(fixture_path):
     csv_file = Path(fixture_path, 'signals', 'header_line.csv').as_posix()
     with CsvSignalReader(csv_file, lines_per_chunk=10) as reader:
         initial = reader.get_initial()
@@ -159,11 +159,19 @@ def test_signals_complete_chunks(fixture_path):
         assert initial == expected_initial
 
         # Read 15 chunks of 10 lines each...
-        for t in range(15):
+        for chunk_index in range(15):
+            chunk_time = chunk_index * 10
+            assert reader.next_sample_time == chunk_time
+
             result = reader.read_next()
             signal_chunk = result[reader.results_key]
             assert signal_chunk.sample_count() == 10
-            # TODO: check the samples, too
+
+            sample_times = signal_chunk.get_times()
+            assert np.array_equal(sample_times, np.array(range(chunk_time, chunk_time + 10)))
+            assert np.array_equal(signal_chunk.get_channel_values("a"), sample_times)
+            assert np.array_equal(signal_chunk.get_channel_values("b"), 100 - sample_times * 0.1)
+            assert np.array_equal(signal_chunk.get_channel_values("c"), sample_times * 2 - 1000)
 
         # ...then be done.
         with raises(StopIteration) as exception_info:
@@ -188,17 +196,33 @@ def test_signals_last_partial_chunk(fixture_path):
         assert initial == expected_initial
 
         # Read 13 chunks of 11 lines each...
-        for t in range(13):
+        for chunk_index in range(13):
+            chunk_time = chunk_index * 11
+            assert reader.next_sample_time == chunk_time
+
             result = reader.read_next()
             signal_chunk = result[reader.results_key]
             assert signal_chunk.sample_count() == 11
-            # TODO: check the samples, too
+
+            sample_times = signal_chunk.get_times()
+            assert np.array_equal(sample_times, np.array(range(chunk_time, chunk_time + 11)))
+            assert np.array_equal(signal_chunk.get_channel_values("a"), sample_times)
+            assert np.array_equal(signal_chunk.get_channel_values("b"), 100 - sample_times * 0.1)
+            assert np.array_equal(signal_chunk.get_channel_values("c"), sample_times * 2 - 1000)
 
         # Read a last, partial chunk of 7 lines.
+        chunk_time = 143
+        assert reader.next_sample_time == chunk_time
+
         result = reader.read_next()
         signal_chunk = result[reader.results_key]
         assert signal_chunk.sample_count() == 7
-        # TODO: check the samples, too
+
+        sample_times = signal_chunk.get_times()
+        assert np.array_equal(sample_times, np.array(range(chunk_time, chunk_time + 7)))
+        assert np.array_equal(signal_chunk.get_channel_values("a"), sample_times)
+        assert np.array_equal(signal_chunk.get_channel_values("b"), 100 - sample_times * 0.1)
+        assert np.array_equal(signal_chunk.get_channel_values("c"), sample_times * 2 - 1000)
 
         # ...then be done.
         with raises(StopIteration) as exception_info:
@@ -208,8 +232,42 @@ def test_signals_last_partial_chunk(fixture_path):
     assert reader.file_stream is None
 
 
-# TODO: make signal fixture csv with nonnumeric lines 
-# TODO: signals skips nonnumeric lines
+def test_signals_skip_nonnumeric_lines(fixture_path):
+    csv_file = Path(fixture_path, 'signals', 'nonnumeric_lines.csv').as_posix()
+    with CsvSignalReader(csv_file, lines_per_chunk=10) as reader:
+        initial = reader.get_initial()
+        expected_initial = {
+            reader.results_key: SignalChunk(
+                np.empty([0, 3]),
+                reader.sample_frequency,
+                first_sample_time=0.0,
+                channel_ids=["a", "b", "c"]
+            )
+        }
+        assert initial == expected_initial
+
+        # Read 15 chunks of 10 lines each...
+        for chunk_index in range(15):
+            chunk_time = chunk_index * 10
+            assert reader.next_sample_time == chunk_time
+
+            result = reader.read_next()
+            signal_chunk = result[reader.results_key]
+            assert signal_chunk.sample_count() == 10
+
+            sample_times = signal_chunk.get_times()
+            assert np.array_equal(sample_times, np.array(range(chunk_time, chunk_time + 10)))
+            assert np.array_equal(signal_chunk.get_channel_values("a"), sample_times)
+            assert np.array_equal(signal_chunk.get_channel_values("b"), 100 - sample_times * 0.1)
+            assert np.array_equal(signal_chunk.get_channel_values("c"), sample_times * 2 - 1000)
+
+        # ...then be done.
+        with raises(StopIteration) as exception_info:
+            reader.read_next()
+        assert exception_info.errisinstance(StopIteration)
+
+    assert reader.file_stream is None
+
 
 # TODO: test csv signal reader equality, or remove the eq implementation
 # TODO: an end-to-end (somewhere else) test that includes signal data

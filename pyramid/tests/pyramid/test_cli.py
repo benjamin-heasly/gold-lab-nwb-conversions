@@ -62,6 +62,16 @@ experiment_config = {
                 },
             }
         },
+        "match_trial_signal_reader": {
+            "class": "pyramid.neutral_zone.readers.csv.CsvSignalReader",
+            "args": {
+                "sample_frequency": 10,
+                "lines_per_chunk": 3
+            },
+            "buffers": {
+                "match_trial_signal": {"results_key": "samples"},
+            }
+        },
     },
     "trials": {
         "start_buffer": "start",
@@ -77,10 +87,11 @@ experiment_config = {
 }
 
 
-def test_gui(fixture_path, tmp_path):
+def test_gui_success(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -94,7 +105,8 @@ def test_gui(fixture_path, tmp_path):
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
-        f"bar_reader.csv_file={bar_csv}"
+        f"bar_reader.csv_file={bar_csv}",
+        f"match_trial_signal_reader.csv_file={signal_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 0
@@ -104,6 +116,7 @@ def test_gui_no_plotters(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -122,7 +135,8 @@ def test_gui_no_plotters(fixture_path, tmp_path):
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
-        f"bar_reader.csv_file={bar_csv}"
+        f"bar_reader.csv_file={bar_csv}",
+        f"match_trial_signal_reader.csv_file={signal_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 0
@@ -132,6 +146,7 @@ def test_gui_simulate_delay(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -148,7 +163,8 @@ def test_gui_simulate_delay(fixture_path, tmp_path):
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
-        f"bar_reader.csv_file={bar_csv}"
+        f"bar_reader.csv_file={bar_csv}",
+        f"match_trial_signal_reader.csv_file={signal_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 0
@@ -158,6 +174,7 @@ def test_gui_plotter_error(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -179,7 +196,8 @@ def test_gui_plotter_error(fixture_path, tmp_path):
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
-        f"bar_reader.csv_file={bar_csv}"
+        f"bar_reader.csv_file={bar_csv}",
+        f"match_trial_signal_reader.csv_file={signal_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 1
@@ -189,6 +207,7 @@ def test_convert(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
     foo_csv = Path(fixture_path, "foo.csv").as_posix()
     bar_csv = Path(fixture_path, "bar.csv").as_posix()
+    signal_csv = Path(fixture_path, "match_trial_signal.csv").as_posix()
     trial_file = Path(tmp_path, "trial_file.json").as_posix()
     experiment_yaml = Path(tmp_path, "experiment.yaml").as_posix()
 
@@ -202,7 +221,8 @@ def test_convert(fixture_path, tmp_path):
         "--readers",
         f"delimiter_reader.csv_file={delimiter_csv}",
         f"foo_reader.csv_file={foo_csv}",
-        f"bar_reader.csv_file={bar_csv}"
+        f"bar_reader.csv_file={bar_csv}",
+        f"match_trial_signal_reader.csv_file={signal_csv}"
     ]
     exit_code = main(cli_args)
     assert exit_code == 0

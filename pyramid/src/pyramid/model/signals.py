@@ -57,17 +57,18 @@ class SignalChunk(InteropData):
     def copy_time_range(self, start_time: float = None, end_time: float = None) -> Self:
         """Implementing BufferData superclass."""
         sample_times = self.get_times()
-        if start_time:
-            tail_selector = sample_times >= start_time
-        else:
+        if start_time is None:
             tail_selector = True
-
-        if end_time:
-            head_selector = sample_times < end_time
         else:
+            tail_selector = sample_times >= start_time
+
+        if end_time is None:
             head_selector = True
+        else:
+            head_selector = sample_times < end_time
 
         rows_in_range = tail_selector & head_selector
+
         range_sample_data = self.sample_data[rows_in_range, :]
         if range_sample_data.size > 0:
             range_first_sample_time = sample_times[rows_in_range][0]
@@ -93,7 +94,8 @@ class SignalChunk(InteropData):
 
     def shift_times(self, shift: float) -> None:
         """Implementing BufferData superclass."""
-        self.first_sample_time += shift
+        if self.first_sample_time is not None:
+            self.first_sample_time += shift
 
     def get_end_time(self) -> float:
         """Implementing BufferData superclass."""
@@ -133,10 +135,10 @@ class SignalChunk(InteropData):
 
         This modifies the signal_data in place.
         """
-        if channel_id:
-            channel_index = self.channel_ids.index(channel_id)
-        else:
+        if channel_id is None:
             channel_index = True
+        else:
+            channel_index = self.channel_ids.index(channel_id)
 
         self.sample_data[:, channel_index] += offset
         self.sample_data[:, channel_index] *= gain

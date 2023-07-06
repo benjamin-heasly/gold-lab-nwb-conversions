@@ -32,15 +32,15 @@ class NumericEventList(BufferData):
 
     def copy_time_range(self, start_time: float = None, end_time: float = None) -> Self:
         """Implementing BufferData superclass."""
-        if start_time:
-            tail_selector = self.event_data[:, 0] >= start_time
-        else:
+        if start_time is None:
             tail_selector = True
-
-        if end_time:
-            head_selector = self.event_data[:, 0] < end_time
         else:
+            tail_selector = self.event_data[:, 0] >= start_time
+
+        if end_time is None:
             head_selector = True
+        else:
+            head_selector = self.event_data[:, 0] < end_time
 
         rows_in_range = tail_selector & head_selector
         range_event_data = self.event_data[rows_in_range, :]
@@ -93,15 +93,15 @@ class NumericEventList(BufferData):
         Pass in start_time restrict to events at or after start_time.
         Pass in end_time restrict to events strictly before end_time.
         """
-        if start_time:
-            tail_selector = self.event_data[:, 0] >= start_time
-        else:
+        if start_time is None:
             tail_selector = True
-
-        if end_time:
-            head_selector = self.event_data[:, 0] < end_time
         else:
+            tail_selector = self.event_data[:, 0] >= start_time
+
+        if end_time is None:
             head_selector = True
+        else:
+            head_selector = self.event_data[:, 0] < end_time
 
         rows_in_range = tail_selector & head_selector
 
@@ -165,15 +165,15 @@ class NumericEventList(BufferData):
         This returns a new NumericEventList with a copy of events in the requested range.
         """
         value_column = value_index + 1
-        if min:
-            top_selector = self.event_data[:, value_column] >= min
-        else:
+        if min is None:
             top_selector = True
-
-        if max:
-            bottom_selector = self.event_data[:, value_column] < max
         else:
+            top_selector = self.event_data[:, value_column] >= min
+
+        if max is None:
             bottom_selector = True
+        else:
+            bottom_selector = self.event_data[:, value_column] < max
 
         rows_in_range = top_selector & bottom_selector
         range_event_data = self.event_data[rows_in_range, :]

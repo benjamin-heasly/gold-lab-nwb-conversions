@@ -67,21 +67,27 @@ class CsvNumericEventReader(Reader):
             return None
 
     def get_initial(self) -> dict[str, BufferData]:
-        try:
-            # Peek at the first line of the CSV to get the column count.
-            with open(self.csv_file, mode='r', newline='') as peek_stream:
-                peek_reader = csv.reader(peek_stream, self.dialect, **self.fmtparams)
-                first_row = peek_reader.__next__()
+        first_row = peek_at_csv(self.csv_file, self.dialect, **self.fmtparams)
+        if first_row:
             column_count = len(first_row)
-        except Exception:
+        else:
             column_count = 2
-            logging.error(
-                f"Unable to read column count from CSV file {self.csv_file}, using default {column_count}",
-                exc_info=True)
+            logging.warning("Using default column count for CSV events: {column_count}")
 
         return {
             self.results_key: NumericEventList(np.empty([0, column_count]))
         }
+
+
+def peek_at_csv(csv_file: str, dialect: str, **fmtparams) -> list[str]:
+    try:
+        # Peek at the first line of the CSV to get the first row.
+        with open(csv_file, mode='r', newline='') as f:
+            reader = csv.reader(f, dialect, **fmtparams)
+            return reader.__next__()
+    except Exception:
+        logging.error(f"Unable to peek at CSV file {csv_file}", exc_info=True)
+        return []
 
 
 class CsvSignalReader(Reader):
@@ -95,7 +101,7 @@ class CsvSignalReader(Reader):
         self,
         csv_file: str = None,
         sample_frequency: float = 1.0,
-        first_sample_time: float = 0.0,
+        next_sample_time: float = 0.0,
         lines_per_chunk: int = 10,
         results_key: str = "samples",
         dialect: str = 'excel',
@@ -103,7 +109,7 @@ class CsvSignalReader(Reader):
     ) -> None:
         self.csv_file = csv_file
         self.sample_frequency = sample_frequency
-        self.next_sample_time = first_sample_time
+        self.next_sample_time = next_sample_time
         self.lines_per_chunk = lines_per_chunk
         self.results_key = results_key
         self.dialect = dialect
@@ -112,21 +118,6 @@ class CsvSignalReader(Reader):
         self.file_stream = None
         self.csv_reader = None
         self.channel_ids = None
-
-    def __eq__(self, other: object) -> bool:
-        """Compare CSV readers field-wise, to support use of this class in tests."""
-        if isinstance(other, self.__class__):
-            return (
-                self.csv_file == other.csv_file
-                and self.sample_frequency == other.sample_frequency
-                and self.next_sample_time == other.next_sample_time
-                and self.lines_per_chunk == other.lines_per_chunk
-                and self.results_key == other.results_key
-                and self.dialect == other.dialect
-                and self.fmtparams == other.fmtparams
-            )
-        else:  # pragma: no cover
-            return False
 
     def __enter__(self) -> Self:
         # See https://docs.python.org/3/library/csv.html#id3 for why this has newline=''
@@ -172,12 +163,7 @@ class CsvSignalReader(Reader):
             raise StopIteration
 
     def get_initial(self) -> dict[str, BufferData]:
-        # Consume the header row to get channel ids.
-        try:
-            self.channel_ids = self.csv_reader.__next__()
-        except StopIteration:
-            self.channel_ids = []
-
+        self.channel_ids = peek_at_csv(self.csv_file, self.dialect, **self.fmtparams)
         initial = SignalChunk(
             np.empty([0, len(self.channel_ids)]),
             self.sample_frequency,
