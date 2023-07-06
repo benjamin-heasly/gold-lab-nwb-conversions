@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
 from pyramid.model.model import DynamicImport
+from pyramid.trials.trials import Trial
 
 
 class Plotter(DynamicImport):
@@ -13,7 +14,7 @@ class Plotter(DynamicImport):
         """Use the given fig to set up and store any axes, lines, user data, etc for this plot."""
         pass # pragma: no cover
 
-    def update(self, fig: Figure, current_trial, trials_info, experiment_info={}, subject_info={}) -> None:
+    def update(self, fig: Figure, current_trial: Trial, trials_info, experiment_info={}, subject_info={}) -> None:
         """Update stored axes, lines, user data, etc for the current trial."""
         pass # pragma: no cover
 

@@ -87,7 +87,8 @@ experiment_config = {
         "wrt_value": 42
     },
     "plotters": [
-        {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"}
+        {"class": "pyramid.plotters.standard_plotters.NumericEventsPlotter"},
+        {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"},
     ]
 }
 
