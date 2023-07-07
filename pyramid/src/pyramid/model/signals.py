@@ -89,8 +89,11 @@ class SignalChunk(InteropData):
         """Implementing BufferData superclass."""
         sample_times = self.get_times()
         rows_to_keep = sample_times >= start_time
-        self.first_sample_time = sample_times[rows_to_keep][0]
         self.sample_data = self.sample_data[rows_to_keep, :]
+        if self.sample_data.size > 0:
+            self.first_sample_time = sample_times[rows_to_keep][0]
+        else:
+            self.first_sample_time = None
 
     def shift_times(self, shift: float) -> None:
         """Implementing BufferData superclass."""

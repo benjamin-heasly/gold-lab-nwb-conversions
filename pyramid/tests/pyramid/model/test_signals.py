@@ -73,6 +73,10 @@ def test_signal_chunk_discard_before():
     assert np.array_equal(signal_chunk.get_channel_values("b"), np.array(range(half_count, sample_count)) + 10)
     assert np.array_equal(signal_chunk.get_channel_values("c"), np.array(range(half_count, sample_count)) * 10)
 
+    signal_chunk.discard_before(1000)
+    assert signal_chunk.get_times().size == 0
+    assert signal_chunk.get_end_time() == None
+
 
 def test_signal_chunk_shift_times():
     sample_count = 100

@@ -20,23 +20,14 @@ readers:
       delimiter:
         results_key: events
     simulate_delay: True # wait between events, gui demonstration
-  foo_reader:
-    class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
+  signal_reader:
+    class: pyramid.neutral_zone.readers.csv.CsvSignalReader
+    args:
+      csv_file: default.csv # override on cli with --readers signal_reader.csv_file=real.csv
+      sample_frequency: 10
     buffers:
-      foo:
-        results_key: events
-  bar_reader:
-    class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
-    buffers:
-      bar:
-        results_key: events
-      bar_2:
-        results_key: events
-        transformers:
-          - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
-            args:
-              offset: 10
-              gain: -2
+      sine_signal:
+        results_key: samples
 trials:
   # How to delimit Trials in time, and how to align data within each trial.
   start_buffer: delimiter
@@ -46,3 +37,8 @@ trials:
 plotters:
   # In "gui" mode, Pyramid will set up plotters and update each plotter after each trial.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
+  - class: pyramid.plotters.standard_plotters.SignalChunksPlotter
+    args:
+      xmin: -2.5
+      xmax: 3.5
+      channel_ids: ["sine", "cosine"]
