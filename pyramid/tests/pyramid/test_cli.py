@@ -84,7 +84,10 @@ experiment_config = {
         "start_buffer": "start",
         "start_value": 1010,
         "wrt_buffer": "wrt",
-        "wrt_value": 42
+        "wrt_value": 42,
+        "enhancers": [
+            {"class": "pyramid.trials.standard_enhancers.TrialDurationEnhancer"},
+        ]
     },
     "plotters": [
         {"class": "pyramid.plotters.standard_plotters.SignalChunksPlotter"},

@@ -9,7 +9,7 @@ import graphviz
 from pyramid.model.model import Buffer
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
-from pyramid.trials.trials import TrialDelimiter, TrialExtractor
+from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialEnhancer
 from pyramid.trials.trial_file import TrialFileWriter
 from pyramid.plotters.plotters import Plotter, PlotFigureController
 
@@ -230,9 +230,14 @@ class PyramidContext():
             arrowhead="none",
             arrowtail="none")
 
+        extractor_label = f"{self.trial_extractor.__class__.__name__}|wrt = {self.trial_extractor.wrt_value}"
+        if self.trial_extractor.enhancers:
+            enhancer_names = [enhancer.__class__.__name__ for enhancer in self.trial_extractor.enhancers]
+            enhancers_label = "|".join(enhancer_names)
+            extractor_label = f"{extractor_label}|{enhancers_label}"
         dot.node(
             name="trial_extractor",
-            label=f"{self.trial_extractor.__class__.__name__}|wrt = {self.trial_extractor.wrt_value}",
+            label=extractor_label,
             shape="record"
         )
         dot.edge(
@@ -314,11 +319,21 @@ def configure_trials(
 
     other_buffers = {name: buffer for name, buffer in named_buffers.items()
                      if name != start_buffer_name and name != wrt_buffer_name}
+
+    enhancers = []
+    enhancers_config = trials_config.get("enhancers", [])
+    for enhancer_config in enhancers_config:
+        enhancer_class = enhancer_config["class"]
+        enhancer_args = enhancer_config.get("args", {})
+        enhancer = TrialEnhancer.from_dynamic_import(enhancer_class, **enhancer_args)
+        enhancers.append(enhancer)
+
     trial_extractor = TrialExtractor(
         wrt_buffer=named_buffers[wrt_buffer_name],
         wrt_value=wrt_value,
         wrt_value_index=wrt_value_index,
-        named_buffers=other_buffers
+        named_buffers=other_buffers,
+        enhancers=enhancers
     )
 
     return (trial_delimiter, trial_extractor, start_buffer_name)

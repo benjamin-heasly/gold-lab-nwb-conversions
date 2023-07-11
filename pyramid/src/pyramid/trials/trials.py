@@ -2,7 +2,7 @@ from typing import Any, Self
 from dataclasses import dataclass, field
 import logging
 
-from pyramid.model.model import InteropData, Buffer, BufferData
+from pyramid.model.model import DynamicImport, InteropData, Buffer, BufferData
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 
@@ -26,20 +26,29 @@ class Trial(InteropData):
     signals: dict[str, SignalChunk] = field(default_factory=dict)
     """Named signal chunks assigned to this trial."""
 
+    enhancements: dict[str, Any] = field(default_factory=dict)
+    """Named arbitrary values to save along with the trial."""
+
     def to_interop(self) -> Any:
         interop = {
             "start_time": self.start_time,
             "end_time": self.end_time,
             "wrt_time": self.wrt_time
         }
+
         if self.numeric_events:
             interop["numeric_events"] = {
                 name: event_list.to_interop() for name, event_list in self.numeric_events.items()
             }
+
         if self.signals:
             interop["signals"] = {
                 name: signal_chunk.to_interop() for name, signal_chunk in self.signals.items()
             }
+
+        if self.enhancements:
+            interop["enhancements"] = self.enhancements
+
         return interop
 
     @classmethod
@@ -57,12 +66,13 @@ class Trial(InteropData):
             end_time=interop["end_time"],
             wrt_time=interop["wrt_time"],
             numeric_events=numeric_events,
-            signals=signals
+            signals=signals,
+            enhancements=interop.get("enhancements", {})
         )
         return trial
 
-    def add_data(self, name: str, data: BufferData) -> bool:
-        """Add named data to this trial (as-is)."""
+    def add_buffer_data(self, name: str, data: BufferData) -> bool:
+        """Add named data to this trial, of a specific buffer data type that requires conversion before writing."""
         if isinstance(data, NumericEventList):
             self.numeric_events[name] = data
             return True
@@ -70,8 +80,17 @@ class Trial(InteropData):
             self.signals[name] = data
             return True
         else:
-            logging.warning(f"Data for name {name} not added to trial because class {data.__class__.__name__} is not supported.")
+            logging.warning(
+                f"Data for name {name} not added to trial because class {data.__class__.__name__} is not supported.")
             return False
+
+    def add_enhancement(self, name: str, data: Any) -> bool:
+        """Add named data to this trial, of a standard type that doesn't require converting before writing."""
+        if isinstance(data, BufferData):
+            return self.add_buffer_data(name, data)
+        else:
+            self.enhancements[name] = data
+            return True
 
 
 class TrialDelimiter():
@@ -133,6 +152,20 @@ class TrialDelimiter():
         self.start_buffer.data.discard_before(time)
 
 
+class TrialEnhancer(DynamicImport):
+    """Compute new name-value pairs save with each trial."""
+
+    # TODO: enhancers probably want access to the experiment info and subject info.
+    def enhance(self, trial: Trial) -> dict[str, Any]:
+        """Return a dict of name-value pairs to add to the given trial.
+
+        The returned dict will be added to the trial's "enhancements" field along with results from other TrialEnhancers.
+        The dict values must be standard, interoperable data types like int, float or string or lists and dicts of these types.
+        Other data types might not survive being written to or read from the trial file.
+        """
+        raise NotImplementedError  # pragma: no cover
+
+
 class TrialExtractor():
     """Populate trials with WRT-aligned data from named buffers."""
 
@@ -141,12 +174,14 @@ class TrialExtractor():
         wrt_buffer: Buffer,
         wrt_value: float,
         wrt_value_index: int = 0,
-        named_buffers: dict[str, Buffer] = {}
+        named_buffers: dict[str, Buffer] = {},
+        enhancers: list[TrialEnhancer] = []
     ) -> None:
         self.wrt_buffer = wrt_buffer
         self.wrt_value = wrt_value
         self.wrt_value_index = wrt_value_index
         self.named_buffers = named_buffers
+        self.enhancers = enhancers
 
     def __eq__(self, other: object) -> bool:
         """Compare extractors field-wise, to support use of this class in tests."""
@@ -176,7 +211,13 @@ class TrialExtractor():
         for name, buffer in self.named_buffers.items():
             data = buffer.data.copy_time_range(trial.start_time, trial.end_time)
             data.shift_times(-trial.wrt_time)
-            trial.add_data(name, data)
+            trial.add_buffer_data(name, data)
+
+        for enhancer in self.enhancers:
+            enhancements = enhancer.enhance(trial)
+            if enhancements:
+                for name, data in enhancements.items():
+                    trial.add_enhancement(name, data)
 
     def discard_before(self, time: float):
         """Let event wrt and named buffers discard data no longer needed."""

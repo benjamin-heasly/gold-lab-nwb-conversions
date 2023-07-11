@@ -15,6 +15,9 @@
                 "first_sample_time": 0.0,
                 "channel_ids": ["match_trial"]
             }
+        },
+        "enhancements": {
+            "duration": 1.0
         }
     },
     {
@@ -36,6 +39,9 @@
                 "first_sample_time": -0.5,
                 "channel_ids": ["match_trial"]
             }
+        },
+        "enhancements": {
+            "duration": 1.0
         }
     },
     {
@@ -57,6 +63,9 @@
                 "first_sample_time": -0.5,
                 "channel_ids": ["match_trial"]
             }
+        },
+        "enhancements": {
+            "duration": 1.0
         }
     },
     {
@@ -75,6 +84,9 @@
                 "first_sample_time": -0.5,
                 "channel_ids": ["match_trial"]
             }
+        },
+        "enhancements": {
+            "duration": null
         }
     }
 ]

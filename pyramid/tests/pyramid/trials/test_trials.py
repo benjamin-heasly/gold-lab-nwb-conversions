@@ -1,10 +1,12 @@
+from typing import Any
 import numpy as np
 
 from pyramid.model.model import BufferData
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
-from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor
+from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor, TrialEnhancer
+from pyramid.trials.standard_enhancers import TrialDurationEnhancer
 
 
 def test_trial_interop_no_data():
@@ -13,11 +15,12 @@ def test_trial_interop_no_data():
     wrt_time = 50
     trial = Trial(start_time, end_time, wrt_time)
 
-    assert not trial.add_data("ignored type", {})
+    assert not trial.add_buffer_data("ignored type", {})
 
     interop = trial.to_interop()
     assert "numeric_events" not in interop.keys()
     assert "signals" not in interop.keys()
+    assert "enhancements" not in interop.keys()
 
     trial_2 = Trial.from_interop(interop)
     assert trial_2 == trial
@@ -33,17 +36,18 @@ def test_trial_interop_with_numeric_events():
     trial = Trial(start_time, end_time, wrt_time)
 
     foo_events = NumericEventList(np.array([[t, 10*t] for t in range(100)]))
-    assert trial.add_data("foo", foo_events)
+    assert trial.add_buffer_data("foo", foo_events)
 
     bar_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))
-    assert trial.add_data("bar", bar_events)
+    assert trial.add_buffer_data("bar", bar_events)
 
     empty_events = NumericEventList(np.empty([0, 2]))
-    assert trial.add_data("empty", empty_events)
+    assert trial.add_buffer_data("empty", empty_events)
 
     interop = trial.to_interop()
     assert "numeric_events" in interop.keys()
     assert "signals" not in interop.keys()
+    assert "enhancements" not in interop.keys()
 
     trial_2 = Trial.from_interop(interop)
     assert trial_2 == trial
@@ -59,14 +63,46 @@ def test_trial_interop_with_signals():
 
     sample_data = np.array([[v, 10*v] for v in range(100)])
     foo_signal = SignalChunk(sample_data, sample_frequency=10, first_sample_time=0, channel_ids=["a", "b"])
-    assert trial.add_data("foo", foo_signal)
+    assert trial.add_buffer_data("foo", foo_signal)
 
     empty_signal = SignalChunk(np.empty([0, 2]), sample_frequency=10, first_sample_time=0, channel_ids=["c", "d"])
-    assert trial.add_data("empty", empty_signal)
+    assert trial.add_buffer_data("empty", empty_signal)
 
     interop = trial.to_interop()
     assert "numeric_events" not in interop.keys()
     assert "signals" in interop.keys()
+    assert "enhancements" not in interop.keys()
+
+    trial_2 = Trial.from_interop(interop)
+    assert trial_2 == trial
+
+    interop_2 = trial_2.to_interop()
+    assert interop_2 == interop
+
+
+def test_trial_interop_with_enhancements():
+    start_time = 0
+    end_time = 100
+    wrt_time = 50
+    trial = Trial(start_time, end_time, wrt_time)
+
+    assert trial.add_enhancement("string", "I'm a string")
+    assert trial.add_enhancement("int", 42)
+    assert trial.add_enhancement("float", 1.11)
+    assert trial.add_enhancement("empty_dict", {})
+    assert trial.add_enhancement("empty_list", [])
+    assert trial.add_enhancement("dict", {"a": 1, "b": "2"})
+    assert trial.add_enhancement("list", ["a", 1, "b", "2"])
+
+    # if an "enhancement" is a buffer data type, add it to the corresponding typed field.
+    sample_data = np.array([[v, 10*v] for v in range(100)])
+    foo_signal = SignalChunk(sample_data, sample_frequency=10, first_sample_time=0, channel_ids=["a", "b"])
+    assert trial.add_enhancement("buffer_data", foo_signal)
+
+    interop = trial.to_interop()
+    assert "numeric_events" not in interop.keys()
+    assert "signals" in interop.keys()
+    assert "enhancements" in interop.keys()
 
     trial_2 = Trial.from_interop(interop)
     assert trial_2 == trial
@@ -455,5 +491,107 @@ def test_populate_trials_from_shared_buffers():
         numeric_events={
             "foo": NumericEventList(np.empty([0, 2])),
             "bar": NumericEventList(np.array([[3.1 - 3.5, 0]]))
+        }
+    )
+
+
+class DurationPlusSeven(TrialEnhancer):
+    def enhance(self, trial: Trial) -> dict[str, Any]:
+        duration = trial.enhancements["duration"]
+        if duration is None:
+            return {"duration_plus_seven": None}
+        else:
+            return {"duration_plus_seven": duration + 7}
+
+
+def test_enhance_trials():
+    # Expect trials with slightly increasing durations
+    start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2.1, 1010]], [[3.3, 1010]]])
+    start_route = ReaderRoute("events", "start")
+    start_router = ReaderRouter(start_reader, [start_route])
+
+    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
+
+    # Expect wrt times half way through trials 1, 2, and 3.
+    wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42], [2.6, 42]], [[3.5, 42]]])
+    wrt_route = ReaderRoute("events", "wrt")
+    wrt_router = ReaderRouter(wrt_reader, [wrt_route])
+
+    # Enhance trials with a sequence of enhancers.
+    enhancers = [TrialDurationEnhancer(), DurationPlusSeven()]
+
+    extractor = TrialExtractor(
+        wrt_router.buffers["wrt"],
+        wrt_value=42,
+        enhancers=enhancers
+    )
+
+    # Trial zero should cover whatever happened before the first "start" event.
+    # This might be non-task rig setup data, or just garbage, or whatever.
+    assert start_router.route_next() == True
+    trial_zero = delimiter.next()
+    assert len(trial_zero) == 1
+    assert trial_zero[0] == Trial(0.0, 1.0)
+
+    assert wrt_router.route_until(1.0) == 1.5
+    extractor.populate_trial(trial_zero[0])
+    assert trial_zero[0] == Trial(
+        start_time=0,
+        end_time=1.0,
+        wrt_time=0.0,
+        enhancements={
+            "duration": 1.0,
+            "duration_plus_seven": 8.0
+        }
+    )
+
+    # Trials 1 and 2 should be "normal" trials with task data.
+    assert start_router.route_next() == True
+    trial_one = delimiter.next()
+    assert len(trial_one) == 1
+    assert trial_one[0] == Trial(1.0, 2.1)
+
+    assert wrt_router.route_until(2.1) == 2.6
+    extractor.populate_trial(trial_one[0])
+    assert trial_one[0] == Trial(
+        start_time=1.0,
+        end_time=2.1,
+        wrt_time=1.5,
+        enhancements={
+            "duration": 1.1,
+            "duration_plus_seven": 8.1
+        }
+    )
+
+    assert start_router.route_next() == True
+    trial_two = delimiter.next()
+    assert len(trial_two) == 1
+    assert trial_two[0] == Trial(2.1, 3.3)
+
+    assert wrt_router.route_until(3.3) == 3.5
+    extractor.populate_trial(trial_two[0])
+    assert trial_two[0] == Trial(
+        start_time=2.1,
+        end_time=3.3,
+        wrt_time=2.5,
+        enhancements={
+            "duration": 3.3 - 2.1,
+            "duration_plus_seven": 8.2
+        }
+    )
+
+    # We should now run out of "start" events
+    assert start_router.route_next() == False
+    trial_three = delimiter.last()
+    assert trial_three == Trial(3.3, None)
+    assert wrt_router.route_next() == False
+    extractor.populate_trial(trial_three)
+    assert trial_three == Trial(
+        start_time=3.3,
+        end_time=None,
+        wrt_time=3.5,
+        enhancements={
+            "duration": None,
+            "duration_plus_seven": None
         }
     )

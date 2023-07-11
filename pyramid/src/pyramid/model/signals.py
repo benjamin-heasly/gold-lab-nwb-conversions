@@ -2,11 +2,11 @@ from typing import Any, Self
 from dataclasses import dataclass
 import numpy as np
 
-from pyramid.model.model import InteropData
+from pyramid.model.model import BufferData
 
 
 @dataclass
-class SignalChunk(InteropData):
+class SignalChunk(BufferData):
     """Wrap a 2D array with a chunk of signal data where rows are samples and columns are channels."""
 
     sample_data: np.ndarray
