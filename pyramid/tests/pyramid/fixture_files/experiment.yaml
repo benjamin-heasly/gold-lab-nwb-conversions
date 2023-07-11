@@ -49,5 +49,5 @@ trials:
 plotters:
   # In "gui" mode, Pyramid will set up these plotters and update after each trial.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
-  - class: pyramid.plotters.sample_plotters.SampleSinePlotter
-  - class: pyramid.plotters.sample_plotters.SampleCosinePlotter
+  - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
+  - class: pyramid.plotters.standard_plotters.SignalChunksPlotter

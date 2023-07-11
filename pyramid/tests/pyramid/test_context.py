@@ -13,8 +13,7 @@ from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGa
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor
 
 from pyramid.plotters.plotters import PlotFigureController
-from pyramid.plotters.standard_plotters import BasicInfoPlotter
-from pyramid.plotters.sample_plotters import SampleSinePlotter, SampleCosinePlotter
+from pyramid.plotters.standard_plotters import BasicInfoPlotter, NumericEventsPlotter, SignalChunksPlotter
 
 from pyramid.context import PyramidContext, configure_readers, configure_trials, configure_plotters
 
@@ -151,12 +150,12 @@ def test_configure_trials():
 def test_configure_plotters():
     plotters_config = [
         {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"},
-        {"class": "pyramid.plotters.sample_plotters.SampleSinePlotter"},
-        {"class": "pyramid.plotters.sample_plotters.SampleCosinePlotter"}
+        {"class": "pyramid.plotters.standard_plotters.NumericEventsPlotter"},
+        {"class": "pyramid.plotters.standard_plotters.SignalChunksPlotter"}
     ]
     plotters = configure_plotters(plotters_config)
 
-    expected_plotters=[BasicInfoPlotter(), SampleSinePlotter(), SampleCosinePlotter()]
+    expected_plotters=[BasicInfoPlotter(), NumericEventsPlotter(), SignalChunksPlotter()]
 
     assert len(plotters) == len(expected_plotters)
     plotter_types_equal = [isinstance(a, b.__class__) for a, b in zip(plotters, expected_plotters)]
@@ -237,7 +236,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
     )
 
     expected_plot_figure_controller = PlotFigureController(
-        plotters=[BasicInfoPlotter(), SampleSinePlotter(), SampleCosinePlotter()],
+        plotters=[BasicInfoPlotter(), NumericEventsPlotter(), SignalChunksPlotter()],
         subject_info=expected_subject["subject"],
         experiment_info=expected_experiment["experiment"]
     )

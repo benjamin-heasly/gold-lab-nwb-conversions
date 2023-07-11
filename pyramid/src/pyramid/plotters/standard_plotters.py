@@ -101,7 +101,7 @@ class NumericEventsPlotter(Plotter):
         self.ax.legend()
 
     def clean_up(self, fig: Figure) -> None:
-        pass
+        self.history = []
 
 
 class SignalChunksPlotter(Plotter):
@@ -125,7 +125,7 @@ class SignalChunksPlotter(Plotter):
         for old_chunks in self.history:
             for name, data in old_chunks.items():
                 if self.channel_ids:
-                    ids = self.channel_ids
+                    ids = [channel_id for channel_id in self.channel_ids if channel_id in data.channel_ids]
                 else:
                     ids = data.channel_ids
                 for channel_id in ids:
@@ -140,7 +140,7 @@ class SignalChunksPlotter(Plotter):
         # Show new events on top in full color.
         for name, data in new_signals.items():
             if self.channel_ids:
-                ids = self.channel_ids
+                ids = [channel_id for channel_id in self.channel_ids if channel_id in data.channel_ids]
             else:
                 ids = data.channel_ids
             for channel_id in ids:
@@ -151,4 +151,4 @@ class SignalChunksPlotter(Plotter):
         self.ax.legend()
 
     def clean_up(self, fig: Figure) -> None:
-        pass
+        self.history = []

@@ -88,6 +88,7 @@ experiment_config = {
     },
     "plotters": [
         {"class": "pyramid.plotters.standard_plotters.SignalChunksPlotter"},
+        {"class": "pyramid.plotters.standard_plotters.SignalChunksPlotter", "args": {"channel_ids": ["no_match"]}},
         {"class": "pyramid.plotters.standard_plotters.NumericEventsPlotter"},
         {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"},
     ]
