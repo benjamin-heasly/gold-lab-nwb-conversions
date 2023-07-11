@@ -11,6 +11,7 @@ from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
 from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGain
 
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor
+from pyramid.trials.standard_enhancers import TrialDurationEnhancer
 
 from pyramid.plotters.plotters import PlotFigureController
 from pyramid.plotters.standard_plotters import BasicInfoPlotter, NumericEventsPlotter, SignalChunksPlotter
@@ -125,7 +126,10 @@ def test_configure_trials():
         "start_buffer": "start",
         "start_value": 1010,
         "wrt_reader": "wrt",
-        "wrt_value": 42
+        "wrt_value": 42,
+        "enhancers": [
+            {"class": "pyramid.trials.standard_enhancers.TrialDurationEnhancer"}
+        ]
     }
     named_buffers = {
         "start": Buffer(NumericEventList(np.empty([0,2]))),
@@ -141,7 +145,12 @@ def test_configure_trials():
         for name, value in named_buffers.items()
         if name != "start" and name != "wrt"
     }
-    expected_trial_extractor = TrialExtractor(named_buffers["wrt"], wrt_value=42, named_buffers=expected_other_buffers)
+    expected_enhancers = [TrialDurationEnhancer()]
+    expected_trial_extractor = TrialExtractor(
+        named_buffers["wrt"],
+        wrt_value=42,
+        named_buffers=expected_other_buffers,
+        enhancers=expected_enhancers)
     assert trial_extractor == expected_trial_extractor
 
     assert start_buffer_name == trials_config["start_buffer"]
@@ -229,10 +238,12 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         for name, value in expected_named_buffers.items()
         if name != "start" and name != "wrt"
     }
+    expected_enhancers = [TrialDurationEnhancer()]
     expected_trial_extractor = TrialExtractor(
         expected_named_buffers["wrt"],
         wrt_value=42,
-        named_buffers=expected_other_buffers
+        named_buffers=expected_other_buffers,
+        enhancers=expected_enhancers
     )
 
     expected_plot_figure_controller = PlotFigureController(

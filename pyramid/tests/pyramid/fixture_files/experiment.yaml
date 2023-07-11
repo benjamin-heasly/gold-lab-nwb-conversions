@@ -46,6 +46,8 @@ trials:
   start_value: 1010
   wrt_buffer: wrt
   wrt_value: 42
+  enhancers:
+    - class: pyramid.trials.standard_enhancers.TrialDurationEnhancer
 plotters:
   # In "gui" mode, Pyramid will set up these plotters and update after each trial.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter

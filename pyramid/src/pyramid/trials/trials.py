@@ -191,6 +191,7 @@ class TrialExtractor():
                 and self.wrt_value == other.wrt_value
                 and self.wrt_value_index == other.wrt_value_index
                 and self.named_buffers == other.named_buffers
+                and self.enhancers == other.enhancers
             )
         else:  # pragma: no cover
             return False
