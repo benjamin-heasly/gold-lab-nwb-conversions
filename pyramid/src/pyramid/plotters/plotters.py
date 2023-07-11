@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Self, Any
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -10,11 +10,23 @@ from pyramid.trials.trials import Trial
 class Plotter(DynamicImport):
     """Abstract interface for objects that plot to a figure and update each trial."""
 
-    def set_up(self, fig: Figure, experiment_info={}, subject_info={}) -> None:
+    def set_up(
+        self,
+        fig: Figure,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         """Use the given fig to set up and store any axes, lines, user data, etc for this plot."""
         pass # pragma: no cover
 
-    def update(self, fig: Figure, current_trial: Trial, trials_info, experiment_info={}, subject_info={}) -> None:
+    def update(
+        self,
+        fig: Figure,
+        current_trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         """Update stored axes, lines, user data, etc for the current trial."""
         pass # pragma: no cover
 
@@ -45,7 +57,12 @@ class PlotFigureController():
     This class implementes the GUI updates and event processing part.
     """
 
-    def __init__(self, plotters: list[Plotter] = [], experiment_info={}, subject_info={}) -> None:
+    def __init__(
+        self,
+        plotters: list[Plotter] = [],
+        experiment_info: dict[str, Any] = {},
+        subject_info: dict[str, Any] = {}
+    ) -> None:
         self.plotters = plotters
         self.experiment_info = experiment_info
         self.subject_info = subject_info
@@ -78,11 +95,11 @@ class PlotFigureController():
 
         return self
 
-    def plot_next(self, current_trial, trials_info) -> None:
+    def plot_next(self, current_trial: Trial, trial_count: int) -> None:
         # Let each plotter update for the current trial.
         for plotter, fig in self.figures.items():
             if plt.fignum_exists(fig.number):
-                plotter.update(fig, current_trial, trials_info, self.experiment_info, self.subject_info)
+                plotter.update(fig, current_trial, trial_count, self.experiment_info, self.subject_info)
 
     def update(self) -> None:
         for fig in self.figures.values():

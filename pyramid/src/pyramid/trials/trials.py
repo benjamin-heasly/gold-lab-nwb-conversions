@@ -155,8 +155,13 @@ class TrialDelimiter():
 class TrialEnhancer(DynamicImport):
     """Compute new name-value pairs save with each trial."""
 
-    # TODO: enhancers probably want access to the experiment info and subject info.
-    def enhance(self, trial: Trial) -> dict[str, Any]:
+    def enhance(
+        self,
+        trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> dict[str, Any]:
         """Return a dict of name-value pairs to add to the given trial.
 
         The returned dict will be added to the trial's "enhancements" field along with results from other TrialEnhancers.
@@ -196,7 +201,13 @@ class TrialExtractor():
         else:  # pragma: no cover
             return False
 
-    def populate_trial(self, trial: Trial):
+    def populate_trial(
+        self,
+        trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ):
         """Fill in the given trial with data from configured buffers, in the trial's time range."""
         trial_wrt_times = self.wrt_buffer.data.get_times_of(
             self.wrt_value,
@@ -215,7 +226,7 @@ class TrialExtractor():
             trial.add_buffer_data(name, data)
 
         for enhancer in self.enhancers:
-            enhancements = enhancer.enhance(trial)
+            enhancements = enhancer.enhance(trial, trial_count, experiment_info, subject_info)
             if enhancements:
                 for name, data in enhancements.items():
                     trial.add_enhancement(name, data)

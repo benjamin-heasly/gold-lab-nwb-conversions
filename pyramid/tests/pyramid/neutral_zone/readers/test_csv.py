@@ -267,7 +267,3 @@ def test_signals_skip_nonnumeric_lines(fixture_path):
         assert exception_info.errisinstance(StopIteration)
 
     assert reader.file_stream is None
-
-
-# TODO: test csv signal reader equality, or remove the eq implementation
-# TODO: an end-to-end (somewhere else) test that includes signal data

@@ -295,7 +295,7 @@ def test_populate_trials_from_private_buffers():
     assert bar_router.route_until(1.0) == 3.1
 
     # Now that all the readers are caught up to the trial end time, extract the trial data.
-    extractor.populate_trial(trial_zero[0])
+    extractor.populate_trial(trial_zero[0], delimiter.trial_count, {}, {})
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
@@ -316,7 +316,7 @@ def test_populate_trials_from_private_buffers():
     assert wrt_router.route_until(2.0) == 2.6
     assert foo_router.route_until(2.0) == 2.3
     assert bar_router.route_until(2.0) == 3.1
-    extractor.populate_trial(trial_one[0])
+    extractor.populate_trial(trial_one[0], delimiter.trial_count, {}, {})
     assert trial_one[0] == Trial(
         start_time=1.0,
         end_time=2.0,
@@ -336,7 +336,7 @@ def test_populate_trials_from_private_buffers():
     assert wrt_router.route_until(3.0) == 3.5
     assert foo_router.route_until(3.0) == 2.3
     assert bar_router.route_until(3.0) == 3.1
-    extractor.populate_trial(trial_two[0])
+    extractor.populate_trial(trial_two[0], delimiter.trial_count, {}, {})
     assert trial_two[0] == Trial(
         start_time=2.0,
         end_time=3.0,
@@ -356,7 +356,7 @@ def test_populate_trials_from_private_buffers():
     assert wrt_router.route_next() == False
     assert foo_router.route_next() == False
     assert bar_router.route_next() == False
-    extractor.populate_trial(trial_three)
+    extractor.populate_trial(trial_three, delimiter.trial_count, {}, {})
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,
@@ -419,7 +419,7 @@ def test_populate_trials_from_shared_buffers():
     assert bar_router.route_until(1.0) == 3.1
 
     # Now that all the readers are caught up to the trial end time, extract the trial data.
-    extractor.populate_trial(trial_zero[0])
+    extractor.populate_trial(trial_zero[0], delimiter.trial_count, {}, {})
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
@@ -441,7 +441,7 @@ def test_populate_trials_from_shared_buffers():
     assert start_router.route_until(2.0) == 2.0
     assert foo_router.route_until(2.0) == 2.3
     assert bar_router.route_until(2.0) == 3.1
-    extractor.populate_trial(trial_one[0])
+    extractor.populate_trial(trial_one[0], delimiter.trial_count, {}, {})
     assert trial_one[0] == Trial(
         start_time=1.0,
         end_time=2.0,
@@ -462,7 +462,7 @@ def test_populate_trials_from_shared_buffers():
     assert start_router.route_until(3.0) == 3.0
     assert foo_router.route_until(3.0) == 2.3
     assert bar_router.route_until(3.0) == 3.1
-    extractor.populate_trial(trial_two[0])
+    extractor.populate_trial(trial_two[0], delimiter.trial_count, {}, {})
     assert trial_two[0] == Trial(
         start_time=2.0,
         end_time=3.0,
@@ -483,7 +483,7 @@ def test_populate_trials_from_shared_buffers():
     assert start_router.route_next() == False
     assert foo_router.route_next() == False
     assert bar_router.route_next() == False
-    extractor.populate_trial(trial_three)
+    extractor.populate_trial(trial_three, delimiter.trial_count, {}, {})
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,
@@ -495,13 +495,20 @@ def test_populate_trials_from_shared_buffers():
     )
 
 
-class DurationPlusSeven(TrialEnhancer):
-    def enhance(self, trial: Trial) -> dict[str, Any]:
+class DurationPlusTrialCount(TrialEnhancer):
+    """Nonsense calculation just to test enhancement ordering and passed-in data."""
+    def enhance(
+        self,
+        trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> dict[str, Any]:
         duration = trial.enhancements["duration"]
         if duration is None:
-            return {"duration_plus_seven": None}
+            return {"duration_plus_trial_count": None}
         else:
-            return {"duration_plus_seven": duration + 7}
+            return {"duration_plus_trial_count": duration + trial_count}
 
 
 def test_enhance_trials():
@@ -518,7 +525,7 @@ def test_enhance_trials():
     wrt_router = ReaderRouter(wrt_reader, [wrt_route])
 
     # Enhance trials with a sequence of enhancers.
-    enhancers = [TrialDurationEnhancer(), DurationPlusSeven()]
+    enhancers = [TrialDurationEnhancer(), DurationPlusTrialCount()]
 
     extractor = TrialExtractor(
         wrt_router.buffers["wrt"],
@@ -534,14 +541,14 @@ def test_enhance_trials():
     assert trial_zero[0] == Trial(0.0, 1.0)
 
     assert wrt_router.route_until(1.0) == 1.5
-    extractor.populate_trial(trial_zero[0])
+    extractor.populate_trial(trial_zero[0], delimiter.trial_count, {}, {})
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
         wrt_time=0.0,
         enhancements={
             "duration": 1.0,
-            "duration_plus_seven": 8.0
+            "duration_plus_trial_count": 2.0
         }
     )
 
@@ -552,14 +559,14 @@ def test_enhance_trials():
     assert trial_one[0] == Trial(1.0, 2.1)
 
     assert wrt_router.route_until(2.1) == 2.6
-    extractor.populate_trial(trial_one[0])
+    extractor.populate_trial(trial_one[0], delimiter.trial_count, {}, {})
     assert trial_one[0] == Trial(
         start_time=1.0,
         end_time=2.1,
         wrt_time=1.5,
         enhancements={
             "duration": 1.1,
-            "duration_plus_seven": 8.1
+            "duration_plus_trial_count": 3.1
         }
     )
 
@@ -569,14 +576,14 @@ def test_enhance_trials():
     assert trial_two[0] == Trial(2.1, 3.3)
 
     assert wrt_router.route_until(3.3) == 3.5
-    extractor.populate_trial(trial_two[0])
+    extractor.populate_trial(trial_two[0], delimiter.trial_count, {}, {})
     assert trial_two[0] == Trial(
         start_time=2.1,
         end_time=3.3,
         wrt_time=2.5,
         enhancements={
             "duration": 3.3 - 2.1,
-            "duration_plus_seven": 8.2
+            "duration_plus_trial_count": 3 + 3.3 - 2.1
         }
     )
 
@@ -585,13 +592,13 @@ def test_enhance_trials():
     trial_three = delimiter.last()
     assert trial_three == Trial(3.3, None)
     assert wrt_router.route_next() == False
-    extractor.populate_trial(trial_three)
+    extractor.populate_trial(trial_three, delimiter.trial_count, {}, {})
     assert trial_three == Trial(
         start_time=3.3,
         end_time=None,
         wrt_time=3.5,
         enhancements={
             "duration": None,
-            "duration_plus_seven": None
+            "duration_plus_trial_count": None
         }
     )

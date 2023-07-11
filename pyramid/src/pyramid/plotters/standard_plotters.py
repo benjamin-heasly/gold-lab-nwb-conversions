@@ -1,3 +1,4 @@
+from typing import Any
 import time
 from binascii import crc32
 from matplotlib.figure import Figure
@@ -21,7 +22,12 @@ def format_number(number):
 
 class BasicInfoPlotter(Plotter):
 
-    def set_up(self, fig: Figure, experiment_info={}, subject_info={}) -> None:
+    def set_up(
+        self,
+        fig: Figure,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         axes = fig.subplots(2,1)
         axes[0].axis("off")
         axes[1].axis("off")
@@ -54,10 +60,17 @@ class BasicInfoPlotter(Plotter):
 
         self.start_time = time.time()
 
-    def update(self, fig, current_trial: Trial, trials_info, experiment_info={}, subject_info={}) -> None:
+    def update(
+        self,
+        fig: Figure,
+        current_trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         elapsed = time.time() - self.start_time
         self.trials_table.get_celld()[(0, 1)].get_text().set_text(format_number(elapsed))
-        self.trials_table.get_celld()[(1, 1)].get_text().set_text(trials_info["trial_count"])
+        self.trials_table.get_celld()[(1, 1)].get_text().set_text(trial_count)
         self.trials_table.get_celld()[(2, 1)].get_text().set_text(format_number(current_trial.start_time))
         self.trials_table.get_celld()[(3, 1)].get_text().set_text(format_number(current_trial.wrt_time))
         self.trials_table.get_celld()[(4, 1)].get_text().set_text(format_number(current_trial.end_time))
@@ -76,11 +89,23 @@ class NumericEventsPlotter(Plotter):
         self.xmin = xmin
         self.xmax = xmax
 
-    def set_up(self, fig: Figure, experiment_info={}, subject_info={}) -> None:
+    def set_up(
+        self,
+        fig: Figure,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         self.ax = fig.subplots()
         self.ax.grid(which="major", axis="x")
 
-    def update(self, fig, current_trial: Trial, trials_info, experiment_info={}, subject_info={}) -> None:
+    def update(
+        self,
+        fig: Figure,
+        current_trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         self.ax.clear()
 
         # Show old events grayed-out.
@@ -114,11 +139,23 @@ class SignalChunksPlotter(Plotter):
         self.xmax = xmax
         self.channel_ids = channel_ids
 
-    def set_up(self, fig: Figure, experiment_info={}, subject_info={}) -> None:
+    def set_up(
+        self,
+        fig: Figure,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         self.ax = fig.subplots()
         self.ax.grid(which="major", axis="x")
 
-    def update(self, fig, current_trial: Trial, trials_info, experiment_info={}, subject_info={}) -> None:
+    def update(
+        self,
+        fig: Figure,
+        current_trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
         self.ax.clear()
 
         # Show old events grayed-out.

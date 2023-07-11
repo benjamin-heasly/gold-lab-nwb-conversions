@@ -116,7 +116,12 @@ class PyramidContext():
                     for new_trial in new_trials:
                         for router in self.other_routers:
                             router.route_until(new_trial.end_time)
-                            self.trial_extractor.populate_trial(new_trial)
+                            self.trial_extractor.populate_trial(
+                                new_trial,
+                                self.trial_delimiter.trial_count,
+                                self.experiment,
+                                self.subject
+                            )
                         writer.append_trial(new_trial)
                         self.trial_delimiter.discard_before(new_trial.start_time)
                         self.trial_extractor.discard_before(new_trial.start_time)
@@ -127,7 +132,12 @@ class PyramidContext():
                 router.route_next()
             last_trial = self.trial_delimiter.last()
             if last_trial:
-                self.trial_extractor.populate_trial(last_trial)
+                self.trial_extractor.populate_trial(
+                    last_trial,
+                    self.trial_delimiter.trial_count,
+                    self.experiment,
+                    self.subject
+                )
                 writer.append_trial(last_trial)
 
     def run_with_plots(self, trial_file: str) -> None:
@@ -153,12 +163,14 @@ class PyramidContext():
                     for new_trial in new_trials:
                         for router in self.other_routers:
                             router.route_until(new_trial.end_time)
-                            self.trial_extractor.populate_trial(new_trial)
+                            self.trial_extractor.populate_trial(
+                                new_trial,
+                                self.trial_delimiter.trial_count,
+                                self.experiment,
+                                self.subject
+                            )
                         writer.append_trial(new_trial)
-                        self.plot_figure_controller.plot_next(
-                            new_trial,
-                            {"trial_count": self.trial_delimiter.trial_count}
-                        )
+                        self.plot_figure_controller.plot_next(new_trial, self.trial_delimiter.trial_count)
                         self.trial_delimiter.discard_before(new_trial.start_time)
                         self.trial_extractor.discard_before(new_trial.start_time)
 
@@ -168,12 +180,14 @@ class PyramidContext():
                 router.route_next()
             last_trial = self.trial_delimiter.last()
             if last_trial:
-                self.trial_extractor.populate_trial(last_trial)
-                writer.append_trial(last_trial)
-                self.plot_figure_controller.plot_next(
+                self.trial_extractor.populate_trial(
                     last_trial,
-                    {"trial_count": self.trial_delimiter.trial_count}
+                    self.trial_delimiter.trial_count,
+                    self.experiment,
+                    self.subject
                 )
+                writer.append_trial(last_trial)
+                self.plot_figure_controller.plot_next(last_trial, self.trial_delimiter.trial_count)
 
     def to_graphviz(self, graph_name: str, out_file: str):
         dot = graphviz.Digraph(
