@@ -226,10 +226,14 @@ class TrialExtractor():
             trial.add_buffer_data(name, data)
 
         for enhancer in self.enhancers:
-            enhancements = enhancer.enhance(trial, trial_count, experiment_info, subject_info)
-            if enhancements:
-                for name, data in enhancements.items():
-                    trial.add_enhancement(name, data)
+            try:
+                enhancements = enhancer.enhance(trial, trial_count, experiment_info, subject_info)
+                if enhancements:
+                    for name, data in enhancements.items():
+                        trial.add_enhancement(name, data)
+            except:
+                logging.error(f"Error applying enhancer {enhancer.__class__.__name__} to trial {trial_count}.", exc_info=True)
+                continue
 
     def discard_before(self, time: float):
         """Let event wrt and named buffers discard data no longer needed."""

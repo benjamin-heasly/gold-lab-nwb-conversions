@@ -30,19 +30,22 @@ class NumericEventList(BufferData):
         """Implementing BufferData superclass."""
         return NumericEventList(self.event_data.copy())
 
-    def copy_time_range(self, start_time: float = None, end_time: float = None) -> Self:
-        """Implementing BufferData superclass."""
+    def get_time_selector(self, start_time: float, end_time: float) -> np.ndarray:
         if start_time is None:
-            tail_selector = True
+            tail_selector = np.repeat(True, self.event_data.shape[0])
         else:
             tail_selector = self.event_data[:, 0] >= start_time
 
         if end_time is None:
-            head_selector = True
+            head_selector = np.repeat(True, self.event_data.shape[0])
         else:
             head_selector = self.event_data[:, 0] < end_time
 
-        rows_in_range = tail_selector & head_selector
+        return tail_selector & head_selector
+
+    def copy_time_range(self, start_time: float = None, end_time: float = None) -> Self:
+        """Implementing BufferData superclass."""
+        rows_in_range = self.get_time_selector(start_time, end_time)
         range_event_data = self.event_data[rows_in_range, :]
         return NumericEventList(range_event_data)
 
@@ -93,18 +96,7 @@ class NumericEventList(BufferData):
         Pass in start_time restrict to events at or after start_time.
         Pass in end_time restrict to events strictly before end_time.
         """
-        if start_time is None:
-            tail_selector = True
-        else:
-            tail_selector = self.event_data[:, 0] >= start_time
-
-        if end_time is None:
-            head_selector = True
-        else:
-            head_selector = self.event_data[:, 0] < end_time
-
-        rows_in_range = tail_selector & head_selector
-
+        rows_in_range = self.get_time_selector(start_time, end_time)
         value_column = value_index + 1
         matching_rows = (self.event_data[:, value_column] == event_value)
         return self.event_data[rows_in_range & matching_rows, 0]
@@ -145,13 +137,15 @@ class NumericEventList(BufferData):
         """
         return self.event_data.shape[1] - 1
 
-    def get_values(self, value_index: int = 0) -> np.ndarray:
+    def get_values(self, start_time: float = None, end_time: float = None, value_index: int = 0) -> np.ndarray:
         """Get just the event values, ignoring event times.
 
         By default this gets only the first value per event.
         Pass in value_index>0 to get a different value.
         """
-        return self.event_data[:, 1 + value_index]
+        rows_in_range = self.get_time_selector(start_time, end_time)
+        value_column = value_index + 1
+        return self.event_data[rows_in_range, value_column]
 
     def copy_value_range(self, min: float = None, max: float = None, value_index: int = 0) -> Self:
         """Make a new list containing only events with values in half open interval [min, max).

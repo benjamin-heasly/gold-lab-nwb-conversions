@@ -511,6 +511,18 @@ class DurationPlusTrialCount(TrialEnhancer):
             return {"duration_plus_trial_count": duration + trial_count}
 
 
+class BadEnhancer(TrialEnhancer):
+    """Nonsense enhancer that always errors."""
+    def enhance(
+        self,
+        trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> dict[str, Any]:
+        raise RuntimeError
+
+
 def test_enhance_trials():
     # Expect trials with slightly increasing durations
     start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2.1, 1010]], [[3.3, 1010]]])
@@ -525,7 +537,8 @@ def test_enhance_trials():
     wrt_router = ReaderRouter(wrt_reader, [wrt_route])
 
     # Enhance trials with a sequence of enhancers.
-    enhancers = [TrialDurationEnhancer(), DurationPlusTrialCount()]
+    # The middle one always errors -- which should not blow up the overall process.
+    enhancers = [TrialDurationEnhancer(), BadEnhancer(), DurationPlusTrialCount()]
 
     extractor = TrialExtractor(
         wrt_router.buffers["wrt"],
