@@ -1,5 +1,5 @@
 from types import TracebackType
-from typing import ContextManager, Self
+from typing import ContextManager, Self, Any
 
 import numpy as np
 
@@ -65,10 +65,10 @@ DspChannelHeader = np.dtype(
         ('Threshold', 'int32'),
         ('Method', 'int32'),
         ('NUnits', 'int32'),
-        ('Template', 'uint16', (5,64)),
+        ('Template', 'uint16', (5, 64)),
         ('Fit', 'int32', (5,)),
         ('SortWidth', 'int32'),
-        ('Boxes', 'uint16', (5,2,4)),
+        ('Boxes', 'uint16', (5, 2, 4)),
         ('SortBeg', 'int32'),
         # version 105
         ('Comment', 'S128'),
@@ -114,6 +114,18 @@ SlowChannelHeader = np.dtype(
         ('ChanId', 'uint16'),
 
         ('Padding', 'int32', (27,)),
+    ]
+)
+
+DataBlockHeader = np.dtype(
+    [
+        ('Type', 'uint16'),
+        ('UpperByteOf5ByteTimestamp', 'uint16'),
+        ('TimeStamp', 'int32'),
+        ('Channel', 'uint16'),
+        ('Unit', 'uint16'),
+        ('NumberOfWaveforms', 'uint16'),
+        ('NumberOfWordsInWaveform', 'uint16'),
     ]
 )
 
@@ -168,8 +180,37 @@ class RawPlexonReader(ContextManager):
             self.plx_stream.close()
         self.plx_stream = None
 
-    def consume_type(self, dtype: np.dtype):
+    def next_block(self) -> dict[str, Any]:
+        file_offset = self.plx_stream.tell()
+        block_header = self.consume_type(DataBlockHeader)
+        if not block_header:
+            return None
+
+        timestamp = block_header['UpperByteOf5ByteTimestamp'] * 2 ** 32 + block_header['TimeStamp']
+        shape = (block_header["NumberOfWaveforms"], block_header["NumberOfWordsInWaveform"])
+        byte_count = shape[0] * shape[1] * 2
+        if byte_count > 0:
+            bytes = self.plx_stream.read(byte_count)
+            if not bytes:
+                return None
+            data = np.frombuffer(bytes, dtype='int16')
+        else:
+            data = None
+
+        return {
+            "file_offset": file_offset,
+            "timestamp": timestamp,
+            "type": block_header['Type'],
+            "channel": block_header['Channel'],
+            "unit": block_header['Unit'],
+            "data": data
+        }
+
+    def consume_type(self, dtype: np.dtype) -> dict[str, Any]:
         bytes = self.plx_stream.read(dtype.itemsize)
+        if not bytes:
+            return None
+
         item = np.frombuffer(bytes, dtype)[0]
         result = {}
         for name in dtype.names:

@@ -101,6 +101,24 @@ def assert_slow_channel_headers(headers: list[dict], expected: dict) -> None:
         assert header["SpikeChannel"] <= len(expected['spk_names'])
 
 
+# TODO: block type conversion and comparison to expected
+def scan_blocks(raw_reader: RawPlexonReader):
+    previous_timestamps = {
+        1: {},
+        4: {},
+        5: {},
+    }
+    block = raw_reader.next_block()
+    while block:
+        if block["channel"] not in previous_timestamps[block["type"]]:
+            previous_timestamps[block["type"]][block["channel"]] = -1
+
+        block_timestamp = block["timestamp"]
+        assert block_timestamp > previous_timestamps[block["type"]][block["channel"]]
+        previous_timestamps[block["type"]][block["channel"]] = block_timestamp
+        block = raw_reader.next_block()
+
+
 def test_opx141spkOnly004(fixture_path):
     plx_file = Path(fixture_path, "plexon", "opx141spkOnly004.plx")
     json_file = Path(fixture_path, "plexon", "opx141spkOnly004.json")
@@ -112,7 +130,7 @@ def test_opx141spkOnly004(fixture_path):
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
             assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
-
+            scan_blocks(raw_reader)
 
 def test_opx141ch1to3analogOnly003(fixture_path):
     plx_file = Path(fixture_path, "plexon", "opx141ch1to3analogOnly003.plx")
@@ -125,6 +143,7 @@ def test_opx141ch1to3analogOnly003(fixture_path):
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
             assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
+            scan_blocks(raw_reader)
 
 
 def test_16sp_lfp_with_2coords(fixture_path):
@@ -138,3 +157,4 @@ def test_16sp_lfp_with_2coords(fixture_path):
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
             assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
+            scan_blocks(raw_reader)
