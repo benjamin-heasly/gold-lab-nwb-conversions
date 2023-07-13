@@ -46,9 +46,74 @@ GlobalHeader = np.dtype(
         ('Padding', 'S10'),
 
         # all version
-        ('TSCounts', 'int32', (130,5)), # number of timestamps[channel][unit]
-        ('WFCounts', 'int32', (130,5)), # number of waveforms[channel][unit]
+        ('TSCounts', 'int32', (130, 5)),  # number of timestamps[channel][unit]
+        ('WFCounts', 'int32', (130, 5)),  # number of waveforms[channel][unit]
         ('EVCounts', 'int32', (512,)),
+    ]
+)
+
+DspChannelHeader = np.dtype(
+    [
+        ('Name', 'S32'),
+        ('SIGName', 'S32'),
+        ('Channel', 'int32'),
+        ('WFRate', 'int32'),
+        ('SIG', 'int32'),
+        ('Ref', 'int32'),
+        ('Gain', 'int32'),
+        ('Filter', 'int32'),
+        ('Threshold', 'int32'),
+        ('Method', 'int32'),
+        ('NUnits', 'int32'),
+        ('Template', 'uint16', (5,64)),
+        ('Fit', 'int32', (5,)),
+        ('SortWidth', 'int32'),
+        ('Boxes', 'uint16', (5,2,4)),
+        ('SortBeg', 'int32'),
+        # version 105
+        ('Comment', 'S128'),
+        # version 106
+        ('SrcId', 'uint8'),
+        ('reserved', 'uint8'),
+        ('ChanId', 'uint16'),
+
+        ('Padding', 'int32', (10,)),
+    ]
+)
+
+EventChannelHeader = np.dtype(
+    [
+        ('Name', 'S32'),
+        ('Channel', 'int32'),
+        # version 105
+        ('Comment', 'S128'),
+        # version 106
+        ('SrcId', 'uint8'),
+        ('reserved', 'uint8'),
+        ('ChanId', 'uint16'),
+
+        ('Padding', 'int32', (32,)),
+    ]
+)
+
+SlowChannelHeader = np.dtype(
+    [
+        ('Name', 'S32'),
+        ('Channel', 'int32'),
+        ('ADFreq', 'int32'),
+        ('Gain', 'int32'),
+        ('Enabled', 'int32'),
+        ('PreampGain', 'int32'),
+        # version 104
+        ('SpikeChannel', 'int32'),
+        # version 105
+        ('Comment', 'S128'),
+        # version 106
+        ('SrcId', 'uint8'),
+        ('reserved', 'uint8'),
+        ('ChanId', 'uint16'),
+
+        ('Padding', 'int32', (27,)),
     ]
 )
 
@@ -71,10 +136,25 @@ class RawPlexonReader(ContextManager):
 
         self.plx_stream = None
         self.global_header = None
+        self.dsp_channel_headers = None
+        self.event_channel_headers = None
+        self.slow_channel_headers = None
 
     def __enter__(self) -> Self:
         self.plx_stream = open(self.plx_file, 'br')
         self.global_header = self.consume_type(GlobalHeader)
+        self.dsp_channel_headers = [
+            self.consume_type(DspChannelHeader)
+            for _ in range(self.global_header["NumDSPChannels"])
+        ]
+        self.event_channel_headers = [
+            self.consume_type(EventChannelHeader)
+            for _ in range(self.global_header["NumEventChannels"])
+        ]
+        self.slow_channel_headers = [
+            self.consume_type(SlowChannelHeader)
+            for _ in range(self.global_header["NumSlowChannels"])
+        ]
 
         return self
 

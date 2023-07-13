@@ -2,15 +2,13 @@ from datetime import datetime
 from pathlib import Path
 import json
 
-import numpy as np
-
 from pytest import fixture
 
+import numpy as np
 
 from pyramid.neutral_zone.readers.plexon import RawPlexonReader
 
-# WIP!
-# For now this is a proof of concept for loading .plx files and verifying contents.
+# Load some Plexon .plx files and verify the contents.
 # The .plx files and expected contents are from Plexon's "OmniPlex and MAP Offline SDK Bundle" / "Matlab Offline Files SDK".
 # For details see: pyramid/tests/pyramid/neutral_zone/readers/fixture_files/plexon/README.txt
 
@@ -49,12 +47,12 @@ def assert_global_header(header: dict, expected: dict) -> None:
     channel_range = range(header["NumDSPChannels"] + 1)
     unit_range = range(5)
 
-    ts_counts = header['TSCounts'][channel_range,:]
-    expected_ts_counts = np.array(expected['tscounts'])[unit_range,:].T
+    ts_counts = header['TSCounts'][channel_range, :]
+    expected_ts_counts = np.array(expected['tscounts'])[unit_range, :].T
     assert np.array_equal(ts_counts, expected_ts_counts)
 
-    wf_counts = header['WFCounts'][channel_range,:]
-    expected_wf_counts = np.array(expected['wfcounts'])[unit_range,:].T
+    wf_counts = header['WFCounts'][channel_range, :]
+    expected_wf_counts = np.array(expected['wfcounts'])[unit_range, :].T
     assert np.array_equal(wf_counts, expected_wf_counts)
 
     # Expected event counts are also weirdly shaped.
@@ -72,14 +70,48 @@ def assert_global_header(header: dict, expected: dict) -> None:
     assert np.array_equal(ev_counts, expected_ev_counts)
 
 
+def assert_dsp_channel_headers(headers: list[dict], expected: dict) -> None:
+    assert len(headers) == len(expected['spk_names'])
+    for index, header in enumerate(headers):
+        assert header["Name"] == expected["spk_names"][index].replace('\x00', '')
+        assert header["Channel"] == index + 1
+        assert header["SIG"] == index + 1
+        assert header["Gain"] == expected["spk_gains"][index]
+        assert header["Filter"] == expected["spk_filters"][index]
+        assert header["Threshold"] == expected["spk_threshs"][index]
+        assert header["Method"] in {1, 2}
+
+
+def assert_event_channel_headers(headers: list[dict], expected: dict) -> None:
+    assert len(headers) == len(expected['evnames'])
+    for index, header in enumerate(headers):
+        assert header["Name"] == expected['evnames'][index].replace('\x00', '')
+        assert header["Channel"] == expected['evchans'][index]
+
+
+def assert_slow_channel_headers(headers: list[dict], expected: dict) -> None:
+    assert len(headers) == len(expected['adnames'])
+    for index, header in enumerate(headers):
+        assert header["Name"] == expected['adnames'][index].replace('\x00', '')
+        assert header["Channel"] == index
+        assert header["ADFreq"] == expected["adfreqs"][index]
+        assert header["Gain"] == expected["adgains"][index]
+        assert header["Enabled"] in {0, 1}
+        assert header["PreampGain"] > 0
+        assert header["SpikeChannel"] <= len(expected['spk_names'])
+
+
 def test_opx141spkOnly004(fixture_path):
     plx_file = Path(fixture_path, "plexon", "opx141spkOnly004.plx")
     json_file = Path(fixture_path, "plexon", "opx141spkOnly004.json")
 
     with open(json_file) as f:
-        expected_data = json.load(f)
+        expected = json.load(f)
         with RawPlexonReader(plx_file) as raw_reader:
-            assert_global_header(raw_reader.global_header, expected_data)
+            assert_global_header(raw_reader.global_header, expected)
+            assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
+            assert_event_channel_headers(raw_reader.event_channel_headers, expected)
+            assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
 
 
 def test_opx141ch1to3analogOnly003(fixture_path):
@@ -87,15 +119,22 @@ def test_opx141ch1to3analogOnly003(fixture_path):
     json_file = Path(fixture_path, "plexon", "opx141ch1to3analogOnly003.json")
 
     with open(json_file) as f:
-        expected_data = json.load(f)
+        expected = json.load(f)
         with RawPlexonReader(plx_file) as raw_reader:
-            assert_global_header(raw_reader.global_header, expected_data)
+            assert_global_header(raw_reader.global_header, expected)
+            assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
+            assert_event_channel_headers(raw_reader.event_channel_headers, expected)
+            assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
+
 
 def test_16sp_lfp_with_2coords(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
     json_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.json")
 
     with open(json_file) as f:
-        expected_data = json.load(f)
+        expected = json.load(f)
         with RawPlexonReader(plx_file) as raw_reader:
-            assert_global_header(raw_reader.global_header, expected_data)
+            assert_global_header(raw_reader.global_header, expected)
+            assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
+            assert_event_channel_headers(raw_reader.event_channel_headers, expected)
+            assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
