@@ -1,4 +1,5 @@
-from typing import Any
+from types import TracebackType
+from typing import Any, ContextManager
 from dataclasses import dataclass, field
 import logging
 
@@ -6,7 +7,7 @@ from pyramid.model.model import DynamicImport, BufferData, Buffer
 from pyramid.neutral_zone.transformers.transformers import Transformer
 
 
-class Reader(DynamicImport):
+class Reader(DynamicImport, ContextManager):
     """Interface for consuming data from arbitrary sources and converting to Pyramid BufferData types.
 
     Each reader implementation should:
@@ -34,7 +35,12 @@ class Reader(DynamicImport):
         """
         raise NotImplementedError  # pragma: no cover
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None
+    ) -> bool | None:
         """Release any resources acquired during __enter()__."""
         raise NotImplementedError  # pragma: no cover
 

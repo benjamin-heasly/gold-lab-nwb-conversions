@@ -1,4 +1,5 @@
-from typing import Self, Any
+from types import TracebackType
+from typing import Self, Any, ContextManager
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -35,7 +36,7 @@ class Plotter(DynamicImport):
         pass # pragma: no cover
 
 
-class PlotFigureController():
+class PlotFigureController(ContextManager):
     """Registry and utils for Plotter instances and corresponding, managed figures.
 
     We want pyramid GUI mode to be able to juggle several tasks at the same time:
@@ -107,7 +108,12 @@ class PlotFigureController():
                 fig.canvas.draw_idle()
                 fig.canvas.flush_events()
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None
+    ) -> bool | None:
         # Close each managed figure.
         for plotter, fig in self.figures.items():
             plotter.clean_up(fig)

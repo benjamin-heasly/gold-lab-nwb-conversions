@@ -1,3 +1,4 @@
+from types import TracebackType
 from typing import Self
 import time
 
@@ -24,8 +25,13 @@ class DelaySimulatorReader(Reader):
     def __enter__(self) -> Self:
         return self.reader.__enter__()
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        self.reader.__exit__(exc_type, exc_value, traceback)
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None
+    ) -> bool | None:
+        self.reader.__exit__(__exc_type, __exc_value, __traceback)
 
     def read_next(self) -> dict[str, BufferData]:
         if self.stashed_result:

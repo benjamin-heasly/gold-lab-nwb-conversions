@@ -1,3 +1,4 @@
+from types import TracebackType
 from typing import Self
 import logging
 import csv
@@ -48,7 +49,12 @@ class CsvNumericEventReader(Reader):
         self.csv_reader = csv.reader(self.file_stream, self.dialect, **self.fmtparams)
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None
+    ) -> bool | None:
         if self.file_stream:
             self.file_stream.close()
             self.file_stream = None
@@ -125,7 +131,12 @@ class CsvSignalReader(Reader):
         self.csv_reader = csv.reader(self.file_stream, self.dialect, **self.fmtparams)
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None
+    ) -> bool | None:
         if self.file_stream:
             self.file_stream.close()
             self.file_stream = None

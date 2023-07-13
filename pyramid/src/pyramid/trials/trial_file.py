@@ -1,10 +1,11 @@
-from typing import Self
+from types import TracebackType
+from typing import Self, ContextManager
 import json
 
 from pyramid.trials.trials import Trial
 
 
-class TrialFileWriter():
+class TrialFileWriter(ContextManager):
     """Incrementally write trials to a file as a JSON list.
     
     Appends trials incrementally to a JSON file.
@@ -37,7 +38,12 @@ class TrialFileWriter():
         self.file_stream.write(trial_json)
         self.trial_separator = ",\n"
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None
+    ) -> bool | None:
         if self.file_stream:
             self.file_stream.write("\n]\n")
             self.file_stream.close()
