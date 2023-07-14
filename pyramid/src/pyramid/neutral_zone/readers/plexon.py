@@ -148,9 +148,17 @@ class RawPlexonReader(ContextManager):
 
         self.plx_stream = None
         self.global_header = None
+
         self.dsp_channel_headers = None
+        self.gain_per_dsp_channel = None
+        self.dsp_frequency = None
+
         self.event_channel_headers = None
+        self.event_frequency = None
+
         self.slow_channel_headers = None
+        self.gain_per_slow_channel = None
+        self.frequency_per_slow_channel = None
 
     def __enter__(self) -> Self:
         self.plx_stream = open(self.plx_file, 'br')
@@ -159,14 +167,21 @@ class RawPlexonReader(ContextManager):
             self.consume_type(DspChannelHeader)
             for _ in range(self.global_header["NumDSPChannels"])
         ]
+        self.gain_per_dsp_channel = self.get_gain_per_dsp_channel()
+        self.dsp_frequency = self.global_header["WaveformFreq"]
+
         self.event_channel_headers = [
             self.consume_type(EventChannelHeader)
             for _ in range(self.global_header["NumEventChannels"])
         ]
+        self.event_frequency = self.global_header["ADFrequency"]
+
         self.slow_channel_headers = [
             self.consume_type(SlowChannelHeader)
             for _ in range(self.global_header["NumSlowChannels"])
         ]
+        self.gain_per_slow_channel = self.get_gain_per_slow_channel()
+        self.frequency_per_slow_channel = self.get_frequency_per_slow_channel()
 
         return self
 
@@ -179,32 +194,6 @@ class RawPlexonReader(ContextManager):
         if self.plx_stream:
             self.plx_stream.close()
         self.plx_stream = None
-
-    def next_block(self) -> dict[str, Any]:
-        file_offset = self.plx_stream.tell()
-        block_header = self.consume_type(DataBlockHeader)
-        if not block_header:
-            return None
-
-        timestamp = block_header['UpperByteOf5ByteTimestamp'] * 2 ** 32 + block_header['TimeStamp']
-        shape = (block_header["NumberOfWaveforms"], block_header["NumberOfWordsInWaveform"])
-        byte_count = shape[0] * shape[1] * 2
-        if byte_count > 0:
-            bytes = self.plx_stream.read(byte_count)
-            if not bytes:
-                return None
-            data = np.frombuffer(bytes, dtype='int16')
-        else:
-            data = None
-
-        return {
-            "file_offset": file_offset,
-            "timestamp": timestamp,
-            "type": block_header['Type'],
-            "channel": block_header['Channel'],
-            "unit": block_header['Unit'],
-            "data": data
-        }
 
     def consume_type(self, dtype: np.dtype) -> dict[str, Any]:
         bytes = self.plx_stream.read(dtype.itemsize)
@@ -221,3 +210,89 @@ class RawPlexonReader(ContextManager):
                 value = value.replace('\x00', '')
             result[name] = value
         return result
+
+    def get_gain_per_slow_channel(self) -> dict[int, float]:
+        gains = {}
+        for header in self.slow_channel_headers:
+            if self.global_header['Version'] in [100, 101]:
+                gain = 5000. / (2048 * header['Gain'] * 1000.)
+            elif self.global_header['Version'] in [102]:
+                gain = 5000. / (2048 * header['Gain'] * header['PreampGain'])
+            elif self.global_header['Version'] >= 103:
+                gain = self.global_header['SlowMaxMagnitudeMV'] / (
+                    .5 * (2 ** self.global_header['BitsPerSlowSample']) *
+                    header['Gain'] * header['PreampGain'])
+            gains[header['Channel']] = gain
+        return gains
+
+    def get_frequency_per_slow_channel(self) -> dict[int, float]:
+        frequencies = {}
+        for header in self.slow_channel_headers:
+            frequencies[header['Channel']] = header['ADFreq']
+        return frequencies
+
+    def get_gain_per_dsp_channel(self) -> dict[int, float]:
+        gains = {}
+        for header in self.dsp_channel_headers:
+            if self.global_header['Version'] < 103:
+                gain = 3000. / (2048 * header['Gain'] * 1000.)
+            elif 103 <= self.global_header['Version'] < 105:
+                gain = self.global_header['SpikeMaxMagnitudeMV'] / (
+                    .5 * 2. ** (self.global_header['BitsPerSpikeSample']) *
+                    header['Gain'] * 1000.)
+            elif self.global_header['Version'] >= 105:
+                gain = self.global_header['SpikeMaxMagnitudeMV'] / (
+                    .5 * 2. ** (self.global_header['BitsPerSpikeSample']) *
+                    header['Gain'] * self.global_header['SpikePreAmpGain'])
+            gains[header['Channel']] = gain
+        return gains
+
+    def next_block(self) -> dict[str, Any]:
+        file_offset = self.plx_stream.tell()
+        block_header = self.consume_type(DataBlockHeader)
+        if not block_header:
+            return None
+
+        timestamp = block_header['UpperByteOf5ByteTimestamp'] * 2 ** 32 + block_header['TimeStamp']
+        if block_header['Type'] == 4:
+            # An event value with no payload.
+            data = {
+                "timestamp_seconds": timestamp / self.event_frequency,
+                "value": block_header['Unit']
+            }
+        else:
+            # A chunk of dsp or slow waveform data.
+            shape = (block_header["NumberOfWaveforms"], block_header["NumberOfWordsInWaveform"])
+            byte_count = shape[0] * shape[1] * 2
+            bytes = self.plx_stream.read(byte_count)
+            chunk = np.frombuffer(bytes, dtype='int16')
+            chunk.reshape(shape)
+            if block_header['Type'] == 1:
+                # A dsp waveform.
+                gain = self.gain_per_dsp_channel[block_header['Channel']]
+                data = {
+                    "timestamp_seconds": timestamp / self.dsp_frequency,
+                    "frequency": self.dsp_frequency,
+                    "waveforms": chunk * gain
+                }
+            elif block_header['Type'] == 5:
+                # A slow waveform chunk.
+                gain = self.gain_per_slow_channel[block_header['Channel']]
+                frequency = self.frequency_per_slow_channel[block_header['Channel']]
+                data = {
+                    "timestamp_seconds": timestamp / frequency,
+                    "frequency": frequency,
+                    "waveforms": chunk * gain 
+                }
+            else:
+                # This would be unexpected.
+                data = None
+
+        return {
+            "file_offset": file_offset,
+            "timestamp": timestamp,
+            "type": block_header['Type'],
+            "channel": block_header['Channel'],
+            "unit": block_header['Unit'],
+            "data": data
+        }

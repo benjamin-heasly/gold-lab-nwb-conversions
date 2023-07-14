@@ -101,22 +101,44 @@ def assert_slow_channel_headers(headers: list[dict], expected: dict) -> None:
         assert header["SpikeChannel"] <= len(expected['spk_names'])
 
 
-# TODO: block type conversion and comparison to expected
-def scan_blocks(raw_reader: RawPlexonReader):
-    previous_timestamps = {
+def read_all_blocks(raw_reader: RawPlexonReader) -> dict[int, dict[int, list]]:
+    all_blocks = {
         1: {},
         4: {},
         5: {},
     }
     block = raw_reader.next_block()
     while block:
-        if block["channel"] not in previous_timestamps[block["type"]]:
-            previous_timestamps[block["type"]][block["channel"]] = -1
+        if block["channel"] not in all_blocks[block["type"]]:
+            all_blocks[block["type"]][block["channel"]] = []
 
-        block_timestamp = block["timestamp"]
-        assert block_timestamp > previous_timestamps[block["type"]][block["channel"]]
-        previous_timestamps[block["type"]][block["channel"]] = block_timestamp
+        all_blocks[block["type"]][block["channel"]].append(block)
         block = raw_reader.next_block()
+
+    return all_blocks
+
+
+def assert_sequential_block_timestamps(all_blocks: dict[int, dict[int, list]]):
+    """Expect timestamps to be sequential within a channel type and id, otherwise can be ragged"""
+    for channel_blocks in all_blocks.values():
+        for blocks in channel_blocks.values():
+            previous_timestamp = -1
+            for block in blocks:
+                assert block["timestamp"] > previous_timestamp
+                previous_timestamp = block["timestamp"]
+
+
+def assert_events(all_blocks: dict[int, dict[int, list]], expected: dict):
+    event_channel_blocks = all_blocks[4]
+    for channel_id, blocks in event_channel_blocks.items():
+        event_times = [block["data"]["timestamp_seconds"] for block in blocks]
+        expected_times = expected["tsevs"][channel_id + 1]
+
+        # Awkward, expected data have single event times "unboxed" from their lists.
+        if len(event_times) == 1:
+            assert event_times[0] == expected_times
+        else:
+            assert event_times == expected_times
 
 
 def test_opx141spkOnly004(fixture_path):
@@ -130,7 +152,11 @@ def test_opx141spkOnly004(fixture_path):
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
             assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
-            scan_blocks(raw_reader)
+
+            all_blocks = read_all_blocks(raw_reader)
+            assert_sequential_block_timestamps(all_blocks)
+            assert_events(all_blocks, expected)
+
 
 def test_opx141ch1to3analogOnly003(fixture_path):
     plx_file = Path(fixture_path, "plexon", "opx141ch1to3analogOnly003.plx")
@@ -143,7 +169,10 @@ def test_opx141ch1to3analogOnly003(fixture_path):
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
             assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
-            scan_blocks(raw_reader)
+
+            all_blocks = read_all_blocks(raw_reader)
+            assert_sequential_block_timestamps(all_blocks)
+            assert_events(all_blocks, expected)
 
 
 def test_16sp_lfp_with_2coords(fixture_path):
@@ -157,4 +186,7 @@ def test_16sp_lfp_with_2coords(fixture_path):
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
             assert_slow_channel_headers(raw_reader.slow_channel_headers, expected)
-            scan_blocks(raw_reader)
+
+            all_blocks = read_all_blocks(raw_reader)
+            assert_sequential_block_timestamps(all_blocks)
+            assert_events(all_blocks, expected)
