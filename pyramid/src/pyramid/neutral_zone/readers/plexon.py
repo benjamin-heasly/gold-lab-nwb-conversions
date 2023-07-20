@@ -3,6 +3,11 @@ from types import TracebackType
 from typing import ContextManager, Self, Any
 
 import numpy as np
+from pyramid.model.model import BufferData
+
+from pyramid.model.events import NumericEventList
+from pyramid.model.signals import SignalChunk
+from pyramid.neutral_zone.readers.readers import Reader
 
 
 # Representing Plexon file from C headers available here:
@@ -131,7 +136,7 @@ DataBlockHeader = np.dtype(
 )
 
 
-class RawPlexonReader(ContextManager):
+class PlexonPlxRawReader(ContextManager):
     """Read a Pleoxn .plx file sequentially, block by block.
 
     This borrows from the python-neo project's PlexonRawIO.
@@ -293,7 +298,7 @@ class RawPlexonReader(ContextManager):
                 data = {
                     "timestamp_seconds": timestamp / self.timestamp_frequency,
                     "frequency": channel_frequency,
-                    "waveforms": chunk * gain 
+                    "waveforms": chunk * gain
                 }
             else:  # pragma: no cover
                 logging.warning(f"Skipping block of unknown type {block_type}.  Block header is: {block_header}")
@@ -307,3 +312,109 @@ class RawPlexonReader(ContextManager):
             "unit": block_header['Unit'],
             "data": data
         }
+
+
+class PlexonPlxReader(Reader):
+    """Read plexon .plx ad waveform chunks, spike events, and other numeric events."""
+
+    def __init__(
+        self,
+        plx_file: str = None,
+    ) -> None:
+        self.plx_file = plx_file
+        self.raw_reader = PlexonPlxRawReader(plx_file)
+
+        self.spike_names = None
+        self.event_names = None
+        self.signal_names = None
+
+    def __enter__(self) -> Any:
+        self.raw_reader.__enter__()
+
+        self.spike_names = {
+            header["Channel"]: f"{header['Name']}_spikes"
+            for header in self.raw_reader.dsp_channel_headers
+        }
+        self.event_names = {
+            header["Channel"]: header["Name"]
+            for header in self.raw_reader.event_channel_headers
+        }
+        self.signal_names = {
+            header["Channel"]: header["Name"]
+            for header in self.raw_reader.slow_channel_headers
+        }
+
+        return self
+
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None
+    ) -> bool | None:
+        return self.raw_reader.__exit__(__exc_type, __exc_value, __traceback)
+
+    def read_next(self) -> dict[str, BufferData]:
+        block = self.raw_reader.next_block()
+        if block is None:
+            return None
+
+        block_type = block['type']
+        if block_type == 1:
+            # Block has one spike event with timestamp, channel, and unit.
+            return {
+                self.spike_names[block['channel']]: NumericEventList(
+                    np.array([block['data']['timestamp_seconds'], block['channel'], block['unit']])
+                )
+            }
+        elif block_type == 4:
+            # Block has one other event with timestamp, value.
+            return {
+                self.event_names[block['channel']]: NumericEventList(
+                    np.array([block['data']['timestamp_seconds'], block['data']['value']])
+                )
+            }
+        elif block_type == 5:
+            # Block has a waveform signal chunk.
+            return {
+                self.signal_names[block['channel']]: SignalChunk(
+                    sample_data=np.array(block['data']['waveforms']),
+                    sample_frequency=block['data']['waveforms'],
+                    first_sample_time=block['data']['timestamp_seconds'],
+                    channel_ids=[block['channel']]
+                )
+            }
+        else:
+            logging.warning(f"Ignoring block of unknown type {block_type}.")
+            return {}
+
+    def get_initial(self) -> dict[str, BufferData]:
+        # Peek at the .plx file so we can read headers -- but not consume data blocks yet.
+        with PlexonPlxRawReader(self.plx_file) as peek_reader:
+            # Spike channels have numeric events like [timestamp, channel_id, unit_id]
+            initial_spikes = {
+                f"{header['Name']}_spikes": NumericEventList(np.empty([0, 3], dtype='float64'))
+                for header in peek_reader.dsp_channel_headers
+            }
+
+            # Other event channels have numeric events like [timestamp, value]
+            initial_events = {
+                header['Name']: NumericEventList(np.empty([0, 2], dtype='float64'))
+                for header in peek_reader.event_channel_headers
+            }
+
+            # Slow Ad channels have Signal chunks.
+            initial_signals = {
+                header['Name']: SignalChunk(
+                    sample_data=np.empty([0, 1], dtype='float64'),
+                    sample_frequency=header["ADFreq"],
+                    first_sample_time=0.0,
+                    channel_ids=[header["Channel"]]
+                )
+                for header in peek_reader.slow_channel_headers
+            }
+        initial = {}
+        initial.update(initial_spikes)
+        initial.update(initial_events)
+        initial.update(initial_signals)
+        return initial

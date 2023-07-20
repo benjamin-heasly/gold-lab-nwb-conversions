@@ -63,9 +63,9 @@ class Reader(DynamicImport, ContextManager):
         raise NotImplementedError  # pragma: no cover
 
     def get_initial(self) -> dict[str, BufferData]:
-        """Create an initial dictionary indiciting the expected names and BufferData sub-types this Reader will produce.
+        """Create an initial dictionary of names and BufferData sub-types that Reader expects to produce.
 
-        This is called before __enter__() and before the first call to read_next().
+        This is called before __enter__() or read_next().
         It's intended to inform Pyramid what result keys this Reader will produce, and the BufferData sub-types that it will use.
         These help setting up downstream components that receive the results of read_next().
         The initial dictionary returned here can (and should!) depend on the kwargs passed to the Reader's constructor. 
@@ -84,18 +84,7 @@ class ReaderRoute():
     """Name for the buffer that will receive reader results "spikes", "ecodes", etc."""
 
     transformers: list[Transformer] = field(default_factory=list)
-    """Optional data transformations between reader and buffer.
-
-    I think we can add per-event transformations here, like:
-     - linear transform with offset and gain 
-     - filtering with min and max
-     - split event values into multiple events or multiple values-per-event
-
-    We're also interested in per-trial transformations but these might have to wait
-    until we have each whole trial delimited and all the related events in one list.
-     - rummage around within a trial for related events
-     - join related values into complex events or other types, like strings
-    """
+    """Optional data transformations between reader and buffer."""
 
 
 class ReaderRouter():

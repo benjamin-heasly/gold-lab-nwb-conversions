@@ -1,12 +1,13 @@
 from datetime import datetime
 from pathlib import Path
 import json
+import numpy as np
 
 from pytest import fixture
 
-import numpy as np
+from pyramid.neutral_zone.readers.plexon import PlexonPlxRawReader
 
-from pyramid.neutral_zone.readers.plexon import RawPlexonReader
+
 
 # Load some Plexon .plx files and verify the contents.
 # The .plx files and expected contents are from Plexon's "OmniPlex and MAP Offline SDK Bundle" / "Matlab Offline Files SDK".
@@ -101,7 +102,7 @@ def assert_slow_channel_headers(headers: list[dict], expected: dict) -> None:
         assert header["SpikeChannel"] <= len(expected['spk_names'])
 
 
-def read_all_blocks(raw_reader: RawPlexonReader) -> dict[int, dict[int, list]]:
+def read_all_blocks(raw_reader: PlexonPlxRawReader) -> dict[int, dict[int, list]]:
     all_blocks = {
         1: {},
         4: {},
@@ -223,7 +224,7 @@ def test_opx141spkOnly004(fixture_path):
 
     with open(json_file) as f:
         expected = json.load(f)
-        with RawPlexonReader(plx_file) as raw_reader:
+        with PlexonPlxRawReader(plx_file) as raw_reader:
             assert_global_header(raw_reader.global_header, expected)
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
@@ -242,7 +243,7 @@ def test_opx141ch1to3analogOnly003(fixture_path):
 
     with open(json_file) as f:
         expected = json.load(f)
-        with RawPlexonReader(plx_file) as raw_reader:
+        with PlexonPlxRawReader(plx_file) as raw_reader:
             assert_global_header(raw_reader.global_header, expected)
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
@@ -261,7 +262,7 @@ def test_16sp_lfp_with_2coords(fixture_path):
 
     with open(json_file) as f:
         expected = json.load(f)
-        with RawPlexonReader(plx_file) as raw_reader:
+        with PlexonPlxRawReader(plx_file) as raw_reader:
             assert_global_header(raw_reader.global_header, expected)
             assert_dsp_channel_headers(raw_reader.dsp_channel_headers, expected)
             assert_event_channel_headers(raw_reader.event_channel_headers, expected)
@@ -277,7 +278,7 @@ def test_16sp_lfp_with_2coords(fixture_path):
 def test_strobed_negative(fixture_path):
     # We don't have expected data for this file, but we can still sanity check header and block parsing.
     plx_file = Path(fixture_path, "plexon", "strobed_negative.plx")
-    with RawPlexonReader(plx_file) as raw_reader:
+    with PlexonPlxRawReader(plx_file) as raw_reader:
         all_blocks = read_all_blocks(raw_reader)
         # Expect one event on the 257/"strobed" channel with value 0xFFFF -- uint16 65535 or sint16 -1.
         assert all_blocks[4][257][0]['data']['value'] == 65535
@@ -287,7 +288,7 @@ def test_strobed_negative(fixture_path):
 def test_ts_freq_zero(fixture_path):
     # We don't have expected data for this file, but we can still sanity check header and block parsing.
     plx_file = Path(fixture_path, "plexon", "ts_freq_zero.plx")
-    with RawPlexonReader(plx_file) as raw_reader:
+    with PlexonPlxRawReader(plx_file) as raw_reader:
         # Expect 0Hz timestamp frequency -- probably an example of misconfiguration?
         assert raw_reader.global_header["ADFrequency"] == 0
         assert raw_reader.global_header["WaveformFreq"] == 40000
@@ -297,7 +298,7 @@ def test_ts_freq_zero(fixture_path):
 
 def test_waveform_freq_zero(fixture_path):
     plx_file = Path(fixture_path, "plexon", "waveform_freq_zero.plx")
-    with RawPlexonReader(plx_file) as raw_reader:
+    with PlexonPlxRawReader(plx_file) as raw_reader:
         # Expect 0Hz waveforms frequency -- probably an example of misconfiguration?
         assert raw_reader.global_header["ADFrequency"] == 40000
         assert raw_reader.global_header["WaveformFreq"] == 0
