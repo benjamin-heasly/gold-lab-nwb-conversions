@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 
 from pytest import fixture
+import cProfile, pstats
 
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
@@ -43,7 +44,7 @@ def test_default_to_all_channels(fixture_path):
     assert isinstance(initial["FP64"], SignalChunk)
 
 
-def test_scan_whole_plx_file(fixture_path):
+def test_read_whole_plx_file(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
     with PlexonPlxReader(plx_file) as reader:
 
@@ -153,3 +154,40 @@ def test_scan_whole_plx_file(fixture_path):
         assert reader.raw_reader.block_count == 52084
         assert reader.read_next() is None
         assert reader.raw_reader.block_count == 52084
+
+
+def test_profile_read_whole_plx_file(fixture_path):
+    plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
+    with PlexonPlxReader(plx_file) as reader:
+        with cProfile.Profile() as profiler:
+            next = reader.read_next()
+            while next is not None:
+                next = reader.read_next()
+            stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
+            stats.print_stats()
+
+
+# def test_silly_local_file():
+#     # plx_file = "/home/ninjaben/Desktop/codin/gold-lab/plexon_data/MrM/Raw/MM_2022_08_05_REC.plx"
+#     # 140 MB
+#     # 100% cpu <1% memory
+#     # 2,708,680 blocks 127s / 2m
+
+#     # plx_file = "/home/ninjaben/Desktop/codin/gold-lab/plexon_data/MrM/Raw/MM_2022_10_27_Rec.plx"
+#     # 1.8 GB
+#     # 100% cpu <1% memory
+#     # 24,948,993 blocks 1323s / 22m
+
+#     plx_file = "/home/ninjaben/Desktop/codin/gold-lab/plexon_data/MrM/Raw/MM_2022_11_28C_V-ProRec.plx"
+#     # 1.1 GB
+#     # 100% cpu <1% memory
+#     # 15,952,955 blocks 885s / 15m
+#     with PlexonPlxReader(plx_file) as reader:
+
+#         next = reader.read_next()
+#         while next is not None:
+#             if reader.raw_reader.block_count % 10000 == 0:
+#                 print(reader.raw_reader.block_count)
+#             next = reader.read_next()
+
+#         print(reader.raw_reader.block_count)

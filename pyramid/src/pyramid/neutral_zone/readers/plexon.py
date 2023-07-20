@@ -170,11 +170,11 @@ class PlexonPlxRawReader(ContextManager):
     def __enter__(self) -> Self:
         self.plx_stream = open(self.plx_file, 'br')
 
-        self.global_header = self.consume_type(GlobalHeader)
+        self.global_header = self.consume_type_as_dict(GlobalHeader)
 
         # DSP aka "spike" aka "waveform" channel configuration.
         self.dsp_channel_headers = [
-            self.consume_type(DspChannelHeader)
+            self.consume_type_as_dict(DspChannelHeader)
             for _ in range(self.global_header["NumDSPChannels"])
         ]
         self.gain_per_dsp_channel = self.get_gain_per_dsp_channel()
@@ -183,13 +183,13 @@ class PlexonPlxRawReader(ContextManager):
 
         # Event channel configuration.
         self.event_channel_headers = [
-            self.consume_type(EventChannelHeader)
+            self.consume_type_as_dict(EventChannelHeader)
             for _ in range(self.global_header["NumEventChannels"])
         ]
 
         # Slow, aka "ad", aka "analog" channel configuration.
         self.slow_channel_headers = [
-            self.consume_type(SlowChannelHeader)
+            self.consume_type_as_dict(SlowChannelHeader)
             for _ in range(self.global_header["NumSlowChannels"])
         ]
         self.gain_per_slow_channel = self.get_gain_per_slow_channel()
@@ -207,13 +207,18 @@ class PlexonPlxRawReader(ContextManager):
             self.plx_stream.close()
         self.plx_stream = None
 
-    def consume_type(self, dtype: np.dtype) -> dict[str, Any]:
+    def consume_type(self, dtype: np.dtype) -> np.ndarray:
         # Consume part of the file, using the given dtype to choose the data size and format.
         bytes = self.plx_stream.read(dtype.itemsize)
         if not bytes:
             return None
+        return np.frombuffer(bytes, dtype)[0]
 
-        item = np.frombuffer(bytes, dtype)[0]
+    def consume_type_as_dict(self, dtype: np.dtype) -> dict[str, Any]:
+        item = self.consume_type(dtype)
+        if item is None:
+            return None
+
         result = {}
         for name in dtype.names:
             value = item[name]
@@ -262,6 +267,7 @@ class PlexonPlxRawReader(ContextManager):
             gains[header['Channel']] = gain
         return gains
 
+    # TODO: flatten the returned dict to avoid allocation and subscript overhead.
     def next_block(self) -> dict[str, Any]:
         # Consume the next block header and block data.
         file_offset = self.plx_stream.tell()
@@ -275,37 +281,14 @@ class PlexonPlxRawReader(ContextManager):
         block_type = block_header['Type']
         if block_type == 4:
             # An event value with no payload.
-            data = {
-                "timestamp_seconds": timestamp / self.timestamp_frequency,
-                "value": block_header['Unit']
-            }
-        else:
-            # A chunk of dsp or slow waveform data.
-            shape = (block_header["NumberOfWaveforms"], block_header["NumberOfWordsInWaveform"])
-            byte_count = shape[0] * shape[1] * 2
-            bytes = self.plx_stream.read(byte_count)
-            chunk = np.frombuffer(bytes, dtype='int16')
-            chunk.reshape(shape)
-            if block_type == 1:
-                # A dsp waveform.
-                gain = self.gain_per_dsp_channel[block_header['Channel']]
-                data = {
-                    "timestamp_seconds": timestamp / self.timestamp_frequency,
-                    "frequency": self.dsp_frequency,
-                    "waveforms": chunk * gain
-                }
-            elif block_type == 5:
-                # A slow waveform chunk.
-                gain = self.gain_per_slow_channel[block_header['Channel']]
-                channel_frequency = self.frequency_per_slow_channel[block_header['Channel']]
-                data = {
-                    "timestamp_seconds": timestamp / self.timestamp_frequency,
-                    "frequency": channel_frequency,
-                    "waveforms": chunk * gain
-                }
-            else:  # pragma: no cover
-                logging.warning(f"Skipping block of unknown type {block_type}.  Block header is: {block_header}")
-                data = None
+            data = self.block_event_data(timestamp, block_header)
+        elif block_type == 1:
+            data = self.block_dsp_data(timestamp, block_header)
+        elif block_type == 5:
+            data = self.block_slow_data(timestamp, block_header)
+        else:  # pragma: no cover
+            logging.warning(f"Skipping block of unknown type {block_type}.  Block header is: {block_header}")
+            data = None
 
         return {
             "file_offset": file_offset,
@@ -314,6 +297,39 @@ class PlexonPlxRawReader(ContextManager):
             "channel": block_header['Channel'],
             "unit": block_header['Unit'],
             "data": data
+        }
+
+    def block_event_data(self, timestamp, block_header):
+        return {
+            "timestamp_seconds": timestamp / self.timestamp_frequency,
+            "value": block_header['Unit']
+        }
+
+    def block_waveforms(self, block_header):
+        shape = (block_header["NumberOfWaveforms"], block_header["NumberOfWordsInWaveform"])
+        byte_count = shape[0] * shape[1] * 2
+        bytes = self.plx_stream.read(byte_count)
+        waveforms = np.frombuffer(bytes, dtype='int16')
+        waveforms.reshape(shape)
+        return waveforms
+
+    def block_dsp_data(self, timestamp, block_header):
+        waveforms = self.block_waveforms(block_header)
+        gain = self.gain_per_dsp_channel[block_header['Channel']]
+        return {
+            "timestamp_seconds": timestamp / self.timestamp_frequency,
+            "frequency": self.dsp_frequency,
+            "waveforms": waveforms * gain
+        }
+
+    def block_slow_data(self, timestamp, block_header):
+        waveforms = self.block_waveforms(block_header)
+        gain = self.gain_per_slow_channel[block_header['Channel']]
+        channel_frequency = self.frequency_per_slow_channel[block_header['Channel']]
+        return {
+            "timestamp_seconds": timestamp / self.timestamp_frequency,
+            "frequency": channel_frequency,
+            "waveforms": waveforms * gain
         }
 
 
@@ -381,13 +397,13 @@ class PlexonPlxReader(Reader):
             # Block has a waveform signal chunk.
             return {
                 self.signal_names[block['channel']]: SignalChunk(
-                    sample_data=np.array(block['data']['waveforms']),
+                    sample_data=block['data']['waveforms'],
                     sample_frequency=block['data']['frequency'],
                     first_sample_time=block['data']['timestamp_seconds'],
                     channel_ids=[block['channel']]
                 )
             }
-        else:
+        else:  # pragma: no cover
             logging.warning(f"Ignoring block of unknown type {block_type}.")
             return {}
 
