@@ -279,7 +279,7 @@ def test_strobed_negative(fixture_path):
     plx_file = Path(fixture_path, "plexon", "strobed_negative.plx")
     with RawPlexonReader(plx_file) as raw_reader:
         all_blocks = read_all_blocks(raw_reader)
-        # Expect one event on the "strobed" channel with value 0xFFFF -- uint16 65535 or sint16 -1
+        # Expect one event on the 257/"strobed" channel with value 0xFFFF -- uint16 65535 or sint16 -1.
         assert all_blocks[4][257][0]['data']['value'] == 65535
         assert_sequential_block_timestamps(all_blocks)
 

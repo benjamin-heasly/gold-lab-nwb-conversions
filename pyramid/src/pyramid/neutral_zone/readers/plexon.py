@@ -134,11 +134,11 @@ DataBlockHeader = np.dtype(
 class RawPlexonReader(ContextManager):
     """Read a Pleoxn .plx file sequentially, block by block.
 
-    This borrows from the neo project's PlexonRawIO.
+    This borrows from the python-neo project's PlexonRawIO.
     https://github.com/NeuralEnsemble/python-neo/blob/master/neo/rawio/plexonrawio.py
 
     The reason we don't just use PlexonRawIO here is we want to move through the file sequentially,
-    block by block over time. PlexonRawIO takes a different approach of indexing the whole file
+    block by block, over time. PlexonRawIO takes a different approach of indexing the whole file
     ahead of time and presenting a view per data type and channel, rather than sequentially.
 
     Thanks to the neo author Samuel Garcia for implementing a .plx file model in pure Python!
@@ -153,9 +153,9 @@ class RawPlexonReader(ContextManager):
         self.dsp_channel_headers = None
         self.gain_per_dsp_channel = None
         self.dsp_frequency = None
+        self.timestamp_frequency = None
 
         self.event_channel_headers = None
-        self.event_frequency = None
 
         self.slow_channel_headers = None
         self.gain_per_slow_channel = None
@@ -163,20 +163,25 @@ class RawPlexonReader(ContextManager):
 
     def __enter__(self) -> Self:
         self.plx_stream = open(self.plx_file, 'br')
+
         self.global_header = self.consume_type(GlobalHeader)
+
+        # DSP aka "spike" aka "waveform" channel configuration.
         self.dsp_channel_headers = [
             self.consume_type(DspChannelHeader)
             for _ in range(self.global_header["NumDSPChannels"])
         ]
         self.gain_per_dsp_channel = self.get_gain_per_dsp_channel()
         self.dsp_frequency = self.global_header["WaveformFreq"]
+        self.timestamp_frequency = self.global_header["ADFrequency"]
 
+        # Event channel configuration.
         self.event_channel_headers = [
             self.consume_type(EventChannelHeader)
             for _ in range(self.global_header["NumEventChannels"])
         ]
-        self.event_frequency = self.global_header["ADFrequency"]
 
+        # Slow, aka "ad", aka "analog" channel configuration.
         self.slow_channel_headers = [
             self.consume_type(SlowChannelHeader)
             for _ in range(self.global_header["NumSlowChannels"])
@@ -197,6 +202,7 @@ class RawPlexonReader(ContextManager):
         self.plx_stream = None
 
     def consume_type(self, dtype: np.dtype) -> dict[str, Any]:
+        # Consume part of the file, using the given dtype to choose the data size and format.
         bytes = self.plx_stream.read(dtype.itemsize)
         if not bytes:
             return None
@@ -215,6 +221,7 @@ class RawPlexonReader(ContextManager):
     def get_gain_per_slow_channel(self) -> dict[int, float]:
         gains = {}
         for header in self.slow_channel_headers:
+            # We don't currently have test files at versions < 103
             if self.global_header['Version'] in [100, 101]:  # pragma: no cover
                 gain = 5000. / (2048 * header['Gain'] * 1000.)
             elif self.global_header['Version'] in [102]:  # pragma: no cover
@@ -235,6 +242,7 @@ class RawPlexonReader(ContextManager):
     def get_gain_per_dsp_channel(self) -> dict[int, float]:
         gains = {}
         for header in self.dsp_channel_headers:
+            # We don't currently have test files at versions < 103
             if self.global_header['Version'] < 103:  # pragma: no cover
                 gain = 3000. / (2048 * header['Gain'] * 1000.)
             elif 103 <= self.global_header['Version'] < 105:  # pragma: no cover
@@ -249,6 +257,7 @@ class RawPlexonReader(ContextManager):
         return gains
 
     def next_block(self) -> dict[str, Any]:
+        # Consume the next block header and block data.
         file_offset = self.plx_stream.tell()
         block_header = self.consume_type(DataBlockHeader)
         if not block_header:
@@ -259,7 +268,7 @@ class RawPlexonReader(ContextManager):
         if block_type == 4:
             # An event value with no payload.
             data = {
-                "timestamp_seconds": timestamp / self.event_frequency,
+                "timestamp_seconds": timestamp / self.timestamp_frequency,
                 "value": block_header['Unit']
             }
         else:
@@ -273,17 +282,17 @@ class RawPlexonReader(ContextManager):
                 # A dsp waveform.
                 gain = self.gain_per_dsp_channel[block_header['Channel']]
                 data = {
-                    "timestamp_seconds": timestamp / self.dsp_frequency,
+                    "timestamp_seconds": timestamp / self.timestamp_frequency,
                     "frequency": self.dsp_frequency,
                     "waveforms": chunk * gain
                 }
             elif block_type == 5:
                 # A slow waveform chunk.
                 gain = self.gain_per_slow_channel[block_header['Channel']]
-                waveform_frequency = self.frequency_per_slow_channel[block_header['Channel']]
+                channel_frequency = self.frequency_per_slow_channel[block_header['Channel']]
                 data = {
-                    "timestamp_seconds": timestamp / self.dsp_frequency,
-                    "frequency": waveform_frequency,
+                    "timestamp_seconds": timestamp / self.timestamp_frequency,
+                    "frequency": channel_frequency,
                     "waveforms": chunk * gain 
                 }
             else:  # pragma: no cover
