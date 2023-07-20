@@ -41,7 +41,7 @@ def assert_global_header(header: dict, expected: dict) -> None:
     assert header['SlowMaxMagnitudeMV'] == expected['SlowPeakV']
 
     # Expected timestamp and waveform counts are weirdly shaped but the numbers are there.
-    # To select and compare relevant chunks of data we need to know:
+    # To select and compare relevant chunks of data we need to know from mexPlex/Plexon.h:
     #  - channels are one-based, with nothing in channel 0
     #  - each channel has up to 5 units, as far as this global header knows
     channel_range = range(header["NumDSPChannels"] + 1)
@@ -57,7 +57,7 @@ def assert_global_header(header: dict, expected: dict) -> None:
 
     # Expected event counts are also weirdly shaped.
     # To build a comparable array of counts we need to know:
-    #  - expected data were "pre-selected" out of a big array of 512
+    #  - expected data have already been selected by channel index out of an original, big array of size 512
     #  - starting at index 300, this same array records continuous channel samples, not event samples!
     ev_counts = header['EVCounts']
     expected_ev_counts = np.zeros((512,), dtype=ev_counts.dtype)
@@ -132,6 +132,7 @@ def assert_events(all_blocks: dict[int, dict[int, list]], expected: dict):
     event_channel_blocks = all_blocks[4]
     for channel_id, blocks in event_channel_blocks.items():
         event_times = [block["data"]["timestamp_seconds"] for block in blocks]
+        # The expected data set started querying for channels at index -1, so it's off by one channel.
         expected_times = expected["tsevs"][channel_id + 1]
 
         # Awkward, expected data have single event times "unboxed" from their lists.
@@ -139,6 +140,81 @@ def assert_events(all_blocks: dict[int, dict[int, list]], expected: dict):
             assert event_times[0] == expected_times
         else:
             assert event_times == expected_times
+
+
+def assert_slow_waveforms(all_blocks: dict[int, dict[int, list]], expected: dict):
+    slow_channel_blocks = all_blocks[5]
+    for channel_id, blocks in slow_channel_blocks.items():
+        # The expected data set started querying for channels at index -1, so it's off by one channel.
+        expected_timestamp = expected["ad_v"]["ts"][channel_id + 1]
+        first_timestamp = blocks[0]['data']['timestamp_seconds']
+        assert first_timestamp == expected_timestamp
+
+        expected_frequency = expected["ad_v"]["freq"][channel_id + 1]
+        for block in blocks:
+            block_frequency = block['data']['frequency']
+            assert block_frequency == expected_frequency
+
+        expected_sample_count = expected["ad_v"]["nad"][channel_id + 1]
+        expected_waveform = expected["ad_v"]["val"][channel_id + 1]
+        block_waveforms = [block["data"]["waveforms"] for block in blocks]
+        channel_waveform = np.concatenate(block_waveforms)
+        assert channel_waveform.shape[0] == expected_sample_count
+        assert np.array_equal(channel_waveform, expected_waveform)
+
+
+def assert_dsp_waveforms(all_blocks: dict[int, dict[int, list]], expected: dict):
+    # Expected dsp waveform data are weirdly shaped but the numbers are there.
+    # Here's an excerpt from mexPlex/tests/get_all_from_plx.m which generated the expected data:
+    #
+    # % try valid and invalid channels and units
+    # % max unit is 26
+    # % max spike channel number is 128
+    # for iunit = -1:30
+    #     for ich = -1:130
+    #         [plx.ts.n{iunit+2,ich+2}, plx.ts.ts{iunit+2,ich+2}] = plx_ts(fileName, ich , iunit );
+    #         [plx.wf.n{iunit+2,ich+2}, plx.wf.npw{iunit+2,ich+2}, plx.wf.ts{iunit+2,ich+2}, plx.wf.wf{iunit+2,ich+2}] = plx_waves(fileName, ich , iunit );
+    #         [plx.wf_v.n{iunit+2,ich+2}, plx.wf_v.npw{iunit+2,ich+2}, plx.wf_v.ts{iunit+2,ich+2}, plx.wf_v.wf{iunit+2,ich+2}] = plx_waves_v(fileName, ich , iunit );
+    #      end
+    # end
+    #
+    # So, the channel-and-unit data should have shape (32,132), for units -1:30 and channels -1:130.
+    # And, since the queries start at index -1, the channel_ids and unit_ids below will be off by 1.
+    test_data_shape = (132, 32)
+    expected_waveform_count = np.array(expected["wf_v"]["n"]).reshape(test_data_shape)
+    expected_waveform_sample_count = np.array(expected["wf_v"]["npw"]).reshape(test_data_shape)
+    expected_waveforms = np.array(expected["wf_v"]["wf"], dtype='object').reshape(test_data_shape)
+    expected_timestamps = np.array(expected["wf_v"]["ts"], dtype='object').reshape(test_data_shape)
+    expected_frequency = expected["Freq"]
+
+    dsp_channel_blocks = all_blocks[1]
+    for channel_id, blocks in dsp_channel_blocks.items():
+        # Within each channel, group blocks by unit.
+        blocks_by_unit = {}
+        for block in blocks:
+            unit_id = block["unit"]
+            unit_blocks = blocks_by_unit.get(unit_id, [])
+            unit_blocks.append(block)
+            blocks_by_unit[unit_id] = unit_blocks
+
+        # Compare to expected data per channel and unit.
+        for unit_id, unit_blocks in blocks_by_unit.items():
+            # The expected data set started querying for units and channels at index -1, so these are off by one.
+            expected_unit_timestamps = expected_timestamps[channel_id + 1, unit_id + 1]
+            for index, block in enumerate(unit_blocks):
+                assert block["data"]["frequency"] == expected_frequency
+                assert block["data"]["timestamp_seconds"] == expected_unit_timestamps[index]
+
+            expected_unit_shape = (
+                expected_waveform_count[channel_id + 1, unit_id + 1],
+                expected_waveform_sample_count[channel_id + 1, unit_id + 1]
+            )
+            expected_unit_samples = expected_waveforms[channel_id + 1, unit_id + 1]
+
+            block_waveforms = [block["data"]["waveforms"] for block in unit_blocks]
+            unit_waveforms = np.stack(block_waveforms)
+            assert unit_waveforms.shape == expected_unit_shape
+            assert np.array_equal(unit_waveforms, expected_unit_samples)
 
 
 def test_opx141spkOnly004(fixture_path):
@@ -156,6 +232,8 @@ def test_opx141spkOnly004(fixture_path):
             all_blocks = read_all_blocks(raw_reader)
             assert_sequential_block_timestamps(all_blocks)
             assert_events(all_blocks, expected)
+            assert_slow_waveforms(all_blocks, expected)
+            assert_dsp_waveforms(all_blocks, expected)
 
 
 def test_opx141ch1to3analogOnly003(fixture_path):
@@ -173,6 +251,8 @@ def test_opx141ch1to3analogOnly003(fixture_path):
             all_blocks = read_all_blocks(raw_reader)
             assert_sequential_block_timestamps(all_blocks)
             assert_events(all_blocks, expected)
+            assert_slow_waveforms(all_blocks, expected)
+            assert_dsp_waveforms(all_blocks, expected)
 
 
 def test_16sp_lfp_with_2coords(fixture_path):
@@ -190,3 +270,5 @@ def test_16sp_lfp_with_2coords(fixture_path):
             all_blocks = read_all_blocks(raw_reader)
             assert_sequential_block_timestamps(all_blocks)
             assert_events(all_blocks, expected)
+            assert_slow_waveforms(all_blocks, expected)
+            assert_dsp_waveforms(all_blocks, expected)

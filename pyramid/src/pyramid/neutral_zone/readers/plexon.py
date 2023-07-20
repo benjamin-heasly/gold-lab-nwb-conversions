@@ -1,3 +1,4 @@
+import logging
 from types import TracebackType
 from typing import ContextManager, Self, Any
 
@@ -214,9 +215,9 @@ class RawPlexonReader(ContextManager):
     def get_gain_per_slow_channel(self) -> dict[int, float]:
         gains = {}
         for header in self.slow_channel_headers:
-            if self.global_header['Version'] in [100, 101]:
+            if self.global_header['Version'] in [100, 101]:  # pragma: no cover
                 gain = 5000. / (2048 * header['Gain'] * 1000.)
-            elif self.global_header['Version'] in [102]:
+            elif self.global_header['Version'] in [102]:  # pragma: no cover
                 gain = 5000. / (2048 * header['Gain'] * header['PreampGain'])
             elif self.global_header['Version'] >= 103:
                 gain = self.global_header['SlowMaxMagnitudeMV'] / (
@@ -234,9 +235,9 @@ class RawPlexonReader(ContextManager):
     def get_gain_per_dsp_channel(self) -> dict[int, float]:
         gains = {}
         for header in self.dsp_channel_headers:
-            if self.global_header['Version'] < 103:
+            if self.global_header['Version'] < 103:  # pragma: no cover
                 gain = 3000. / (2048 * header['Gain'] * 1000.)
-            elif 103 <= self.global_header['Version'] < 105:
+            elif 103 <= self.global_header['Version'] < 105:  # pragma: no cover
                 gain = self.global_header['SpikeMaxMagnitudeMV'] / (
                     .5 * 2. ** (self.global_header['BitsPerSpikeSample']) *
                     header['Gain'] * 1000.)
@@ -254,7 +255,8 @@ class RawPlexonReader(ContextManager):
             return None
 
         timestamp = block_header['UpperByteOf5ByteTimestamp'] * 2 ** 32 + block_header['TimeStamp']
-        if block_header['Type'] == 4:
+        block_type = block_header['Type']
+        if block_type == 4:
             # An event value with no payload.
             data = {
                 "timestamp_seconds": timestamp / self.event_frequency,
@@ -267,7 +269,7 @@ class RawPlexonReader(ContextManager):
             bytes = self.plx_stream.read(byte_count)
             chunk = np.frombuffer(bytes, dtype='int16')
             chunk.reshape(shape)
-            if block_header['Type'] == 1:
+            if block_type == 1:
                 # A dsp waveform.
                 gain = self.gain_per_dsp_channel[block_header['Channel']]
                 data = {
@@ -275,17 +277,17 @@ class RawPlexonReader(ContextManager):
                     "frequency": self.dsp_frequency,
                     "waveforms": chunk * gain
                 }
-            elif block_header['Type'] == 5:
+            elif block_type == 5:
                 # A slow waveform chunk.
                 gain = self.gain_per_slow_channel[block_header['Channel']]
-                frequency = self.frequency_per_slow_channel[block_header['Channel']]
+                waveform_frequency = self.frequency_per_slow_channel[block_header['Channel']]
                 data = {
-                    "timestamp_seconds": timestamp / frequency,
-                    "frequency": frequency,
+                    "timestamp_seconds": timestamp / self.dsp_frequency,
+                    "frequency": waveform_frequency,
                     "waveforms": chunk * gain 
                 }
-            else:
-                # This would be unexpected.
+            else:  # pragma: no cover
+                logging.warning(f"Skipping block of unknown type {block_type}.  Block header is: {block_header}")
                 data = None
 
         return {
