@@ -153,6 +153,7 @@ class PlexonPlxRawReader(ContextManager):
         self.plx_file = plx_file
 
         self.plx_stream = None
+        self.block_count = 0
         self.global_header = None
 
         self.dsp_channel_headers = None
@@ -268,6 +269,8 @@ class PlexonPlxRawReader(ContextManager):
         if not block_header:
             return None
 
+        self.block_count += 1
+
         timestamp = block_header['UpperByteOf5ByteTimestamp'] * 2 ** 32 + block_header['TimeStamp']
         block_type = block_header['Type']
         if block_type == 4:
@@ -379,7 +382,7 @@ class PlexonPlxReader(Reader):
             return {
                 self.signal_names[block['channel']]: SignalChunk(
                     sample_data=np.array(block['data']['waveforms']),
-                    sample_frequency=block['data']['waveforms'],
+                    sample_frequency=block['data']['frequency'],
                     first_sample_time=block['data']['timestamp_seconds'],
                     channel_ids=[block['channel']]
                 )
