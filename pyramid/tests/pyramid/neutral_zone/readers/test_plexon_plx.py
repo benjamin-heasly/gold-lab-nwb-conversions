@@ -211,10 +211,10 @@ def assert_dsp_waveforms(all_blocks: dict[int, dict[int, list]], expected: dict)
             )
             expected_unit_samples = expected_waveforms[channel_id + 1, unit_id + 1]
 
-            block_waveforms = [block["data"]["waveforms"] for block in unit_blocks]
-            unit_waveforms = np.stack(block_waveforms)
-            assert unit_waveforms.shape == expected_unit_shape
-            assert np.array_equal(unit_waveforms, expected_unit_samples)
+            unit_samples_per_block = [block["data"]["waveforms"] for block in unit_blocks]
+            unit_samples = np.stack(unit_samples_per_block)
+            assert unit_samples.shape == expected_unit_shape
+            assert np.array_equal(unit_samples, expected_unit_samples)
 
 
 def test_opx141spkOnly004(fixture_path):
@@ -272,3 +272,34 @@ def test_16sp_lfp_with_2coords(fixture_path):
             assert_events(all_blocks, expected)
             assert_slow_waveforms(all_blocks, expected)
             assert_dsp_waveforms(all_blocks, expected)
+
+
+def test_strobed_negative(fixture_path):
+    # We don't have expected data for this file, but we can still sanity check header and block parsing.
+    plx_file = Path(fixture_path, "plexon", "strobed_negative.plx")
+    with RawPlexonReader(plx_file) as raw_reader:
+        all_blocks = read_all_blocks(raw_reader)
+        # Expect one event on the "strobed" channel with value 0xFFFF -- uint16 65535 or sint16 -1
+        assert all_blocks[4][257][0]['data']['value'] == 65535
+        assert_sequential_block_timestamps(all_blocks)
+
+
+def test_ts_freq_zero(fixture_path):
+    # We don't have expected data for this file, but we can still sanity check header and block parsing.
+    plx_file = Path(fixture_path, "plexon", "ts_freq_zero.plx")
+    with RawPlexonReader(plx_file) as raw_reader:
+        # Expect 0Hz timestamp frequency -- probably an example of misconfiguration?
+        assert raw_reader.global_header["ADFrequency"] == 0
+        assert raw_reader.global_header["WaveformFreq"] == 40000
+        all_blocks = read_all_blocks(raw_reader)
+        assert_sequential_block_timestamps(all_blocks)
+
+
+def test_waveform_freq_zero(fixture_path):
+    plx_file = Path(fixture_path, "plexon", "waveform_freq_zero.plx")
+    with RawPlexonReader(plx_file) as raw_reader:
+        # Expect 0Hz waveforms frequency -- probably an example of misconfiguration?
+        assert raw_reader.global_header["ADFrequency"] == 40000
+        assert raw_reader.global_header["WaveformFreq"] == 0
+        all_blocks = read_all_blocks(raw_reader)
+        assert_sequential_block_timestamps(all_blocks)
