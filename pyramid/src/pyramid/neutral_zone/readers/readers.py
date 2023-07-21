@@ -94,10 +94,13 @@ class ReaderRouter():
     This would apply to error situations as well as orderly end-of-data situations.
     """
 
+    # TODO: I think get_initial should define the routes, instead of passing the routes in separately.
+    #       Still want to pass in transformers, maybe think of zipping these in to the get_initial routes.
     def __init__(
         self,
         reader: Reader,
         routes: list[ReaderRoute],
+        read_ahead: float = 0.0,
         empty_reads_allowed: int = 3
     ) -> None:
         self.reader = reader
@@ -105,6 +108,7 @@ class ReaderRouter():
 
         self.reader_exception = None
         self.max_buffer_time = 0.0
+        self.read_ahead = read_ahead
         self.empty_reads_allowed = empty_reads_allowed
 
         initial_data = self.reader.get_initial()
@@ -181,7 +185,7 @@ class ReaderRouter():
 
     def route_until(self, target_time: float) -> float:
         empty_reads = 0
-        while self.max_buffer_time < target_time and empty_reads <= self.empty_reads_allowed:
+        while self.max_buffer_time < target_time + self.read_ahead and empty_reads <= self.empty_reads_allowed:
             got_data = self.route_next()
             if got_data:
                 empty_reads = 0

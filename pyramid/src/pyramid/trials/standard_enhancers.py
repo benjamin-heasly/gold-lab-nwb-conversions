@@ -26,6 +26,7 @@ class TrialDurationEnhancer(TrialEnhancer):
 class PairedCodesEnhancer(TrialEnhancer):
     """Look for pairs of numeric events that represent property-value pairs."""
 
+    # TODO: add a value_offset, separate from value_min (eg alow negative values!)
     def __init__(
         self,
         buffer_name: str,

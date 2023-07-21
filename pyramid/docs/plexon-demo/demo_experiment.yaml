@@ -1,0 +1,45 @@
+experiment:
+  # Basic info suitable for inclusion in an NWB file.
+  experimenter:
+    - Last, First M
+    - Last, First Middle
+  experiment_description: An test experiment.
+  institution: University of Fiction
+  lab: The Fiction Lab
+  keywords:
+    - fictional
+    - test
+readers:
+  # Where to read data from, and how to map/transform it into buffers that trials can pick from.
+  plexon_reader:
+    class: pyramid.neutral_zone.readers.plexon.PlexonPlxReader
+    args:
+      plx_file: my_file.plx # override on cli with --readers plexon_reader.plx_file=real.plx
+    simulate_delay: False # wait between events, gui demonstration
+    read_ahead: 0.0 # when asked to read until t, read until t + read_ahead, since channels blocks are only roughly in order.
+    buffers:
+      delimiter:
+        results_key: Strobed
+      strobed:
+        results_key: Strobed
+      gaze_x:
+        results_key: X50
+      gaze_y:
+        results_key: Y51
+trials:
+  # How to delimit Trials in time, and how to align data within each trial.
+  start_buffer: delimiter
+  start_value: 1005
+  wrt_buffer: delimiter
+  wrt_value: 1010
+plotters:
+  # In "gui" mode, Pyramid will set up plotters and update each plotter after each trial.
+  - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
+  - class: pyramid.plotters.standard_plotters.SignalChunksPlotter
+    args:
+      xmin: -1.0
+      xmax: 5.0
+  - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
+    args:
+      xmin: -1.0
+      xmax: 5.0

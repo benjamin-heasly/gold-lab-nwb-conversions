@@ -402,7 +402,7 @@ class PlexonPlxReader(Reader):
     def read_next(self) -> dict[str, BufferData]:
         block = self.raw_reader.next_block()
         if block is None:
-            return None
+            raise StopIteration
 
         block_type = block['type']
         if block_type == 1:
@@ -420,50 +420,46 @@ class PlexonPlxReader(Reader):
 
     def block_event(self, block: dict[str, Any]) -> dict[str, BufferData]:
         channel = block['channel']
-        event_list = NumericEventList(np.array([block['timestamp_seconds'], channel, block['unit']]))
+        event_list = NumericEventList(np.array([[block['timestamp_seconds'], channel, block['unit']]]))
         return {self.spike_names[channel]: event_list}
 
     def block_spike_event(self, block: dict[str, Any]) -> dict[str, BufferData]:
-        event_list = NumericEventList(np.array([block['timestamp_seconds'], block['unit']]))
+        event_list = NumericEventList(np.array([[block['timestamp_seconds'], block['unit']]]))
         return {self.event_names[block['channel']]: event_list}
 
     def block_signal_chunk(self, block: dict[str, Any]) -> dict[str, BufferData]:
         channel = block['channel']
         signal_chunk = SignalChunk(
-            sample_data=block['waveforms'],
-            sample_frequency=block['frequency'],
-            first_sample_time=block['timestamp_seconds'],
-            channel_ids=[channel]
+            sample_data=block['waveforms'].reshape([-1,1]),
+            sample_frequency=float(block['frequency']),
+            first_sample_time=float(block['timestamp_seconds']),
+            channel_ids=[int(channel)]
         )
         return {self.signal_names[channel]: signal_chunk}
 
     def get_initial(self) -> dict[str, BufferData]:
         # Peek at the .plx file so we can read headers -- but not consume data blocks yet.
+        initial = {}
         with PlexonPlxRawReader(self.plx_file) as peek_reader:
             # Spike channels have numeric events like [timestamp, channel_id, unit_id]
-            initial_spikes = {
-                f"{header['Name']}_spikes": NumericEventList(np.empty([0, 3], dtype='float64'))
-                for header in peek_reader.dsp_channel_headers
-            }
+            for header in peek_reader.dsp_channel_headers:
+                initial[header['Name']] = NumericEventList(np.empty([0, 3], dtype='float64'))
 
             # Other event channels have numeric events like [timestamp, value]
-            initial_events = {
-                header['Name']: NumericEventList(np.empty([0, 2], dtype='float64'))
-                for header in peek_reader.event_channel_headers
-            }
+            for header in peek_reader.event_channel_headers:
+                name = header['Name']
+                initial[name] = NumericEventList(np.empty([0, 2], dtype='float64'))
 
-            # Slow Ad channels have Signal chunks.
-            initial_signals = {
-                header['Name']: SignalChunk(
+            # Slow ad channels have Signal chunks.
+            for header in peek_reader.slow_channel_headers:
+                name = header['Name']
+                if name in initial:
+                    name = f"{name}_signal"
+                initial[name] = SignalChunk(
                     sample_data=np.empty([0, 1], dtype='float64'),
-                    sample_frequency=header["ADFreq"],
-                    first_sample_time=0.0,
-                    channel_ids=[header["Channel"]]
+                    sample_frequency=float(header["ADFreq"]),
+                    first_sample_time=float(0.0),
+                    channel_ids=[int(header["Channel"])]
                 )
-                for header in peek_reader.slow_channel_headers
-            }
-        initial = {}
-        initial.update(initial_spikes)
-        initial.update(initial_events)
-        initial.update(initial_signals)
+
         return initial

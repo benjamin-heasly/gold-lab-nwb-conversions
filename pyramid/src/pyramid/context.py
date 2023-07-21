@@ -1,5 +1,6 @@
 from typing import Any, Self
 from pathlib import Path
+import time
 import logging
 from contextlib import ExitStack
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ class PyramidContext():
     readers: dict[str, Reader]
     named_buffers: dict[str, Buffer]
     start_router: ReaderRouter
+    # TODO: I think get rid of the "other" routers and just update them all together.
     other_routers: list[ReaderRouter]
     trial_delimiter: TrialDelimiter
     trial_extractor: TrialExtractor
@@ -116,12 +118,12 @@ class PyramidContext():
                     for new_trial in new_trials:
                         for router in self.other_routers:
                             router.route_until(new_trial.end_time)
-                            self.trial_extractor.populate_trial(
-                                new_trial,
-                                self.trial_delimiter.trial_count,
-                                self.experiment,
-                                self.subject
-                            )
+                        self.trial_extractor.populate_trial(
+                            new_trial,
+                            self.trial_delimiter.trial_count,
+                            self.experiment,
+                            self.subject
+                        )
                         writer.append_trial(new_trial)
                         self.trial_delimiter.discard_before(new_trial.start_time)
                         self.trial_extractor.discard_before(new_trial.start_time)
@@ -155,20 +157,26 @@ class PyramidContext():
             stack.enter_context(self.plot_figure_controller)
 
             # Extract trials indefinitely, as they come.
+            next_gui_update = time.time()
             while self.start_router.still_going() and self.plot_figure_controller.get_open_figures():
-                self.plot_figure_controller.update()
+                if time.time() > next_gui_update:
+                    self.plot_figure_controller.update()
+                    # TODO: when this interval is small, things seem to stall out.
+                    # Why?  It's as if we spend all our time updating and never reading.
+                    next_gui_update = time.time() + 1.0
+
                 got_start_data = self.start_router.route_next()
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for new_trial in new_trials:
                         for router in self.other_routers:
                             router.route_until(new_trial.end_time)
-                            self.trial_extractor.populate_trial(
-                                new_trial,
-                                self.trial_delimiter.trial_count,
-                                self.experiment,
-                                self.subject
-                            )
+                        self.trial_extractor.populate_trial(
+                            new_trial,
+                            self.trial_delimiter.trial_count,
+                            self.experiment,
+                            self.subject
+                        )
                         writer.append_trial(new_trial)
                         self.plot_figure_controller.plot_next(new_trial, self.trial_delimiter.trial_count)
                         self.trial_delimiter.discard_before(new_trial.start_time)
@@ -298,14 +306,19 @@ def configure_readers(
                 transformer = Transformer.from_dynamic_import(transformer_class, **transformer_args)
                 transformers.append(transformer)
 
-            results_key = buffer_config.get("results_key", [])
+            results_key = buffer_config.get("results_key", buffer_name)
             route = ReaderRoute(results_key, buffer_name, transformers)
             reader_routes.append(route)
 
         # A router to route data from the reader along each configured route to its buffer.
-        reader_router = ReaderRouter(reader, reader_routes)
+        read_ahead = reader_config.get("read_ahead", 0.0)
+        reader_router = ReaderRouter(reader, reader_routes, read_ahead=read_ahead)
         routers.append(reader_router)
         named_buffers.update(reader_router.buffers)
+
+    logging.info(f"Using {len(named_buffers)} named buffers.")
+    for name in named_buffers.keys():
+        logging.info(f"  {name}")
 
     return (readers, named_buffers, routers)
 

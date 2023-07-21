@@ -1,0 +1,16 @@
+digraph demo_experiment {
+	graph [label=demo_experiment rankdir=LR]
+	plexon_reader [label="plexon_reader|PlexonPlxReader" shape=record]
+	delimiter [label="delimiter|Buffer|NumericEventList" shape=record]
+	all_strobed [label="all_strobed|Buffer|NumericEventList" shape=record]
+	plexon_reader_route_0 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_0 [label=Strobed]
+	plexon_reader_route_0 -> delimiter
+	plexon_reader_route_1 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_1 [label=Strobed]
+	plexon_reader_route_1 -> all_strobed
+	trial_delimiter [label="TrialDelimiter|start = 1005" shape=record]
+	delimiter -> trial_delimiter [label=start arrowhead=none arrowtail=none]
+	trial_extractor [label="TrialExtractor|wrt = 1010" shape=record]
+	delimiter -> trial_extractor [label=wrt arrowhead=none arrowtail=none]
+}
