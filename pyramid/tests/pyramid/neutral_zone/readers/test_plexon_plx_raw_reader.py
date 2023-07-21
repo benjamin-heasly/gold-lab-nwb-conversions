@@ -132,7 +132,7 @@ def assert_sequential_block_timestamps(all_blocks: dict[int, dict[int, list]]):
 def assert_events(all_blocks: dict[int, dict[int, list]], expected: dict):
     event_channel_blocks = all_blocks[4]
     for channel_id, blocks in event_channel_blocks.items():
-        event_times = [block["data"]["timestamp_seconds"] for block in blocks]
+        event_times = [block["timestamp_seconds"] for block in blocks]
         # The expected data set started querying for channels at index -1, so it's off by one channel.
         expected_times = expected["tsevs"][channel_id + 1]
 
@@ -148,17 +148,17 @@ def assert_slow_waveforms(all_blocks: dict[int, dict[int, list]], expected: dict
     for channel_id, blocks in slow_channel_blocks.items():
         # The expected data set started querying for channels at index -1, so it's off by one channel.
         expected_timestamp = expected["ad_v"]["ts"][channel_id + 1]
-        first_timestamp = blocks[0]['data']['timestamp_seconds']
+        first_timestamp = blocks[0]['timestamp_seconds']
         assert first_timestamp == expected_timestamp
 
         expected_frequency = expected["ad_v"]["freq"][channel_id + 1]
         for block in blocks:
-            block_frequency = block['data']['frequency']
+            block_frequency = block['frequency']
             assert block_frequency == expected_frequency
 
         expected_sample_count = expected["ad_v"]["nad"][channel_id + 1]
         expected_waveform = expected["ad_v"]["val"][channel_id + 1]
-        block_waveforms = [block["data"]["waveforms"] for block in blocks]
+        block_waveforms = [block["waveforms"] for block in blocks]
         channel_waveform = np.concatenate(block_waveforms)
         assert channel_waveform.shape[0] == expected_sample_count
         assert np.array_equal(channel_waveform, expected_waveform)
@@ -203,8 +203,8 @@ def assert_dsp_waveforms(all_blocks: dict[int, dict[int, list]], expected: dict)
             # The expected data set started querying for units and channels at index -1, so these are off by one.
             expected_unit_timestamps = expected_timestamps[channel_id + 1, unit_id + 1]
             for index, block in enumerate(unit_blocks):
-                assert block["data"]["frequency"] == expected_frequency
-                assert block["data"]["timestamp_seconds"] == expected_unit_timestamps[index]
+                assert block["frequency"] == expected_frequency
+                assert block["timestamp_seconds"] == expected_unit_timestamps[index]
 
             expected_unit_shape = (
                 expected_waveform_count[channel_id + 1, unit_id + 1],
@@ -212,7 +212,7 @@ def assert_dsp_waveforms(all_blocks: dict[int, dict[int, list]], expected: dict)
             )
             expected_unit_samples = expected_waveforms[channel_id + 1, unit_id + 1]
 
-            unit_samples_per_block = [block["data"]["waveforms"] for block in unit_blocks]
+            unit_samples_per_block = [block["waveforms"] for block in unit_blocks]
             unit_samples = np.stack(unit_samples_per_block)
             assert unit_samples.shape == expected_unit_shape
             assert np.array_equal(unit_samples, expected_unit_samples)
@@ -281,7 +281,7 @@ def test_strobed_negative(fixture_path):
     with PlexonPlxRawReader(plx_file) as raw_reader:
         all_blocks = read_all_blocks(raw_reader)
         # Expect one event on the 257/"strobed" channel with value 0xFFFF -- uint16 65535 or sint16 -1.
-        assert all_blocks[4][257][0]['data']['value'] == 65535
+        assert all_blocks[4][257][0]['unit'] == 65535
         assert_sequential_block_timestamps(all_blocks)
 
 

@@ -216,7 +216,7 @@ class PlexonPlxRawReader(ContextManager):
 
     def consume_type_as_dict(self, dtype: np.dtype) -> dict[str, Any]:
         item = self.consume_type(dtype)
-        if item is None:
+        if item is None:  # pragma: no cover
             return None
 
         result = {}
@@ -267,45 +267,47 @@ class PlexonPlxRawReader(ContextManager):
             gains[header['Channel']] = gain
         return gains
 
-    # TODO: flatten the returned dict to avoid allocation and subscript overhead.
     def next_block(self) -> dict[str, Any]:
-        # Consume the next block header and block data.
-        file_offset = self.plx_stream.tell()
+        # Consume the next block header and any waveform data.
         block_header = self.consume_type(DataBlockHeader)
         if not block_header:
             return None
 
         self.block_count += 1
 
+        file_offset = self.plx_stream.tell()
         timestamp = block_header['UpperByteOf5ByteTimestamp'] * 2 ** 32 + block_header['TimeStamp']
         block_type = block_header['Type']
         if block_type == 4:
-            # An event value with no payload.
-            data = self.block_event_data(timestamp, block_header)
+            # An event value with no waveform payload.
+            return self.block_event_data(block_header, block_type, timestamp, file_offset)
         elif block_type == 1:
-            data = self.block_dsp_data(timestamp, block_header)
+            # A spike event with a waveform payload.
+            return self.block_dsp_data(block_header, block_type, timestamp, file_offset)
         elif block_type == 5:
-            data = self.block_slow_data(timestamp, block_header)
+            # A slow channel update with a waveform payload.
+            return self.block_slow_data(block_header, block_type, timestamp, file_offset)
         else:  # pragma: no cover
             logging.warning(f"Skipping block of unknown type {block_type}.  Block header is: {block_header}")
-            data = None
+            return None
 
+    def block_event_data(
+        self,
+        block_header: np.ndarray,
+        block_type: int,
+        timestamp: float,
+        file_offset: int
+    ) -> dict[str, Any]:
         return {
+            "type": block_type,
             "file_offset": file_offset,
             "timestamp": timestamp,
-            "type": block_header['Type'],
+            "timestamp_seconds": timestamp / self.timestamp_frequency,
             "channel": block_header['Channel'],
             "unit": block_header['Unit'],
-            "data": data
         }
 
-    def block_event_data(self, timestamp, block_header):
-        return {
-            "timestamp_seconds": timestamp / self.timestamp_frequency,
-            "value": block_header['Unit']
-        }
-
-    def block_waveforms(self, block_header):
+    def consume_block_waveforms(self, block_header: np.ndarray) -> np.ndarray:
         shape = (block_header["NumberOfWaveforms"], block_header["NumberOfWordsInWaveform"])
         byte_count = shape[0] * shape[1] * 2
         bytes = self.plx_stream.read(byte_count)
@@ -313,21 +315,45 @@ class PlexonPlxRawReader(ContextManager):
         waveforms.reshape(shape)
         return waveforms
 
-    def block_dsp_data(self, timestamp, block_header):
-        waveforms = self.block_waveforms(block_header)
-        gain = self.gain_per_dsp_channel[block_header['Channel']]
+    def block_dsp_data(
+        self,
+        block_header: np.ndarray,
+        block_type: int,
+        timestamp: float,
+        file_offset: int
+    ) -> dict[str, Any]:
+        waveforms = self.consume_block_waveforms(block_header)
+        channel = block_header['Channel']
+        gain = self.gain_per_dsp_channel[channel]
         return {
+            "type": block_type,
+            "file_offset": file_offset,
+            "timestamp": timestamp,
             "timestamp_seconds": timestamp / self.timestamp_frequency,
+            "channel": channel,
+            "unit": block_header['Unit'],
             "frequency": self.dsp_frequency,
             "waveforms": waveforms * gain
         }
 
-    def block_slow_data(self, timestamp, block_header):
-        waveforms = self.block_waveforms(block_header)
-        gain = self.gain_per_slow_channel[block_header['Channel']]
-        channel_frequency = self.frequency_per_slow_channel[block_header['Channel']]
+    def block_slow_data(
+        self,
+        block_header: np.ndarray,
+        block_type: int,
+        timestamp: float,
+        file_offset: int
+    ) -> dict[str, Any]:
+        waveforms = self.consume_block_waveforms(block_header)
+        channel = block_header['Channel']
+        gain = self.gain_per_slow_channel[channel]
+        channel_frequency = self.frequency_per_slow_channel[channel]
         return {
+            "type": block_type,
+            "file_offset": file_offset,
+            "timestamp": timestamp,
             "timestamp_seconds": timestamp / self.timestamp_frequency,
+            "channel": channel,
+            "unit": block_header['Unit'],
             "frequency": channel_frequency,
             "waveforms": waveforms * gain
         }
@@ -381,31 +407,35 @@ class PlexonPlxReader(Reader):
         block_type = block['type']
         if block_type == 1:
             # Block has one spike event with timestamp, channel, and unit.
-            return {
-                self.spike_names[block['channel']]: NumericEventList(
-                    np.array([block['data']['timestamp_seconds'], block['channel'], block['unit']])
-                )
-            }
+            return self.block_event(block)
         elif block_type == 4:
             # Block has one other event with timestamp, value.
-            return {
-                self.event_names[block['channel']]: NumericEventList(
-                    np.array([block['data']['timestamp_seconds'], block['data']['value']])
-                )
-            }
+            return self.block_spike_event(block)
         elif block_type == 5:
             # Block has a waveform signal chunk.
-            return {
-                self.signal_names[block['channel']]: SignalChunk(
-                    sample_data=block['data']['waveforms'],
-                    sample_frequency=block['data']['frequency'],
-                    first_sample_time=block['data']['timestamp_seconds'],
-                    channel_ids=[block['channel']]
-                )
-            }
+            return self.block_signal_chunk(block)
         else:  # pragma: no cover
             logging.warning(f"Ignoring block of unknown type {block_type}.")
             return {}
+
+    def block_event(self, block: dict[str, Any]) -> dict[str, BufferData]:
+        channel = block['channel']
+        event_list = NumericEventList(np.array([block['timestamp_seconds'], channel, block['unit']]))
+        return {self.spike_names[channel]: event_list}
+
+    def block_spike_event(self, block: dict[str, Any]) -> dict[str, BufferData]:
+        event_list = NumericEventList(np.array([block['timestamp_seconds'], block['unit']]))
+        return {self.event_names[block['channel']]: event_list}
+
+    def block_signal_chunk(self, block: dict[str, Any]) -> dict[str, BufferData]:
+        channel = block['channel']
+        signal_chunk = SignalChunk(
+            sample_data=block['waveforms'],
+            sample_frequency=block['frequency'],
+            first_sample_time=block['timestamp_seconds'],
+            channel_ids=[channel]
+        )
+        return {self.signal_names[channel]: signal_chunk}
 
     def get_initial(self) -> dict[str, BufferData]:
         # Peek at the .plx file so we can read headers -- but not consume data blocks yet.
