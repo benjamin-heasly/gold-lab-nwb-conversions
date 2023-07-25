@@ -26,12 +26,12 @@ class TrialDurationEnhancer(TrialEnhancer):
 class PairedCodesEnhancer(TrialEnhancer):
     """Look for pairs of numeric events that represent property-value pairs."""
 
-    # TODO: add a value_offset, separate from value_min (eg alow negative values!)
     def __init__(
         self,
         buffer_name: str,
         code_names: dict[str, int],
         value_min: int = 0,
+        value_offset: int = 0,
         value_max: int = 1000,
         value_scale: float = 1.0,
         value_index: int = 0
@@ -39,6 +39,7 @@ class PairedCodesEnhancer(TrialEnhancer):
         self.buffer_name = buffer_name
         self.property_codes = code_names
         self.value_min = value_min
+        self.value_offset = value_offset
         self.value_max = value_max
         self.value_scale = value_scale
         self.value_index = value_index
@@ -52,7 +53,7 @@ class PairedCodesEnhancer(TrialEnhancer):
     ) -> dict[str, Any]:
         event_list = trial.numeric_events[self.buffer_name]
         value_list = event_list.copy_value_range(min=self.value_min, max=self.value_max, value_index=self.value_index)
-        value_list.apply_offset_then_gain(-self.value_min, self.value_scale)
+        value_list.apply_offset_then_gain(-self.value_offset, self.value_scale)
 
         enhancements = {}
         for name, code in self.property_codes.items():

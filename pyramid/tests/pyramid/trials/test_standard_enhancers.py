@@ -12,15 +12,13 @@ def test_paired_codes_enhancer():
         "baz": 44,
         "quux": 45,
     }
-    value_min = 3000
-    value_max = 4000
-    value_scale = 0.25
     enhancer = PairedCodesEnhancer(
         buffer_name="propcodes",
         code_names=code_names,
-        value_min=value_min,
-        value_max=value_max,
-        value_scale=value_scale
+        value_min=2000,
+        value_offset=3000,
+        value_max=4000,
+        value_scale=0.25
     )
 
     paired_code_data = [
