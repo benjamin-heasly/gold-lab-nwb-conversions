@@ -1,7 +1,7 @@
 from typing import Any
 import numpy as np
 
-from pyramid.model.model import BufferData
+from pyramid.model.model import Buffer, BufferData
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
@@ -138,10 +138,19 @@ class FakeNumericEventReader(Reader):
         }
 
 
+def router_for_reader_and_routes(reader: Reader, routes: list[ReaderRoute]):
+    initial_results = reader.get_initial()
+    named_buffers = {}
+    for route in routes:
+        if route.results_key in initial_results:
+            named_buffers[route.buffer_name] = Buffer(initial_results[route.results_key].copy())
+    return ReaderRouter(reader, routes, named_buffers)
+
+
 def test_delimit_trials_from_pivate_buffer():
     start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2, 1010]], [[3, 1010]]])
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, [start_route])
+    start_router = router_for_reader_and_routes(start_reader, [start_route])
 
     delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
@@ -183,7 +192,7 @@ def test_delimit_trials_from_shared_buffer():
         ]
     )
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, [start_route])
+    start_router = router_for_reader_and_routes(start_reader, [start_route])
 
     delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
@@ -225,7 +234,7 @@ def test_delimit_multiple_trials_per_read():
         ]
     )
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, [start_route])
+    start_router = router_for_reader_and_routes(start_reader, [start_route])
 
     delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
@@ -254,24 +263,24 @@ def test_populate_trials_from_private_buffers():
     # Expect trials starting at times 0, 1, 2, and 3.
     start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2, 1010]], [[3, 1010]]])
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, [start_route])
+    start_router = router_for_reader_and_routes(start_reader, [start_route])
 
     delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # Expect wrt times half way through trials 1, 2, and 3.
     wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42], [2.6, 42]], [[3.5, 42]]])
     wrt_route = ReaderRoute("events", "wrt")
-    wrt_router = ReaderRouter(wrt_reader, [wrt_route])
+    wrt_router = router_for_reader_and_routes(wrt_reader, [wrt_route])
 
     # Expect "foo" events in trials 0, 1, and 2, before the wrt times.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
     foo_route = ReaderRoute("events", "foo")
-    foo_router = ReaderRouter(foo_reader, [foo_route])
+    foo_router = router_for_reader_and_routes(foo_reader, [foo_route])
 
     # Expect "bar" events in trials 0 and 3, before the wrt times.
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
     bar_route = ReaderRoute("events", "bar")
-    bar_router = ReaderRouter(bar_reader, [bar_route])
+    bar_router = router_for_reader_and_routes(bar_reader, [bar_route])
 
     extractor = TrialExtractor(
         wrt_router.buffers["wrt"],
@@ -383,19 +392,19 @@ def test_populate_trials_from_shared_buffers():
     )
     start_route = ReaderRoute("events", "start")
     wrt_route = ReaderRoute("events", "wrt")
-    start_router = ReaderRouter(start_reader, [start_route, wrt_route])
+    start_router = router_for_reader_and_routes(start_reader, [start_route, wrt_route])
 
     delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # Expect "foo" events in trials 0, 1, and 2, before the wrt times.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
     foo_route = ReaderRoute("events", "foo")
-    foo_router = ReaderRouter(foo_reader, [foo_route])
+    foo_router = router_for_reader_and_routes(foo_reader, [foo_route])
 
     # Expect "bar" events in trials 0 and 3, before the wrt times.
     bar_reader = FakeNumericEventReader(script=[[[0.1, 1]], [[3.1, 0]]])
     bar_route = ReaderRoute("events", "bar")
-    bar_router = ReaderRouter(bar_reader, [bar_route])
+    bar_router = router_for_reader_and_routes(bar_reader, [bar_route])
 
     extractor = TrialExtractor(
         start_router.buffers["wrt"],
@@ -527,14 +536,14 @@ def test_enhance_trials():
     # Expect trials with slightly increasing durations
     start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2.1, 1010]], [[3.3, 1010]]])
     start_route = ReaderRoute("events", "start")
-    start_router = ReaderRouter(start_reader, [start_route])
+    start_router = router_for_reader_and_routes(start_reader, [start_route])
 
     delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
 
     # Expect wrt times half way through trials 1, 2, and 3.
     wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42], [2.6, 42]], [[3.5, 42]]])
     wrt_route = ReaderRoute("events", "wrt")
-    wrt_router = ReaderRouter(wrt_reader, [wrt_route])
+    wrt_router = router_for_reader_and_routes(wrt_reader, [wrt_route])
 
     # Enhance trials with a sequence of enhancers.
     # The middle one always errors -- which should not blow up the overall process.

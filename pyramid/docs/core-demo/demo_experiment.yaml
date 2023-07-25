@@ -15,23 +15,19 @@ readers:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
       csv_file: default.csv # override on cli with --readers delimiter_reader.csv_file=real.csv
-      results_key: events # readers can expose results under various keys, but CSV just has one.
-    buffers:
-      delimiter:
-        results_key: events
+      results_key: delimiter # readers can expose results under various keys, but CSV just has one.
     simulate_delay: True # wait between events, gui demonstration
   foo_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
-    buffers:
-      foo:
-        results_key: events
+    args:
+      results_key: foo
   bar_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
+    args:
+      results_key: bar
     buffers:
-      bar:
-        results_key: events
       bar_2:
-        results_key: events
+        results_key: bar
         transformers:
           - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
             args:

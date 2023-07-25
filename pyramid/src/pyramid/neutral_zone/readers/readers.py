@@ -94,29 +94,22 @@ class ReaderRouter():
     This would apply to error situations as well as orderly end-of-data situations.
     """
 
-    # TODO: I think get_initial should define the routes, instead of passing the routes in separately.
-    #       Still want to pass in transformers, maybe think of zipping these in to the get_initial routes.
     def __init__(
         self,
         reader: Reader,
         routes: list[ReaderRoute],
+        buffers: dict[str, Buffer],
         read_ahead: float = 0.0,
         empty_reads_allowed: int = 3
     ) -> None:
         self.reader = reader
         self.routes = routes
-
-        self.reader_exception = None
-        self.max_buffer_time = 0.0
+        self.buffers = buffers
         self.read_ahead = read_ahead
         self.empty_reads_allowed = empty_reads_allowed
 
-        initial_data = self.reader.get_initial()
-        self.buffers = {}
-        for route in self.routes:
-            data = initial_data.get(route.results_key, None)
-            if data:
-                self.buffers[route.buffer_name] = Buffer(data.copy())
+        self.reader_exception = None
+        self.max_buffer_time = 0.0
 
     def __eq__(self, other: object) -> bool:
         """Compare routers field-wise, to support use of this class in tests."""
@@ -164,7 +157,8 @@ class ReaderRouter():
                 except Exception as exception:
                     logging.error(
                         f"Route transformer had an exception, skipping data for {route.results_key} -> {route.buffer_name}:",
-                        exc_info=True)
+                        exc_info=True
+                    )
                     continue
 
             try:
@@ -172,7 +166,8 @@ class ReaderRouter():
             except Exception as exception:
                 logging.error(
                     "Route buffer had exception appending, skipping data for {route.results_key} -> {route.buffer_name}:",
-                    exc_info=True)
+                    exc_info=True
+                )
                 continue
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.

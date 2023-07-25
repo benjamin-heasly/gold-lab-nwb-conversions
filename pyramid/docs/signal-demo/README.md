@@ -2,6 +2,9 @@
 
 Here's a demo / example of Pyramid signal chunks and plotting.
 
+TODO: revalidate since reader config changesTODO: revalidate since reader config changes
+
+
 ## overview
 
 This example will read from two CSV files.

@@ -359,6 +359,8 @@ class PlexonPlxRawReader(ContextManager):
         }
 
 
+# TODO: conveniently select spike, event, and signal channels of interest!
+#       by name, by "all", etc.
 class PlexonPlxReader(Reader):
     """Read plexon .plx ad waveform chunks, spike events, and other numeric events."""
 

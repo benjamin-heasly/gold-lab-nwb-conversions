@@ -284,8 +284,11 @@ def configure_readers(
             reader = DelaySimulatorReader(reader)
         readers[reader_name] = reader
 
-        # Instantiate routes and their buffers for this reader.
-        reader_routes = []
+        # Configure default, pass-through routes for the reader.
+        initial_results = reader.get_initial()
+        named_routes = {buffer_name: ReaderRoute(buffer_name, buffer_name) for buffer_name in initial_results.keys()}
+
+        # Update default routes with explicitly configured aliases and transformations.
         buffers_config = reader_config.get("buffers", {})
         for buffer_name, buffer_config in buffers_config.items():
 
@@ -300,13 +303,30 @@ def configure_readers(
 
             results_key = buffer_config.get("results_key", buffer_name)
             route = ReaderRoute(results_key, buffer_name, transformers)
-            reader_routes.append(route)
+            named_routes[buffer_name] = route
 
-        # A router to route data from the reader along each configured route to its buffer.
+        # Create a buffer to receive data from each route.
+        reader_buffers = {}
+        for route in named_routes.values():
+            initial_data = initial_results[route.results_key]
+            if initial_data is not None:
+                data_copy = initial_data.copy()
+                for transformer in route.transformers:
+                    data_copy = transformer.transform(data_copy)
+                reader_buffers[route.buffer_name] = Buffer(data_copy)
+
+        # Create a router to route data from the reader along each configured route to its buffer.
         read_ahead = reader_config.get("read_ahead", 0.0)
-        reader_router = ReaderRouter(reader, reader_routes, read_ahead=read_ahead)
-        routers.append(reader_router)
-        named_buffers.update(reader_router.buffers)
+        empty_reads_allowed = reader_config.get("empty_reads_allowed", 3)
+        router = ReaderRouter(
+            reader=reader,
+            routes=list(named_routes.values()),
+            buffers=reader_buffers,
+            read_ahead=read_ahead,
+            empty_reads_allowed=empty_reads_allowed
+        )
+        routers.append(router)
+        named_buffers.update(router.buffers)
 
     logging.info(f"Using {len(named_buffers)} named buffers.")
     for name in named_buffers.keys():

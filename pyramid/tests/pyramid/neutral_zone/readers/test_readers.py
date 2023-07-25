@@ -1,7 +1,7 @@
 import numpy as np
 
 from pyramid.model.events import NumericEventList
-from pyramid.model.model import BufferData
+from pyramid.model.model import Buffer, BufferData
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
 from pyramid.neutral_zone.transformers.standard_transformers import FilterRange, OffsetThenGain
 
@@ -38,13 +38,25 @@ class FakeNumericEventReader(Reader):
         }
 
 
+def buffers_for_reader_and_routes(reader: Reader, routes: list[ReaderRoute]):
+    initial_results = reader.get_initial()
+    named_buffers = {}
+    for route in routes:
+        if route.results_key in initial_results:
+            named_buffers[route.buffer_name] = Buffer(initial_results[route.results_key].copy())
+    return named_buffers
+
+
 def test_router_copy_events_to_buffers():
     reader = FakeNumericEventReader([[[0, 0]], [[1, 10]], [[2, 20]]])
-    route_one = ReaderRoute("events", "one")
-    route_two = ReaderRoute("events", "two")
+    routes = [
+        ReaderRoute("events", "one"),
+        ReaderRoute("events", "two")
+    ]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one, route_two]
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     assert router.max_buffer_time == 0
@@ -84,14 +96,16 @@ def test_router_copy_events_to_buffers():
 def test_router_tolerates_missing_buffer_and_results():
     reader = FakeNumericEventReader([[[0, 0]], [[1, 10]], [[2, 20]], [[3, 30]]])
 
-    # Routes one should work as expected, sending events into buffer one.
-    route_one = ReaderRoute("events", "one")
-
+    # Route one should work as expected, sending events into buffer one.
     # Route two should do nothing, since the reader will not use the results key "missing".
-    route_two = ReaderRoute("missing", "two")
+    routes = [
+        ReaderRoute("events", "one"),
+        ReaderRoute("missing", "two")
+    ]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one, route_two]
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     assert router.route_next() == True
@@ -107,10 +121,11 @@ def test_router_tolerates_missing_buffer_and_results():
 
 def test_router_circuit_breaker_for_reader_errors():
     reader = FakeNumericEventReader([[[0, 0]], [[1, 10]], "error!", [[2, 20]]])
-    route_one = ReaderRoute("events", "one")
+    routes = [ReaderRoute("events", "one")]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one]
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # First two reads should route data as normal.
@@ -132,10 +147,11 @@ def test_router_circuit_breaker_for_reader_errors():
 
 def test_router_skip_buffer_append_errors():
     reader = FakeNumericEventReader([[[0, 0]], [[1, 10]], [[2, 20, 200, 2000]], [[3, 30]]])
-    route_one = ReaderRoute("events", "one")
+    routes = [ReaderRoute("events", "one")]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one]
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # First two reads should route data as normal.
@@ -159,10 +175,11 @@ def test_router_skip_buffer_append_errors():
 
 def test_router_routes_until_target_time():
     reader = FakeNumericEventReader([[[0, 0]], [[1, 10]], [[2, 20]], [[3, 30]]])
-    route_one = ReaderRoute("events", "one")
+    routes = [ReaderRoute("events", "one")]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one]
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # Router should read until an event arrives past the target time.
@@ -181,10 +198,11 @@ def test_router_routes_until_target_time():
 def test_router_routes_until_target_time_with_retries():
     # The reader will have some gaps in the data that require retries to get passed.
     reader = FakeNumericEventReader([None, [[0, 0]], None, None, [[1, 10]], None, [[2, 20]], [[3, 30]]])
-    route_one = ReaderRoute("events", "one")
+    routes = [ReaderRoute("events", "one")]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one],
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes),
         empty_reads_allowed=2
     )
 
@@ -211,9 +229,11 @@ def test_route_transforms_data():
     filter_range = FilterRange(min=10, max=20)
     offset_then_gain = OffsetThenGain(offset=42, gain=-1)
     route_two = ReaderRoute("events", "two", [filter_range, offset_then_gain])
+    routes = [route_one, route_two]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one, route_two]
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # Copy events into both buffers.
@@ -244,9 +264,11 @@ def test_router_skip_transformer_errors():
 
     filter_range = FilterRange(min="error!")
     route_two = ReaderRoute("events", "two", [filter_range])
+    routes = [route_one, route_two]
     router = ReaderRouter(
         reader=reader,
-        routes=[route_one, route_two]
+        routes=routes,
+        buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # Copy events into both buffers.

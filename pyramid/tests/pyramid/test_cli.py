@@ -43,23 +43,21 @@ experiment_config = {
     "readers": {
         "delimiter_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
+            "args": {"results_key": "start"},
             "buffers": {
-                "start": {"results_key": "events"},
-                "wrt": {"results_key": "events"},
+                "wrt": {"results_key": "start"},
             }
         },
         "foo_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "buffers": {
-                "foo": {"results_key": "events"},
-            }
+            "args": {"results_key": "foo"}
         },
         "bar_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
+            "args": {"results_key": "bar"},
             "buffers": {
-                "bar": {"results_key": "events"},
                 "bar_2": {
-                    "results_key": "events",
+                    "results_key": "bar",
                     "transformers": [
                       {
                           "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",
@@ -73,10 +71,8 @@ experiment_config = {
             "class": "pyramid.neutral_zone.readers.csv.CsvSignalReader",
             "args": {
                 "sample_frequency": 10,
-                "lines_per_chunk": 3
-            },
-            "buffers": {
-                "match_trial_signal": {"results_key": "samples"},
+                "lines_per_chunk": 3,
+                "results_key": "match_trial_signal"
             }
         },
     },

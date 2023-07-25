@@ -2,6 +2,8 @@
 
 Here's a demo / example of Pyramid's core functionality so far.
 
+TODO: revalidate since reader config changes
+
 ## overview
 
 This example will read event data from several CSV files.

@@ -31,39 +31,24 @@ def test_configure_readers():
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
             "args": {
                 "csv_file": "default.csv",
-                "results_key": "events"
-            },
-            "buffers": {
-                "start": {
-                    "results_key": "events"
-                }
+                "results_key": "start"
             },
             "simulate_delay": True
         },
         "wrt_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "buffers": {
-                "wrt": {
-                    "results_key": "events"
-                }
-            },
+            "args": {"results_key": "wrt"}
         },
         "foo_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "buffers": {
-                "foo": {
-                    "results_key": "events"
-                }
-            },
+            "args": {"results_key": "foo"}
         },
         "bar_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
+            "args": {"results_key": "bar"},
             "buffers": {
-                "bar": {
-                    "results_key": "events"
-                },
-                "bar_2": {
-                    "results_key": "events",
+               "bar_2": {
+                    "results_key": "bar",
                     "transformers": [
                         {
                             "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",
@@ -81,10 +66,10 @@ def test_configure_readers():
     (readers, named_buffers, reader_routers) = configure_readers(readers_config, allow_simulate_delay)
 
     expected_readers = {
-        "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", "events")),
-        "wrt_reader": CsvNumericEventReader(),
-        "foo_reader": CsvNumericEventReader(),
-        "bar_reader": CsvNumericEventReader(),
+        "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", "start")),
+        "wrt_reader": CsvNumericEventReader(results_key="wrt"),
+        "foo_reader": CsvNumericEventReader(results_key="foo"),
+        "bar_reader": CsvNumericEventReader(results_key="bar"),
     }
     assert readers == expected_readers
 
@@ -100,24 +85,34 @@ def test_configure_readers():
     expected_reader_routers = [
         ReaderRouter(
             expected_readers["start_reader"],
-            [ReaderRoute("events", "start")]
+            [ReaderRoute("start", "start")],
+            {"start": expected_named_buffers["start"]}
         ),
         ReaderRouter(
             expected_readers["wrt_reader"],
-            [ReaderRoute("events", "wrt")]
+            [ReaderRoute("wrt", "wrt")],
+            {"wrt": expected_named_buffers["wrt"]}
         ),
         ReaderRouter(
             expected_readers["foo_reader"],
-            [ReaderRoute("events", "foo")]
+            [ReaderRoute("foo", "foo")],
+            {"foo": expected_named_buffers["foo"]}
         ),
         ReaderRouter(
             expected_readers["bar_reader"],
             [
-                ReaderRoute("events", "bar"),
-                ReaderRoute("events", "bar_2", transformers=[OffsetThenGain(offset=10, gain=-2)])
-            ]
+                ReaderRoute("bar", "bar"),
+                ReaderRoute("bar", "bar_2", transformers=[OffsetThenGain(offset=10, gain=-2)])
+            ],
+            {
+                "bar": expected_named_buffers["bar"],
+                "bar_2": expected_named_buffers["bar_2"]
+            }
         ),
     ]
+    print("fart")
+    print(reader_routers[0].routes)
+    print(expected_reader_routers[0].routes)
     assert reader_routers == expected_reader_routers
 
 
@@ -195,10 +190,10 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         expected_experiment = yaml.safe_load(f)
 
     expected_readers = {
-        "start_reader": DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, "events")),
-        "wrt_reader": CsvNumericEventReader(),
-        "foo_reader": CsvNumericEventReader(),
-        "bar_reader": CsvNumericEventReader(),
+        "start_reader": DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, "start")),
+        "wrt_reader": CsvNumericEventReader(results_key="wrt"),
+        "foo_reader": CsvNumericEventReader(results_key="foo"),
+        "bar_reader": CsvNumericEventReader(results_key="bar"),
     }
 
     expected_named_buffers = {
@@ -212,22 +207,29 @@ def test_from_yaml_and_reader_overrides(fixture_path):
     expected_reader_routers = [
         ReaderRouter(
             expected_readers["start_reader"],
-            [ReaderRoute("events", "start")]
+            [ReaderRoute("start", "start")],
+            {"start": expected_named_buffers["start"]}
         ),
         ReaderRouter(
             expected_readers["wrt_reader"],
-            [ReaderRoute("events", "wrt")]
+            [ReaderRoute("wrt", "wrt")],
+            {"wrt": expected_named_buffers["wrt"]}
         ),
         ReaderRouter(
             expected_readers["foo_reader"],
-            [ReaderRoute("events", "foo")]
+            [ReaderRoute("foo", "foo")],
+            {"foo": expected_named_buffers["foo"]}
         ),
         ReaderRouter(
             expected_readers["bar_reader"],
             [
-                ReaderRoute("events", "bar"),
-                ReaderRoute("events", "bar_2", transformers=[OffsetThenGain(offset=10, gain=-2)])
-            ]
+                ReaderRoute("bar", "bar"),
+                ReaderRoute("bar", "bar_2", transformers=[OffsetThenGain(offset=10, gain=-2)])
+            ],
+            {
+                "bar": expected_named_buffers["bar"],
+                "bar_2": expected_named_buffers["bar_2"]
+            }
         ),
     ]
 

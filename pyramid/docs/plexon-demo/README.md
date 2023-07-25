@@ -2,6 +2,8 @@
 
 Here's a demo / example of Pyramid with a Plexon .plx file.
 
+TODO: revalidate since reader config changes
+
 ## overview
 
 This example will read from a Plexon .plx file on your machine.
