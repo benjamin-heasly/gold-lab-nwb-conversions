@@ -365,9 +365,11 @@ class PlexonPlxReader(Reader):
     def __init__(
         self,
         plx_file: str = None,
+        blocks_per_read: int = 500
     ) -> None:
         self.plx_file = plx_file
         self.raw_reader = PlexonPlxRawReader(plx_file)
+        self.blocks_per_read = blocks_per_read
 
         self.spike_names = None
         self.event_names = None
@@ -400,9 +402,30 @@ class PlexonPlxReader(Reader):
         return self.raw_reader.__exit__(__exc_type, __exc_value, __traceback)
 
     def read_next(self) -> dict[str, BufferData]:
+        (name, data) = self.read_one_block()
+        if name is None:
+            # If there's nothing at all to read, the .plx file is done.
+            raise StopIteration
+
+        # Otherwise, return at least some results.
+        results = {}
+        results[name] = data
+        block_count = 1
+        while block_count < self.blocks_per_read and name is not None:
+            (name, data) = self.read_one_block()
+            block_count += 1
+
+            if name in results:
+                results[name].append(data)
+            else:
+                results[name] = data
+
+        return results
+
+    def read_one_block(self) -> tuple[str, BufferData]:
         block = self.raw_reader.next_block()
         if block is None:
-            raise StopIteration
+            return (None, None)
 
         block_type = block['type']
         if block_type == 1:
@@ -416,18 +439,18 @@ class PlexonPlxReader(Reader):
             return self.block_signal_chunk(block)
         else:  # pragma: no cover
             logging.warning(f"Ignoring block of unknown type {block_type}.")
-            return {}
+            return (None, None)
 
-    def block_event(self, block: dict[str, Any]) -> dict[str, BufferData]:
+    def block_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         channel = block['channel']
         event_list = NumericEventList(np.array([[block['timestamp_seconds'], channel, block['unit']]]))
-        return {self.spike_names[channel]: event_list}
+        return (self.spike_names[channel], event_list)
 
-    def block_spike_event(self, block: dict[str, Any]) -> dict[str, BufferData]:
+    def block_spike_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         event_list = NumericEventList(np.array([[block['timestamp_seconds'], block['unit']]]))
-        return {self.event_names[block['channel']]: event_list}
+        return (self.event_names[block['channel']], event_list)
 
-    def block_signal_chunk(self, block: dict[str, Any]) -> dict[str, BufferData]:
+    def block_signal_chunk(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         channel = block['channel']
         signal_chunk = SignalChunk(
             sample_data=block['waveforms'].reshape([-1,1]),
@@ -435,7 +458,7 @@ class PlexonPlxReader(Reader):
             first_sample_time=float(block['timestamp_seconds']),
             channel_ids=[int(channel)]
         )
-        return {self.signal_names[channel]: signal_chunk}
+        return (self.signal_names[channel], signal_chunk)
 
     def get_initial(self) -> dict[str, BufferData]:
         # Peek at the .plx file so we can read headers -- but not consume data blocks yet.

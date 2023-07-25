@@ -130,3 +130,4 @@ nwb-cache/
 # pyramid
 trials.json
 slow_trials.csv
+demo_experiment.json

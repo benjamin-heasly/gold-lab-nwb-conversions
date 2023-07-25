@@ -2,7 +2,8 @@ from pathlib import Path
 import numpy as np
 
 from pytest import fixture, raises
-import cProfile, pstats
+import cProfile
+import pstats
 
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
@@ -44,9 +45,9 @@ def test_default_to_all_channels(fixture_path):
     assert isinstance(initial["FP64"], SignalChunk)
 
 
-def test_read_whole_plx_file(fixture_path):
+def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
-    with PlexonPlxReader(plx_file) as reader:
+    with PlexonPlxReader(plx_file, blocks_per_read=1) as reader:
 
         # The first result should be the "Start" event.
         next = reader.read_next()
@@ -68,7 +69,7 @@ def test_read_whole_plx_file(fixture_path):
                     0.604705810546875,
                     0.6003570556640625,
                     0.578460693359375
-                ]).reshape([-1,1]),
+                ]).reshape([-1, 1]),
                 sample_frequency=1000,
                 first_sample_time=3.160525,
                 channel_ids=[134]
@@ -88,7 +89,7 @@ def test_read_whole_plx_file(fixture_path):
                     -0.03997802734375,
                     -0.042877197265625,
                     -0.047760009765625
-                ]).reshape([-1,1]),
+                ]).reshape([-1, 1]),
                 sample_frequency=1000,
                 first_sample_time=6.116525,
                 channel_ids=[140]
@@ -107,7 +108,7 @@ def test_read_whole_plx_file(fixture_path):
                     -0.0603485107421875,
                     -0.051727294921875,
                     -0.047149658203125
-                ]).reshape([-1,1]),
+                ]).reshape([-1, 1]),
                 sample_frequency=1000,
                 first_sample_time=8.973525,
                 channel_ids=[138]
@@ -132,7 +133,7 @@ def test_read_whole_plx_file(fixture_path):
                     -0.1685333251953125,
                     -0.1929473876953125,
                     -0.2101898193359375
-                ]).reshape([-1,1]),
+                ]).reshape([-1, 1]),
                 sample_frequency=1000,
                 first_sample_time=15.229525,
                 channel_ids=[128]
@@ -147,6 +148,44 @@ def test_read_whole_plx_file(fixture_path):
         assert next == {
             "Stop": NumericEventList(np.array([[16.12205, 0.0]]))
         }
+
+        # Now the reader should tell us to stop iterating.
+        with raises(StopIteration) as exception_info:
+            reader.read_next()
+        assert exception_info.errisinstance(StopIteration)
+
+        # Calling read_next() and getting StopIteration should do nothing.
+        assert reader.raw_reader.block_count == 52084
+
+
+def test_read_whole_plx_file_many_blocks_at_a_time(fixture_path):
+    plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
+
+    # Stride through the file 10000 data blocks at a time.
+    with PlexonPlxReader(plx_file, blocks_per_read=10000) as reader:
+        # The first result should contain the "Start" event.
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 10000
+        assert next["Start"] == NumericEventList(np.array([[0.0, 0.0]]))
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 20000
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 30000
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 40000
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 50000
+
+        # The sample files should have 52084 blocks total.
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 52084
+
+        # The last result should contain the "Stop" event.
+        assert next["Stop"] == NumericEventList(np.array([[16.12205, 0.0]]))
 
         # Now the reader should tell us to stop iterating.
         with raises(StopIteration) as exception_info:

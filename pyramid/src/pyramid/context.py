@@ -142,7 +142,7 @@ class PyramidContext():
                 )
                 writer.append_trial(last_trial)
 
-    def run_with_plots(self, trial_file: str) -> None:
+    def run_with_plots(self, trial_file: str, plot_update_period: float = 0.025) -> None:
         """Run with plots and interactive GUI updates.
 
         Similar to run_without_plots(), above.
@@ -161,9 +161,7 @@ class PyramidContext():
             while self.start_router.still_going() and self.plot_figure_controller.get_open_figures():
                 if time.time() > next_gui_update:
                     self.plot_figure_controller.update()
-                    # TODO: when this interval is small, things seem to stall out.
-                    # Why?  It's as if we spend all our time updating and never reading.
-                    next_gui_update = time.time() + 1.0
+                    next_gui_update += plot_update_period
 
                 got_start_data = self.start_router.route_next()
                 if got_start_data:
