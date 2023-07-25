@@ -258,7 +258,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         readers=expected_readers,
         named_buffers=expected_named_buffers,
         start_router=expected_reader_routers[0],
-        other_routers=expected_reader_routers[1:],
+        routers=expected_reader_routers,
         trial_delimiter=expected_trial_delimiter,
         trial_extractor=expected_trial_extractor,
         plot_figure_controller=expected_plot_figure_controller

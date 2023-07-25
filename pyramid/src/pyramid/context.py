@@ -22,8 +22,7 @@ class PyramidContext():
     readers: dict[str, Reader]
     named_buffers: dict[str, Buffer]
     start_router: ReaderRouter
-    # TODO: I think get rid of the "other" routers and just update them all together.
-    other_routers: list[ReaderRouter]
+    routers: list[ReaderRouter]
     trial_delimiter: TrialDelimiter
     trial_extractor: TrialExtractor
     plot_figure_controller: PlotFigureController
@@ -75,7 +74,6 @@ class PyramidContext():
             for buffer_name in router.buffers.keys():
                 if buffer_name == start_buffer_name:
                     start_router = router
-        other_routers = [router for router in reader_routers if router != start_router]
 
         plotters = configure_plotters(experiment_config.get("plotters", []))
         subject = subject_config.get("subject", {})
@@ -91,7 +89,7 @@ class PyramidContext():
             readers=readers,
             named_buffers=named_buffers,
             start_router=start_router,
-            other_routers=other_routers,
+            routers=reader_routers,
             trial_delimiter=trial_delimiter,
             trial_extractor=trial_extractor,
             plot_figure_controller=plot_figure_controller
@@ -116,7 +114,7 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for new_trial in new_trials:
-                        for router in self.other_routers:
+                        for router in self.routers:
                             router.route_until(new_trial.end_time)
                         self.trial_extractor.populate_trial(
                             new_trial,
@@ -129,8 +127,7 @@ class PyramidContext():
                         self.trial_extractor.discard_before(new_trial.start_time)
 
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
-            self.start_router.route_next()
-            for router in self.other_routers:
+            for router in self.routers:
                 router.route_next()
             last_trial = self.trial_delimiter.last()
             if last_trial:
@@ -167,7 +164,7 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for new_trial in new_trials:
-                        for router in self.other_routers:
+                        for router in self.routers:
                             router.route_until(new_trial.end_time)
                         self.trial_extractor.populate_trial(
                             new_trial,
@@ -181,8 +178,7 @@ class PyramidContext():
                         self.trial_extractor.discard_before(new_trial.start_time)
 
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
-            self.start_router.route_next()
-            for router in self.other_routers:
+            for router in self.routers:
                 router.route_next()
             last_trial = self.trial_delimiter.last()
             if last_trial:
@@ -204,14 +200,12 @@ class PyramidContext():
             }
         )
 
-        all_routers = self.other_routers.copy()
-        all_routers.append(self.start_router)
         named_routers = {}
 
         for name, reader in self.readers.items():
             label = f"{name}|{reader.__class__.__name__}"
             dot.node(name=name, label=label, shape="record")
-            for router in all_routers:
+            for router in self.routers:
                 if router.reader is reader:
                     named_routers[name] = router
 

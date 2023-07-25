@@ -365,7 +365,7 @@ class PlexonPlxReader(Reader):
     def __init__(
         self,
         plx_file: str = None,
-        blocks_per_read: int = 500
+        blocks_per_read: int = 1000
     ) -> None:
         self.plx_file = plx_file
         self.raw_reader = PlexonPlxRawReader(plx_file)
