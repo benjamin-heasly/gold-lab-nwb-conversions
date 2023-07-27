@@ -2,9 +2,6 @@
 
 Here's a demo / example of Pyramid signal chunks and plotting.
 
-TODO: revalidate since reader config changesTODO: revalidate since reader config changes
-
-
 ## overview
 
 This example will read from two CSV files.
@@ -20,7 +17,7 @@ Let's start by running Pyramid to generate an overview of a demo experiment.
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/signal-demo
 
-pyramid graph --experiment demo_experiment.yaml --graph-file demo_experiment.png
+pyramid graph --graph-file demo_experiment.png --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv signal_reader.csv_file=demo_signal.csv
 ```
 
 This will produce a graph of Pyramid data sources and other configuration.
@@ -37,7 +34,7 @@ We can run this demo experiment in `gui` mode to view the signals.
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/signal-demo
 
-pyramid gui --experiment demo_experiment.yaml --trial-file demo_trials.json --readers delimiter_reader.csv_file=delimiter.csv signal_reader.csv_file=demo_signal.csv
+pyramid gui --trial-file demo_trials.json --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv signal_reader.csv_file=demo_signal.csv
 ```
 
 This will open up two figure windows.  You might want to arrange them.
@@ -48,4 +45,4 @@ The other figure will show signal chunks assigned to each trial.
 ![Plot of signal chunks, overlayed trial after trial.](signal_plotter.png "Plot of signal chunks")
 
 
-The trials will update about every 10 seconds (in `gui` mode Pyramid can simulate delay while reading from data files.)
+The trials will update every few seconds as trials occur (in `gui` mode Pyramid can simulate delay while reading from data files.)

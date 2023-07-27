@@ -132,7 +132,7 @@ Now let's put those together and let Pyramid run through the data and convert ev
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/core-demo
 
-pyramid convert --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv --trial-file demo_trials.json
+pyramid convert --trial-file demo_trials.json --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv
 ```
 
 As above, this invokes Pyramid on our experiment YAML file.
@@ -179,7 +179,7 @@ In `gui` mode Pyramid can manage figure windows and update data plots after each
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/core-demo
 
-pyramid gui --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv --trial-file demo_trials.json
+pyramid gui --trial-file demo_trials.json --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv
 ```
 
 This command is identical to the `convert` command above, except for the mode argument, which is now `gui`.

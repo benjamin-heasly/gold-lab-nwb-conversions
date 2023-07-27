@@ -69,7 +69,7 @@ class CsvNumericEventReader(Reader):
                 self.results_key: NumericEventList(np.array([numeric_row]))
             }
         except ValueError as error:
-            logging.info(f"Skipping CSV '{self.csv_file}' line {line_num} <{next_row}> because {error.args}")
+            logging.info(f"Skipping CSV '{self.csv_file}' line {line_num} {next_row} because {error.args}")
             return None
 
     def get_initial(self) -> dict[str, BufferData]:
@@ -156,7 +156,7 @@ class CsvSignalReader(Reader):
                 numeric_row = [float(element) for element in next_row]
                 chunk.append(numeric_row)
             except ValueError as error:
-                logging.info(f"Skipping CSV '{self.csv_file}' line {line_num} <{next_row}> because {error.args}")
+                logging.info(f"Skipping CSV '{self.csv_file}' line {line_num} {next_row} because {error.args}")
                 continue
 
         if chunk:

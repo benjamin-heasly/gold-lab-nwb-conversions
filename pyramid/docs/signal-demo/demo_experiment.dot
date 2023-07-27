@@ -5,10 +5,10 @@ digraph demo_experiment {
 	delimiter [label="delimiter|Buffer|NumericEventList" shape=record]
 	sine_signal [label="sine_signal|Buffer|SignalChunk" shape=record]
 	delimiter_reader_route_0 [label="as is" shape=record]
-	delimiter_reader -> delimiter_reader_route_0 [label=events]
+	delimiter_reader -> delimiter_reader_route_0 [label=delimiter]
 	delimiter_reader_route_0 -> delimiter
 	signal_reader_route_0 [label="as is" shape=record]
-	signal_reader -> signal_reader_route_0 [label=samples]
+	signal_reader -> signal_reader_route_0 [label=sine_signal]
 	signal_reader_route_0 -> sine_signal
 	trial_delimiter [label="TrialDelimiter|start = 1010" shape=record]
 	delimiter -> trial_delimiter [label=start arrowhead=none arrowtail=none]
