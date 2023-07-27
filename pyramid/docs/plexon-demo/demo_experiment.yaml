@@ -15,16 +15,18 @@ readers:
     class: pyramid.neutral_zone.readers.plexon.PlexonPlxReader
     args:
       plx_file: my_file.plx # override on cli with --readers plexon_reader.plx_file=real.plx
+      spikes: "all"
+      events:
+        Strobed: Strobed
+      signals:
+        X50: gaze_x
+        Y51: gaze_y
     simulate_delay: True # wait between events, gui demonstration
     buffers:
       delimiter:
         results_key: Strobed
       strobed:
         results_key: Strobed
-      gaze_x:
-        results_key: X50
-      gaze_y:
-        results_key: Y51
 trials:
   # How to delimit Trials in time, and how to align data within each trial.
   start_buffer: delimiter

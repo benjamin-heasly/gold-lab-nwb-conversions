@@ -359,49 +359,95 @@ class PlexonPlxRawReader(ContextManager):
         }
 
 
-# TODO: conveniently select spike, event, and signal channels of interest!
-#       by name, by "all", etc.
 class PlexonPlxReader(Reader):
     """Read plexon .plx ad waveform chunks, spike events, and other numeric events.
-
-    By default reads 1 second of data at a time, by consuming blocks until a block
-    contains data 1 second later than the first block read (or all blocks consumed).
-    This way, each read call can span multiple block types and channels and smooth over
-    the fact that .plx file blocks are only partially ordered -- fully ordered within each
-    channel, but ragged between channels.  Specify seconds_per_read=0 to read one block
-    at a time.
     """
 
     def __init__(
         self,
         plx_file: str = None,
-        seconds_per_read: float = 1.0
+        spikes: str | dict[str, str] = "all",
+        events: str | dict[str, str] = "all",
+        signals: str | dict[str, str] = "all",
+        seconds_per_read: float = 1.0,
+        spikes_prefix: str = "spike_",
+        events_prefix: str = "event_",
+        signals_prefix: str = "signal_"
     ) -> None:
-        self.plx_file = plx_file
-        self.raw_reader = PlexonPlxRawReader(plx_file)
-        self.seconds_per_read = seconds_per_read
+        """Create a new PlexonPlxReader.
 
-        self.spike_names = None
-        self.event_names = None
-        self.signal_names = None
+        Args:
+            plx_file:           Path to the Plexon .plx file to read from.
+            spikes:             Dict of spike channel raw names to aliases, for which channels to keep.
+                                Or, use spikes="all" to keep all channels with default names.
+            events:             Dict of event channel raw names to aliases, for which channels to keep.
+                                Or, use events="all" to keep all channels with default names.
+            signals:            Dict of signal channel raw names to aliases, for which channels to keep.
+                                Or, use signals="all" to keep all channels with default names.
+            seconds_per_read:   How many seconds of data to read per read_next() call.
+                                By default reads 1 second of data at a time by consuming blocks until the
+                                consumed data span 1 second or more.  This is useful since .plx files are only
+                                raggedly ordered in time (ordered within a channel, ragged between channels).
+                                I.e. the next block might have an earlier timestamp than the current block.
+                                Choose seconds_per_read to be greater than raggedness between channels.
+                                Or, use seconds_per_read=0 to read one block at a time.
+            spikes_prefix:      Default prefix for spike channels when spikes="all", to avoid naming collisions.
+            events_prefix:      Default prefix for event channels when events="all", to avoid naming collisions.
+            signals_prefix:     Default prefix for signals channels when signals="all", to avoid naming collisions.
+        """
+        self.plx_file = plx_file
+        self.spikes = spikes
+        self.events = events
+        self.signals = signals
+        self.seconds_per_read = seconds_per_read
+        self.spikes_prefix = spikes_prefix
+        self.events_prefix = events_prefix
+        self.signals_prefix = signals_prefix
+
+        self.raw_reader = PlexonPlxRawReader(plx_file)
+        self.spike_channel_names = None
+        self.event_channel_names = None
+        self.signal_channel_names = None
 
     def __enter__(self) -> Any:
         self.raw_reader.__enter__()
 
-        self.spike_names = {
-            header["Channel"]: f"{header['Name']}_spikes"
-            for header in self.raw_reader.dsp_channel_headers
-        }
-        self.event_names = {
-            header["Channel"]: header["Name"]
-            for header in self.raw_reader.event_channel_headers
-        }
-        self.signal_names = {
-            header["Channel"]: header["Name"]
-            for header in self.raw_reader.slow_channel_headers
-        }
+        self.spike_channel_names = self.choose_channel_names(
+            self.raw_reader.dsp_channel_headers,
+            self.spikes,
+            self.spikes_prefix
+        )
+
+        self.event_channel_names = self.choose_channel_names(
+            self.raw_reader.event_channel_headers,
+            self.events,
+            self.events_prefix
+        )
+
+        self.signal_channel_names = self.choose_channel_names(
+            self.raw_reader.slow_channel_headers,
+            self.signals,
+            self.signals_prefix
+        )
 
         return self
+
+    def choose_channel_names(
+        self,
+        channel_headers: list[dict[str, Any]],
+        to_keep: str | dict[str, str],
+        default_prefix: str
+    ) -> dict[int, str]:
+        if to_keep == "all":
+            # Keep all channels with a prefix to prevent collisions between data types.
+            return {int(header["Channel"]): f'{default_prefix}{header["Name"]}' for header in channel_headers}
+
+        # Keep only explicitly requested channels, with aliases.
+        names_by_id = {}
+        for header in channel_headers:
+            if header["Name"] in to_keep.keys():
+                names_by_id[int(header["Channel"])] = to_keep[header["Name"]]
+        return names_by_id
 
     def __exit__(
         self,
@@ -418,12 +464,13 @@ class PlexonPlxReader(Reader):
             raise StopIteration
 
         # Otherwise, return at least some results.
-        results = {name :data}
+        results = {name: data}
         first_data_time = data.get_end_time()
         while data.get_end_time() - first_data_time < self.seconds_per_read and name is not None:
             (name, data) = self.read_one_block()
-
-            if name in results:
+            if name == "skip":
+                continue
+            elif name in results:
                 results[name].append(data)
             else:
                 results[name] = data
@@ -450,47 +497,62 @@ class PlexonPlxReader(Reader):
             return (None, None)
 
     def block_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
-        channel = block['channel']
-        event_list = NumericEventList(np.array([[block['timestamp_seconds'], channel, block['unit']]]))
-        return (self.spike_names[channel], event_list)
+        channel_id = block['channel']
+        name = self.spike_channel_names.get(channel_id, "skip")
+        event_list = NumericEventList(np.array([[block['timestamp_seconds'], channel_id, block['unit']]]))
+        return (name, event_list)
 
     def block_spike_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
+        channel_id = block['channel']
+        name = self.event_channel_names.get(channel_id, None)
         event_list = NumericEventList(np.array([[block['timestamp_seconds'], block['unit']]]))
-        return (self.event_names[block['channel']], event_list)
+        return (name, event_list)
 
     def block_signal_chunk(self, block: dict[str, Any]) -> tuple[str, BufferData]:
-        channel = block['channel']
+        channel_id = block['channel']
+        name = self.signal_channel_names.get(channel_id, "skip")
         signal_chunk = SignalChunk(
-            sample_data=block['waveforms'].reshape([-1,1]),
+            sample_data=block['waveforms'].reshape([-1, 1]),
             sample_frequency=float(block['frequency']),
             first_sample_time=float(block['timestamp_seconds']),
-            channel_ids=[int(channel)]
+            channel_ids=[int(channel_id)]
         )
-        return (self.signal_names[channel], signal_chunk)
+        return (name, signal_chunk)
 
     def get_initial(self) -> dict[str, BufferData]:
         # Peek at the .plx file so we can read headers -- but not consume data blocks yet.
         initial = {}
         with PlexonPlxRawReader(self.plx_file) as peek_reader:
             # Spike channels have numeric events like [timestamp, channel_id, unit_id]
-            for header in peek_reader.dsp_channel_headers:
-                initial[header['Name']] = NumericEventList(np.empty([0, 3], dtype='float64'))
+            spike_channel_names = self.choose_channel_names(
+                peek_reader.dsp_channel_headers,
+                self.spikes,
+                self.spikes_prefix
+            )
+            for name in spike_channel_names.values():
+                initial[name] = NumericEventList(np.empty([0, 3], dtype='float64'))
 
             # Other event channels have numeric events like [timestamp, value]
-            for header in peek_reader.event_channel_headers:
-                name = header['Name']
+            event_channel_names = self.choose_channel_names(
+                peek_reader.event_channel_headers,
+                self.events,
+                self.events_prefix
+            )
+            for name in event_channel_names.values():
                 initial[name] = NumericEventList(np.empty([0, 2], dtype='float64'))
 
             # Slow ad channels have Signal chunks.
-            for header in peek_reader.slow_channel_headers:
-                name = header['Name']
-                if name in initial:
-                    name = f"{name}_signal"
+            signal_channel_names = self.choose_channel_names(
+                peek_reader.slow_channel_headers,
+                self.signals,
+                self.signals_prefix
+            )
+            for channel_id, name in signal_channel_names.items():
                 initial[name] = SignalChunk(
                     sample_data=np.empty([0, 1], dtype='float64'),
-                    sample_frequency=float(header["ADFreq"]),
+                    sample_frequency=float(peek_reader.frequency_per_slow_channel[channel_id]),
                     first_sample_time=float(0.0),
-                    channel_ids=[int(header["Channel"])]
+                    channel_ids=[int(channel_id)]
                 )
 
         return initial

@@ -17,32 +17,32 @@ def fixture_path(request):
 
 
 def test_default_to_all_channels(fixture_path):
-    plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
+    plx_file = Path(fixture_path, "plexon", "opx141ch1to3analogOnly003.plx")
     with PlexonPlxReader(plx_file) as reader:
         initial = reader.get_initial()
 
     assert reader.raw_reader.plx_stream is None
 
     # The example .plx file has:
-    #   - 64 spike channels
-    #   - 49 event channels
-    #   - 64 "WB" signal channels
-    #   - 64 "SPK" signal channels
-    #   - 64 "FP" signal channels
-    assert len(initial) == 64 + 49 + 64 + 64 + 64
-    assert isinstance(initial["SPK01"], NumericEventList)
-    assert isinstance(initial["SPK64"], NumericEventList)
-    assert isinstance(initial["Event01"], NumericEventList)
-    assert isinstance(initial["Event46"], NumericEventList)
-    assert isinstance(initial["Start"], NumericEventList)
-    assert isinstance(initial["Stop"], NumericEventList)
-    assert isinstance(initial["Strobed"], NumericEventList)
-    assert isinstance(initial["WB01"], SignalChunk)
-    assert isinstance(initial["WB64"], SignalChunk)
-    assert isinstance(initial["SPK01_signal"], SignalChunk)
-    assert isinstance(initial["SPK64_signal"], SignalChunk)
-    assert isinstance(initial["FP01"], SignalChunk)
-    assert isinstance(initial["FP64"], SignalChunk)
+    #   - 8 spike channels
+    #   - 43 event channels
+    #   - 32 slow channels
+    assert len(initial) == 8 + 43 + 32
+    assert isinstance(initial["spike_SPK01"], NumericEventList)
+    assert isinstance(initial["spike_SPK08"], NumericEventList)
+    assert isinstance(initial["event_EVT01"], NumericEventList)
+    assert isinstance(initial["event_EVT32"], NumericEventList)
+    assert isinstance(initial["event_Start"], NumericEventList)
+    assert isinstance(initial["event_Stop"], NumericEventList)
+    assert isinstance(initial["event_Strobed"], NumericEventList)
+    assert isinstance(initial["event_KBD1"], NumericEventList)
+    assert isinstance(initial["event_KBD8"], NumericEventList)
+    assert isinstance(initial["signal_WB01"], SignalChunk)
+    assert isinstance(initial["signal_WB08"], SignalChunk)
+    assert isinstance(initial["signal_SPKC01"], SignalChunk)
+    assert isinstance(initial["signal_SPKC08"], SignalChunk)
+    assert isinstance(initial["signal_FP01"], SignalChunk)
+    assert isinstance(initial["signal_FP16"], SignalChunk)
 
 
 def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
@@ -52,7 +52,7 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
         # The first result should be the "Start" event.
         next = reader.read_next()
         assert next == {
-            "Start": NumericEventList(np.array([[0.0, 0.0]]))
+            "event_Start": NumericEventList(np.array([[0.0, 0.0]]))
         }
 
         # Sample arbitrary results throughout the file, every 10000 blocks.
@@ -61,7 +61,7 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
         while reader.raw_reader.block_count < 10000:
             next = reader.read_next()
         assert next == {
-            "FP07": SignalChunk(
+            "signal_FP07": SignalChunk(
                 sample_data=np.array([
                     0.5987548828125,
                     0.5780029296875,
@@ -79,8 +79,7 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
         while reader.raw_reader.block_count < 20000:
             next = reader.read_next()
         assert next == {
-            "FP13":
-            SignalChunk(
+            "signal_FP13": SignalChunk(
                 sample_data=np.array([
                     -0.01800537109375,
                     -0.020294189453125,
@@ -99,8 +98,7 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
         while reader.raw_reader.block_count < 30000:
             next = reader.read_next()
         assert next == {
-            "FP11":
-            SignalChunk(
+            "signal_FP11": SignalChunk(
                 sample_data=np.array([
                     -0.041961669921875,
                     -0.0548553466796875,
@@ -118,13 +116,13 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
         while reader.raw_reader.block_count < 40000:
             next = reader.read_next()
         assert next == {
-            "SPK03_spikes": NumericEventList(np.array([[12.069825, 3.0,  0.0]]))
+            "spike_SPK03": NumericEventList(np.array([[12.069825, 3.0,  0.0]]))
         }
 
         while reader.raw_reader.block_count < 50000:
             next = reader.read_next()
         assert next == {
-            "FP01":
+            "signal_FP01":
             SignalChunk(
                 sample_data=np.array([
                     -0.1238250732421875,
@@ -146,7 +144,7 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
 
         # The last result should be the "Stop" event.
         assert next == {
-            "Stop": NumericEventList(np.array([[16.12205, 0.0]]))
+            "event_Stop": NumericEventList(np.array([[16.12205, 0.0]]))
         }
 
         # Now the reader should tell us to stop iterating.
@@ -166,7 +164,7 @@ def test_read_whole_plx_file_several_seconds_at_a_time(fixture_path):
         # The first result should contain the "Start" event.
         next = reader.read_next()
         assert reader.raw_reader.block_count == 12692
-        assert next["Start"] == NumericEventList(np.array([[0.0, 0.0]]))
+        assert next["event_Start"] == NumericEventList(np.array([[0.0, 0.0]]))
 
         # 4 more seconds.
         next = reader.read_next()
@@ -181,7 +179,7 @@ def test_read_whole_plx_file_several_seconds_at_a_time(fixture_path):
         assert reader.raw_reader.block_count == 52084
 
         # The last result should contain the "Stop" event.
-        assert next["Stop"] == NumericEventList(np.array([[16.12205, 0.0]]))
+        assert next["event_Stop"] == NumericEventList(np.array([[16.12205, 0.0]]))
 
         # Now the reader should tell us to stop iterating.
         with raises(StopIteration) as exception_info:
@@ -204,3 +202,6 @@ def test_profile_read_whole_plx_file(fixture_path):
                     break
             stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
             stats.print_stats()
+
+
+# TODO: test selecting specific channels to keep: report in get_initial and ignore non-keep during read_next.

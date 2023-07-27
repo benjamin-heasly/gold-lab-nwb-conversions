@@ -1,22 +1,90 @@
 digraph demo_experiment {
 	graph [label=demo_experiment rankdir=LR]
 	plexon_reader [label="plexon_reader|PlexonPlxReader" shape=record]
-	delimiter [label="delimiter|Buffer|NumericEventList" shape=record]
-	strobed [label="strobed|Buffer|NumericEventList" shape=record]
+	spike_sig001 [label="spike_sig001|Buffer|NumericEventList" shape=record]
+	spike_sig002 [label="spike_sig002|Buffer|NumericEventList" shape=record]
+	spike_sig003 [label="spike_sig003|Buffer|NumericEventList" shape=record]
+	spike_sig004 [label="spike_sig004|Buffer|NumericEventList" shape=record]
+	spike_sig005 [label="spike_sig005|Buffer|NumericEventList" shape=record]
+	spike_sig006 [label="spike_sig006|Buffer|NumericEventList" shape=record]
+	spike_sig007 [label="spike_sig007|Buffer|NumericEventList" shape=record]
+	spike_sig008 [label="spike_sig008|Buffer|NumericEventList" shape=record]
+	spike_sig009 [label="spike_sig009|Buffer|NumericEventList" shape=record]
+	spike_sig010 [label="spike_sig010|Buffer|NumericEventList" shape=record]
+	spike_sig011 [label="spike_sig011|Buffer|NumericEventList" shape=record]
+	spike_sig012 [label="spike_sig012|Buffer|NumericEventList" shape=record]
+	spike_sig013 [label="spike_sig013|Buffer|NumericEventList" shape=record]
+	spike_sig014 [label="spike_sig014|Buffer|NumericEventList" shape=record]
+	spike_sig015 [label="spike_sig015|Buffer|NumericEventList" shape=record]
+	spike_sig016 [label="spike_sig016|Buffer|NumericEventList" shape=record]
+	Strobed [label="Strobed|Buffer|NumericEventList" shape=record]
 	gaze_x [label="gaze_x|Buffer|SignalChunk" shape=record]
 	gaze_y [label="gaze_y|Buffer|SignalChunk" shape=record]
+	delimiter [label="delimiter|Buffer|NumericEventList" shape=record]
+	strobed [label="strobed|Buffer|NumericEventList" shape=record]
 	plexon_reader_route_0 [label="as is" shape=record]
-	plexon_reader -> plexon_reader_route_0 [label=Strobed]
-	plexon_reader_route_0 -> delimiter
+	plexon_reader -> plexon_reader_route_0 [label=spike_sig001]
+	plexon_reader_route_0 -> spike_sig001
 	plexon_reader_route_1 [label="as is" shape=record]
-	plexon_reader -> plexon_reader_route_1 [label=Strobed]
-	plexon_reader_route_1 -> strobed
+	plexon_reader -> plexon_reader_route_1 [label=spike_sig002]
+	plexon_reader_route_1 -> spike_sig002
 	plexon_reader_route_2 [label="as is" shape=record]
-	plexon_reader -> plexon_reader_route_2 [label=X50]
-	plexon_reader_route_2 -> gaze_x
+	plexon_reader -> plexon_reader_route_2 [label=spike_sig003]
+	plexon_reader_route_2 -> spike_sig003
 	plexon_reader_route_3 [label="as is" shape=record]
-	plexon_reader -> plexon_reader_route_3 [label=Y51]
-	plexon_reader_route_3 -> gaze_y
+	plexon_reader -> plexon_reader_route_3 [label=spike_sig004]
+	plexon_reader_route_3 -> spike_sig004
+	plexon_reader_route_4 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_4 [label=spike_sig005]
+	plexon_reader_route_4 -> spike_sig005
+	plexon_reader_route_5 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_5 [label=spike_sig006]
+	plexon_reader_route_5 -> spike_sig006
+	plexon_reader_route_6 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_6 [label=spike_sig007]
+	plexon_reader_route_6 -> spike_sig007
+	plexon_reader_route_7 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_7 [label=spike_sig008]
+	plexon_reader_route_7 -> spike_sig008
+	plexon_reader_route_8 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_8 [label=spike_sig009]
+	plexon_reader_route_8 -> spike_sig009
+	plexon_reader_route_9 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_9 [label=spike_sig010]
+	plexon_reader_route_9 -> spike_sig010
+	plexon_reader_route_10 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_10 [label=spike_sig011]
+	plexon_reader_route_10 -> spike_sig011
+	plexon_reader_route_11 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_11 [label=spike_sig012]
+	plexon_reader_route_11 -> spike_sig012
+	plexon_reader_route_12 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_12 [label=spike_sig013]
+	plexon_reader_route_12 -> spike_sig013
+	plexon_reader_route_13 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_13 [label=spike_sig014]
+	plexon_reader_route_13 -> spike_sig014
+	plexon_reader_route_14 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_14 [label=spike_sig015]
+	plexon_reader_route_14 -> spike_sig015
+	plexon_reader_route_15 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_15 [label=spike_sig016]
+	plexon_reader_route_15 -> spike_sig016
+	plexon_reader_route_16 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_16 [label=Strobed]
+	plexon_reader_route_16 -> Strobed
+	plexon_reader_route_17 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_17 [label=gaze_x]
+	plexon_reader_route_17 -> gaze_x
+	plexon_reader_route_18 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_18 [label=gaze_y]
+	plexon_reader_route_18 -> gaze_y
+	plexon_reader_route_19 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_19 [label=Strobed]
+	plexon_reader_route_19 -> delimiter
+	plexon_reader_route_20 [label="as is" shape=record]
+	plexon_reader -> plexon_reader_route_20 [label=Strobed]
+	plexon_reader_route_20 -> strobed
 	trial_delimiter [label="TrialDelimiter|start = 1005" shape=record]
 	delimiter -> trial_delimiter [label=start arrowhead=none arrowtail=none]
 	trial_extractor [label="TrialExtractor|wrt = 1010" shape=record]
