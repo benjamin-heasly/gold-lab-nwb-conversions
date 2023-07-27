@@ -2,13 +2,11 @@
 
 Here's a demo / example of Pyramid's core functionality so far.
 
-TODO: revalidate since reader config changes
-
 ## overview
 
 This example will read event data from several CSV files.
 Some of the events will be used to delimit trials in time and to align data within a trial.
-Other events will be selected based on the delimited times and added to appropriate trials.
+Other events will be selected based on delimited times, aligned, and assigned to appropriate trials.
 Pyramid will write each trial to a JSON "trial file", as it goes along.
 
 ## visualizing experiment configuration
@@ -21,7 +19,7 @@ Try running the following:
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/core-demo
 
-pyramid graph --experiment demo_experiment.yaml --graph-file demo_experiment.png
+pyramid graph --graph-file demo_experiment.png --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv
 ```
 
 This will produce a graph of Pyramid data sources and other configuration.
@@ -35,7 +33,7 @@ From this graph, we can see that Pyramid intends to:
 
  - read event data from 3 different CSV files
  - deal events as they arrive into 4 different named buffers
- - transform event values on the way into one of those buffers
+ - transform event values on the way into one of those buffers, but leave the other three "as is"
  - delimit trials based on events in buffer named "delimiter"
  - align data within each trial based on other events in the buffer named "delimiter"
  - add additional data to trials from buffers named "foo", "bar", and "bar_2"

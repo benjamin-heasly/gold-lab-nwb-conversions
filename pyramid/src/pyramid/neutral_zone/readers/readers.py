@@ -132,9 +132,13 @@ class ReaderRouter():
 
         try:
             result = self.reader.read_next()
+        except StopIteration as stop_iteration:
+            self.reader_exception = stop_iteration
+            logging.info(f"Reader {self.reader.__class__.__name__} is done (it raised StopIteration).")
+            return False
         except Exception as exception:
             self.reader_exception = exception
-            logging.warning("Reader had an internal error, will be ignored going forward:", exc_info=True)
+            logging.warning(f"Reader {self.reader.__class__.__name__} is disabled (it raised an unexpected error):", exc_info=True)
             return False
 
         if not result:
