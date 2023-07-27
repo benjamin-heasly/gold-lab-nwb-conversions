@@ -16,7 +16,6 @@ readers:
     args:
       plx_file: my_file.plx # override on cli with --readers plexon_reader.plx_file=real.plx
     simulate_delay: True # wait between events, gui demonstration
-    read_ahead: 0.0 # when asked to read until t, read until t + read_ahead, since channels blocks are only roughly in order.
     buffers:
       delimiter:
         results_key: Strobed

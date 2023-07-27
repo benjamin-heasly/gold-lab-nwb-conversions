@@ -99,13 +99,11 @@ class ReaderRouter():
         reader: Reader,
         routes: list[ReaderRoute],
         buffers: dict[str, Buffer],
-        read_ahead: float = 0.0,
         empty_reads_allowed: int = 3
     ) -> None:
         self.reader = reader
         self.routes = routes
         self.buffers = buffers
-        self.read_ahead = read_ahead
         self.empty_reads_allowed = empty_reads_allowed
 
         self.reader_exception = None
@@ -184,7 +182,7 @@ class ReaderRouter():
 
     def route_until(self, target_time: float) -> float:
         empty_reads = 0
-        while self.max_buffer_time < target_time + self.read_ahead and empty_reads <= self.empty_reads_allowed:
+        while self.max_buffer_time < target_time and empty_reads <= self.empty_reads_allowed:
             got_data = self.route_next()
             if got_data:
                 empty_reads = 0

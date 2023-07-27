@@ -101,11 +101,11 @@ class PlotFigureController(ContextManager):
         for plotter, fig in self.figures.items():
             if plt.fignum_exists(fig.number):
                 plotter.update(fig, current_trial, trial_count, self.experiment_info, self.subject_info)
+                fig.canvas.draw_idle()
 
     def update(self) -> None:
         for fig in self.figures.values():
             if plt.fignum_exists(fig.number):
-                fig.canvas.draw_idle()
                 fig.canvas.flush_events()
 
     def __exit__(

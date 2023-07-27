@@ -362,16 +362,24 @@ class PlexonPlxRawReader(ContextManager):
 # TODO: conveniently select spike, event, and signal channels of interest!
 #       by name, by "all", etc.
 class PlexonPlxReader(Reader):
-    """Read plexon .plx ad waveform chunks, spike events, and other numeric events."""
+    """Read plexon .plx ad waveform chunks, spike events, and other numeric events.
+
+    By default reads 1 second of data at a time, by consuming blocks until a block
+    contains data 1 second later than the first block read (or all blocks consumed).
+    This way, each read call can span multiple block types and channels and smooth over
+    the fact that .plx file blocks are only partially ordered -- fully ordered within each
+    channel, but ragged between channels.  Specify seconds_per_read=0 to read one block
+    at a time.
+    """
 
     def __init__(
         self,
         plx_file: str = None,
-        blocks_per_read: int = 1000
+        seconds_per_read: float = 1.0
     ) -> None:
         self.plx_file = plx_file
         self.raw_reader = PlexonPlxRawReader(plx_file)
-        self.blocks_per_read = blocks_per_read
+        self.seconds_per_read = seconds_per_read
 
         self.spike_names = None
         self.event_names = None
@@ -410,12 +418,10 @@ class PlexonPlxReader(Reader):
             raise StopIteration
 
         # Otherwise, return at least some results.
-        results = {}
-        results[name] = data
-        block_count = 1
-        while block_count < self.blocks_per_read and name is not None:
+        results = {name :data}
+        first_data_time = data.get_end_time()
+        while data.get_end_time() - first_data_time < self.seconds_per_read and name is not None:
             (name, data) = self.read_one_block()
-            block_count += 1
 
             if name in results:
                 results[name].append(data)

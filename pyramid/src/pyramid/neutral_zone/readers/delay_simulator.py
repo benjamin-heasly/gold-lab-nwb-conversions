@@ -12,8 +12,8 @@ class DelaySimulatorReader(Reader):
     def __init__(self, reader: Reader) -> None:
         self.reader = reader
         self.stashed_result = None
-        self.latest_result_time_ever = 0.0
         self.stash_until = None
+        self.start_time = None
 
     def __eq__(self, other: object) -> bool:
         """Compare readers field-wise, to support use of this class in tests."""
@@ -23,6 +23,7 @@ class DelaySimulatorReader(Reader):
             return False
 
     def __enter__(self) -> Self:
+        self.start_time = time.time()
         return self.reader.__enter__()
 
     def __exit__(
@@ -46,9 +47,7 @@ class DelaySimulatorReader(Reader):
         next_result = self.reader.read_next()
         if next_result:
             latest_result_time = max([result.get_end_time() for result in next_result.values()])
-            delay = latest_result_time - self.latest_result_time_ever
-            self.latest_result_time_ever = latest_result_time
-            self.stash_until = time.time() + delay
+            self.stash_until = self.start_time + latest_result_time
             self.stashed_result = next_result
 
     def get_initial(self) -> dict[str, BufferData]:

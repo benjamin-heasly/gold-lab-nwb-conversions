@@ -47,7 +47,7 @@ def test_default_to_all_channels(fixture_path):
 
 def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
-    with PlexonPlxReader(plx_file, blocks_per_read=1) as reader:
+    with PlexonPlxReader(plx_file, seconds_per_read=0) as reader:
 
         # The first result should be the "Start" event.
         next = reader.read_next()
@@ -158,27 +158,23 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
         assert reader.raw_reader.block_count == 52084
 
 
-def test_read_whole_plx_file_many_blocks_at_a_time(fixture_path):
+def test_read_whole_plx_file_several_seconds_at_a_time(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
 
-    # Stride through the file 10000 data blocks at a time.
-    with PlexonPlxReader(plx_file, blocks_per_read=10000) as reader:
+    # Stride through the file roughly 4 seconds at a time.
+    with PlexonPlxReader(plx_file, seconds_per_read=4.0) as reader:
         # The first result should contain the "Start" event.
         next = reader.read_next()
-        assert reader.raw_reader.block_count == 10000
+        assert reader.raw_reader.block_count == 12692
         assert next["Start"] == NumericEventList(np.array([[0.0, 0.0]]))
 
+        # 4 more seconds.
         next = reader.read_next()
-        assert reader.raw_reader.block_count == 20000
+        assert reader.raw_reader.block_count == 26623
 
+        # 4 more seconds.
         next = reader.read_next()
-        assert reader.raw_reader.block_count == 30000
-
-        next = reader.read_next()
-        assert reader.raw_reader.block_count == 40000
-
-        next = reader.read_next()
-        assert reader.raw_reader.block_count == 50000
+        assert reader.raw_reader.block_count == 39860
 
         # The sample files should have 52084 blocks total.
         next = reader.read_next()

@@ -161,6 +161,7 @@ class PyramidContext():
                     next_gui_update += plot_update_period
 
                 got_start_data = self.start_router.route_next()
+
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for new_trial in new_trials:
@@ -316,13 +317,11 @@ def configure_readers(
                 reader_buffers[route.buffer_name] = Buffer(data_copy)
 
         # Create a router to route data from the reader along each configured route to its buffer.
-        read_ahead = reader_config.get("read_ahead", 0.0)
         empty_reads_allowed = reader_config.get("empty_reads_allowed", 3)
         router = ReaderRouter(
             reader=reader,
             routes=list(named_routes.values()),
             buffers=reader_buffers,
-            read_ahead=read_ahead,
             empty_reads_allowed=empty_reads_allowed
         )
         routers.append(router)
