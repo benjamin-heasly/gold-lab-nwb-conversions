@@ -192,13 +192,15 @@ class PyramidContext():
                 writer.append_trial(last_trial)
                 self.plot_figure_controller.plot_next(last_trial, self.trial_delimiter.trial_count)
 
-    # TODO: add named reader ports for each route/results_key
     def to_graphviz(self, graph_name: str, out_file: str):
         dot = graphviz.Digraph(
             name=graph_name,
             graph_attr={
                 "rankdir": "LR",
-                "label": graph_name
+                "label": graph_name,
+                "splines": "false",
+                "overlap": "scale",
+                "ranksep": "3.0"
             }
         )
 
@@ -206,6 +208,9 @@ class PyramidContext():
 
         for name, reader in self.readers.items():
             label = f"{name}|{reader.__class__.__name__}"
+            for results_key in reader.get_initial().keys():
+                label += f"|<{results_key}>{results_key}"
+
             dot.node(name=name, label=label, shape="record")
             for router in self.routers:
                 if router.reader is reader:
@@ -231,8 +236,8 @@ class PyramidContext():
                     route_label = "as is"
                 dot.node(name=route_name, label=route_label, shape="record")
 
-                dot.edge(reader_name, route_name, label=route.results_key)
-                dot.edge(route_name, route.buffer_name)
+                dot.edge(f"{reader_name}:{route.results_key}:e", f"{route_name}:w")
+                dot.edge(f"{route_name}:e", f"{route.buffer_name}:w")
 
         dot.node(
             name="trial_delimiter",
