@@ -201,15 +201,29 @@ class PyramidContext():
                 "splines": "false",
                 "overlap": "scale",
                 "ranksep": "3.0"
+            },
+            node_attr={
+                "penwidth": "2.0"
+            },
+            edge_attr={
+                "penwidth": "2.0"
             }
         )
 
         named_routers = {}
+        results_styles = {}
 
-        for name, reader in self.readers.items():
+        for reader_index, (name, reader) in enumerate(self.readers.items()):
             label = f"{name}|{reader.__class__.__name__}"
-            for results_key in reader.get_initial().keys():
+            for result_index, results_key in enumerate(reader.get_initial().keys()):
                 label += f"|<{results_key}>{results_key}"
+                style_index = (reader_index + result_index) % 3
+                if style_index == 2:
+                    results_styles[results_key] = {"color": '#648FFF'}
+                elif style_index == 1:
+                    results_styles[results_key] = {"color": '#DC267F'}
+                else:
+                    results_styles[results_key] = {"color": '#FFB000'}
 
             dot.node(name=name, label=label, shape="record")
             for router in self.routers:
@@ -220,24 +234,25 @@ class PyramidContext():
         wrt_buffer_name = None
         for name, buffer in self.named_buffers.items():
             label = f"{name}|{buffer.__class__.__name__}|{buffer.data.__class__.__name__}"
-            dot.node(name=name, label=label, shape="record")
+            buffer_style = results_styles.get(name, {})
+            dot.node(name=name, label=label, shape="record", **buffer_style)
             if buffer is self.trial_delimiter.start_buffer:
                 start_buffer_name = name
             if buffer is self.trial_extractor.wrt_buffer:
                 wrt_buffer_name = name
 
         for reader_name, router in named_routers.items():
-            for index, route in enumerate(router.routes):
-                route_name = f"{reader_name}_route_{index}"
+            for result_index, route in enumerate(router.routes):
+                route_name = f"{reader_name}_route_{result_index}"
                 if route.transformers:
                     labels = [transformer.__class__.__name__ for transformer in route.transformers]
                     route_label = "|".join(labels)
                 else:
                     route_label = "as is"
-                dot.node(name=route_name, label=route_label, shape="record")
+                dot.node(name=route_name, label=route_label, shape="record", **results_styles[route.results_key])
 
-                dot.edge(f"{reader_name}:{route.results_key}:e", f"{route_name}:w")
-                dot.edge(f"{route_name}:e", f"{route.buffer_name}:w")
+                dot.edge(f"{reader_name}:{route.results_key}:e", f"{route_name}:w", **results_styles[route.results_key])
+                dot.edge(f"{route_name}:e", f"{route.buffer_name}:w", **results_styles[route.results_key])
 
         dot.node(
             name="trial_delimiter",

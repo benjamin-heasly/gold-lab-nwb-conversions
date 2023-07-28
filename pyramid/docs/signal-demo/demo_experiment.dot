@@ -1,15 +1,17 @@
 digraph demo_experiment {
 	graph [label=demo_experiment overlap=scale rankdir=LR ranksep=3.0 splines=false]
+	node [penwidth=2.0]
+	edge [penwidth=2.0]
 	delimiter_reader [label="delimiter_reader|CsvNumericEventReader|<delimiter>delimiter" shape=record]
 	signal_reader [label="signal_reader|CsvSignalReader|<sine_signal>sine_signal" shape=record]
-	delimiter [label="delimiter|Buffer|NumericEventList" shape=record]
-	sine_signal [label="sine_signal|Buffer|SignalChunk" shape=record]
-	delimiter_reader_route_0 [label="as is" shape=record]
-	delimiter_reader:delimiter:e -> delimiter_reader_route_0:w
-	delimiter_reader_route_0:e -> delimiter:w
-	signal_reader_route_0 [label="as is" shape=record]
-	signal_reader:sine_signal:e -> signal_reader_route_0:w
-	signal_reader_route_0:e -> sine_signal:w
+	delimiter [label="delimiter|Buffer|NumericEventList" color="#FFB000" shape=record]
+	sine_signal [label="sine_signal|Buffer|SignalChunk" color="#DC267F" shape=record]
+	delimiter_reader_route_0 [label="as is" color="#FFB000" shape=record]
+	delimiter_reader:delimiter:e -> delimiter_reader_route_0:w [color="#FFB000"]
+	delimiter_reader_route_0:e -> delimiter:w [color="#FFB000"]
+	signal_reader_route_0 [label="as is" color="#DC267F" shape=record]
+	signal_reader:sine_signal:e -> signal_reader_route_0:w [color="#DC267F"]
+	signal_reader_route_0:e -> sine_signal:w [color="#DC267F"]
 	trial_delimiter [label="TrialDelimiter|start = 1010" shape=record]
 	delimiter -> trial_delimiter [label=start arrowhead=none arrowtail=none]
 	trial_extractor [label="TrialExtractor|wrt = 42" shape=record]
