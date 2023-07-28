@@ -13,8 +13,9 @@ Note the path of the file you want to use, for example,
 ```
 
 Pyramid will read several event, spike event, and analog signal channels from the file.
-By default it will read all of them, though this can be configured in the [demo_experiment.yaml](demo_experiment.yaml) (TODO).
-It will delimit trials based on the "Strobed" event channel, using value 1005 to delimit trials and 1010 as the trial wrt event.
+The channels to read, and what to call them in the trial file, can be configured in the [demo_experiment.yaml](demo_experiment.yaml).
+This example will read `all` spike channels (`all` is the default) and selected event and signal channels. 
+It will delimit trials based on the `Strobed` event channel, using value `1005` to delimit trials and `1010` as the trial wrt event.
 These values are also configurable in the YAML.
 
 
