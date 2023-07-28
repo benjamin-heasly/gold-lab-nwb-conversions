@@ -1,4 +1,4 @@
-# Signals Demo
+# Plexon .plx Demo
 
 Here's a demo / example of Pyramid with a Plexon .plx file.
 
