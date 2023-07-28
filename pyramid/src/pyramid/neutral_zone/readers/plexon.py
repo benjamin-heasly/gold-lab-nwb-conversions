@@ -464,7 +464,9 @@ class PlexonPlxReader(Reader):
             raise StopIteration
 
         # Otherwise, return at least some results.
-        results = {name: data}
+        results = {}
+        if name != "skip":
+            results[name] = data
         first_data_time = data.get_end_time()
         while data.get_end_time() - first_data_time < self.seconds_per_read and name is not None:
             (name, data) = self.read_one_block()
@@ -485,10 +487,10 @@ class PlexonPlxReader(Reader):
         block_type = block['type']
         if block_type == 1:
             # Block has one spike event with timestamp, channel, and unit.
-            return self.block_event(block)
+            return self.block_spike_event(block)
         elif block_type == 4:
             # Block has one other event with timestamp, value.
-            return self.block_spike_event(block)
+            return self.block_event(block)
         elif block_type == 5:
             # Block has a waveform signal chunk.
             return self.block_signal_chunk(block)
@@ -496,15 +498,15 @@ class PlexonPlxReader(Reader):
             logging.warning(f"Ignoring block of unknown type {block_type}.")
             return (None, None)
 
-    def block_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
+    def block_spike_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         channel_id = block['channel']
         name = self.spike_channel_names.get(channel_id, "skip")
         event_list = NumericEventList(np.array([[block['timestamp_seconds'], channel_id, block['unit']]]))
         return (name, event_list)
 
-    def block_spike_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
+    def block_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         channel_id = block['channel']
-        name = self.event_channel_names.get(channel_id, None)
+        name = self.event_channel_names.get(channel_id, "skip")
         event_list = NumericEventList(np.array([[block['timestamp_seconds'], block['unit']]]))
         return (name, event_list)
 

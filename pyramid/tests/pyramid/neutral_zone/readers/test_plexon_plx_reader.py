@@ -159,7 +159,7 @@ def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
 def test_read_whole_plx_file_several_seconds_at_a_time(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
 
-    # Stride through the file roughly 4 seconds at a time.
+    # Read through the file roughly 4 seconds at a time.
     with PlexonPlxReader(plx_file, seconds_per_read=4.0) as reader:
         # The first result should contain the "Start" event.
         next = reader.read_next()
@@ -204,4 +204,52 @@ def test_profile_read_whole_plx_file(fixture_path):
             stats.print_stats()
 
 
-# TODO: test selecting specific channels to keep: report in get_initial and ignore non-keep during read_next.
+def test_read_whole_plx_file_aliased_channels_only(fixture_path):
+
+    plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
+    spikes = {"SPK03": "my_spikes"}
+    events = {
+        "Start": "my_start_event",
+        "Stop": "my_stop_event"
+        }
+    signals = {"FP07": "my_signal"}
+    expected_names = {*spikes.values(), *events.values(), *signals.values()}
+
+    # Read through the file roughly 4 seconds at a time.
+    with PlexonPlxReader(plx_file, spikes=spikes, events=events, signals=signals, seconds_per_read=4.0) as reader:
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 12692
+
+        # Only selected, aliased data names should be returned.
+        for name in next.keys():
+            assert name in expected_names
+
+        # The first result should contain the aliased "Start" event.
+        assert next["my_start_event"] == NumericEventList(np.array([[0.0, 0.0]]))
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 26623
+        for name in next.keys():
+            assert name in expected_names
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 39860
+        for name in next.keys():
+            assert name in expected_names
+
+        next = reader.read_next()
+        assert reader.raw_reader.block_count == 52084
+        for name in next.keys():
+            assert name in expected_names
+
+        # The last result should contain the aliased "Stop" event.
+        assert next["my_stop_event"] == NumericEventList(np.array([[16.12205, 0.0]]))
+
+        # Now the reader should tell us to stop iterating.
+        with raises(StopIteration) as exception_info:
+            reader.read_next()
+        assert exception_info.errisinstance(StopIteration)
+
+        # Calling read_next() and getting StopIteration should do nothing.
+        assert reader.raw_reader.block_count == 52084
