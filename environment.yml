@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python=3.11
   - pip=23.0.1
+  - h5py=3.8.0
   - pynwb=2.3.2
   - python-graphviz=0.20.1
   - pip:

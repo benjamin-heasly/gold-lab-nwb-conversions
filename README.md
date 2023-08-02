@@ -1,42 +1,31 @@
 # gold-lab-nwb-conversions
 Scripts and pipeline definitions for ecephys, sorting, and behavior conversions to nwb
 
-# WIP
-Collecting some startup syntax here, while I bootstrap this repo.
+# Conda environment setup
+We have a [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) environment called `gold_nwb` defined here in `environment.yml`.  If you create this environment locally and activate it, you should be all set to work with the projects here in this repo, including Jupyter notebooks, Pyramid, etc.
 
-[Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
+Here are some commands for setting up the Conda environment.
 
 ```
+# get this repo
 git clone https://github.com/benjamin-heasly/gold-lab-nwb-conversions
 cd gold-lab-nwb-conversions
 
-# this can be slow
+# create a fresh environment -- can take several minutes
 conda env create -f environment.yml
 
-# this is useful as I learn and capture dependencies better
+# if the environment definition has changed, you can update your environment
 conda env update -f environment.yml --prune
 
-# this is also useful sometimes
-conda remoev -n gold_nwb --all
+# you can also delete the environment and start fresh
+conda remove -n gold_nwb --all
 
-# then we can start using the environment
-# DON'T FORGET TO ACTIVATE THE ENVIRONMENT :-)
+# don't forget to ACTIVATE the environment before trying to use stuff
 conda activate gold_nwb
-
-jupyter notebook
-# browse to nwb_panel.ipynb
-# open local .nwb file like MM_2022_08_05_Rec-tentative-3units.nwb
-# runs OK for now
 ```
 
-At the moment pyneo 0.12.0, which reads Plexon files for us, eats so much memory it crushes my laptop (10+ GB of memory for a 1.1 GB file!).
-I submitted a PR to reduce this, which they accepted.
-When pyneo 0.12.1 is available, we can just update environment.yml to use that version.
-In the meantime, I'll manually replace 0.12.0 with the latest from git
-
-    # https://github.com/NeuralEnsemble/python-neo.git
-
 # Related
+Here are a few related repos that we've been working on for the Gold lab.
 
 ## this repo
 

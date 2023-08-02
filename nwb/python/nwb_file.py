@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+import datetime
 
 from pynwb import NWBHDF5IO, NWBFile
 from pynwb.file import Subject
@@ -10,7 +10,7 @@ def create(
     subject_info: dict[str, str],
     session_id: str,
     nwb_identifier: str = str(uuid.uuid4()),
-    session_start_time: datetime = datetime.utcnow(),
+    session_start_time: datetime = datetime.datetime.now(datetime.timezone.utc),
     session_description: str = None
 ) -> NWBFile:
     """ Create a new NWB file to represent a recording session.
