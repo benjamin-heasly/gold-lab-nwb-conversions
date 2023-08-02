@@ -1,83 +1,128 @@
 from pathlib import Path
-import json
-
 import numpy as np
+from pytest import raises
 
 from pyramid.model.events import NumericEventList
+from pyramid.model.signals import SignalChunk
 from pyramid.trials.trials import Trial
-from pyramid.trials.trial_file import TrialFileWriter
+from pyramid.trials.trial_file import TrialFile, JsonTrialFile
 
 
-def test_no_writing(tmp_path):
-    trial_file = Path(tmp_path, 'empty_trial_file.py').as_posix()
-    with TrialFileWriter(trial_file) as writer:
-        pass
-    assert writer.file_stream is None
+sample_numeric_events = {
+    "empty": NumericEventList(event_data=np.empty([0, 2])),
+    "simple": NumericEventList(event_data=np.array([[0.1, 0], [0.2, 1], [0.3, 0]])),
+    "complex": NumericEventList(event_data=np.array([[0.1, 0, 42.42], [0.2, 1, 42.42], [0.3, 0, 43.43]]))
+}
 
-    with open(trial_file) as f:
-        empty_trials = json.load(f)
-    assert empty_trials == []
+sample_signals = {
+    "empty": SignalChunk(
+        sample_data=np.empty([0, 2]),
+        sample_frequency=1,
+        first_sample_time=0,
+        channel_ids=["q", "r"]
+    ),
+    "simple": SignalChunk(
+        sample_data=np.array([[0], [1], [2], [3], [0], [5]]),
+        sample_frequency=10,
+        first_sample_time=0.1,
+        channel_ids=["x"]
+    ),
+    "complex": SignalChunk(
+        sample_data=np.array([[0, 10, 100], [1, 11, 100.1], [2, 12, 100.2], [3, 13, 100.3], [0, 10, 100], [5, 15, 100.5]]),
+        sample_frequency=100,
+        first_sample_time=-0.5,
+        channel_ids=["a", "b", "c"]
+    )
+}
 
-
-def test_write_empty(tmp_path):
-    trial_file = Path(tmp_path, 'empty_trial_file.py').as_posix()
-    with TrialFileWriter(trial_file) as writer:
-        pass
-    assert writer.file_stream is None
-
-    with open(trial_file) as f:
-        empty_trials = json.load(f)
-    assert empty_trials == []
-
+sample_enhancements = {
+    "string": "I'm a string.",
+    "int": 42,
+    "float": 1.11,
+    "empty_dict": {},
+    "empty_list": [],
+    "dict": {"a": 1, "b":2},
+    "list": ["a", 1, "b", 2]
+}
 
 sample_trials = [
     Trial(
         start_time=0,
         end_time=1.0,
-        wrt_time=0.0,
-        numeric_events={
-            "foo": NumericEventList(np.array([[0.2, 0]])),
-            "bar": NumericEventList(np.array([[0.1, 1]]))
-        }
+        wrt_time=0.0
     ),
     Trial(
         start_time=1.0,
         end_time=2.0,
         wrt_time=1.5,
-        numeric_events={
-            "foo": NumericEventList(np.array([[1.2 - 1.5, 0], [1.3 - 1.5, 1]])),
-            "bar": NumericEventList(np.empty([0, 2]))
-        }
+        numeric_events=sample_numeric_events
     ),
     Trial(
         start_time=2.0,
         end_time=3.0,
         wrt_time=2.5,
-        numeric_events={
-            "foo": NumericEventList(np.array([[2.2 - 2.5, 0], [2.3 - 2.5, 1]])),
-            "bar": NumericEventList(np.empty([0, 2]))
-        }
+        signals=sample_signals
     ),
     Trial(
         start_time=3.0,
-        end_time=None,
+        end_time=4.0,
         wrt_time=3.5,
-        numeric_events={
-            "foo": NumericEventList(np.empty([0, 2])),
-            "bar": NumericEventList(np.array([[3.1 - 3.5, 0]]))
-        }
+        enhancements=sample_enhancements
+    ),
+    Trial(
+        start_time=4.0,
+        end_time=5.0,
+        wrt_time=4.5,
+        numeric_events=sample_numeric_events,
+        signals=sample_signals,
+        enhancements=sample_enhancements
     )
 ]
 
 
-def test_write_trials_incrementally(tmp_path):
-    trial_file = Path(tmp_path, 'trial_file.py').as_posix()
-    with TrialFileWriter(trial_file) as writer:
-        for trial in sample_trials:
-            writer.append_trial(trial)
-    assert writer.file_stream is None
+def test_for_file_suffix():
+    assert isinstance(TrialFile.for_file_suffix("trial_file.json"), JsonTrialFile)
+    assert isinstance(TrialFile.for_file_suffix("trial_file.jsonl"), JsonTrialFile)
 
-    with open(trial_file) as f:
-        trials_interop = json.load(f)
-        sample_trials_2 = [Trial.from_interop(trial_interop) for trial_interop in trials_interop]
-    assert sample_trials_2 == sample_trials
+    with raises(NotImplementedError) as exception_info:
+        TrialFile.for_file_suffix("trial_file.noway")
+    assert exception_info.errisinstance(NotImplementedError)
+    assert "Unsupported trial file suffix: .noway" in exception_info.value.args
+
+
+def test_json_empty_trial_file(tmp_path):
+    file_path = Path(tmp_path, 'trial_file.json')
+    assert not file_path.exists()
+
+    with JsonTrialFile(file_path) as trial_file:
+        assert file_path.exists()
+        trials = [trial for trial in trial_file.read_trials()]
+
+    assert len(trials) == 0
+
+
+def test_json_sample_trials(tmp_path):
+    file_path = Path(tmp_path, 'trial_file.json')
+    assert not file_path.exists()
+
+    with JsonTrialFile(file_path) as trial_file:
+        assert file_path.exists()
+        for sample_trial in sample_trials:
+            trial_file.append_trial(sample_trial)
+
+        trials = [trial for trial in trial_file.read_trials()]
+
+    assert trials == sample_trials
+
+
+def test_json_interleave_write_and_read(tmp_path):
+    file_path = Path(tmp_path, 'trial_file.json')
+    assert not file_path.exists()
+
+    with JsonTrialFile(file_path) as trial_file:
+        assert file_path.exists()
+        for sample_trial in sample_trials:
+            trial_file.append_trial(sample_trial)
+            trials = [trial for trial in trial_file.read_trials()]
+            assert trials[0] == sample_trials[0]
+            assert trials[-1] == sample_trial

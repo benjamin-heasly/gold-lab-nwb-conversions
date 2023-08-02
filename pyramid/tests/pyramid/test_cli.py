@@ -245,10 +245,10 @@ def test_convert(fixture_path, tmp_path):
     assert exit_code == 0
 
     with open(trial_file) as f:
-        trials = json.load(f)
+        trials = [json.loads(trial_line) for trial_line in f]
 
-    expected_trial_file = Path(fixture_path, "expected_trial_file.json")
-    with open(expected_trial_file) as f:
+    expected_trial_list = Path(fixture_path, "expected_trial_list.json")
+    with open(expected_trial_list) as f:
         expected_trials = json.load(f)
 
     assert trials == expected_trials
@@ -274,7 +274,7 @@ def test_convert_error(tmp_path):
     assert exit_code == 2
 
     with open(trial_file) as f:
-        trials = json.load(f)
+        trials = [json.loads(trial_line) for trial_line in f]
 
     assert trials == []
 

@@ -41,33 +41,12 @@ class DynamicImport():
         return instance
 
 
-class InteropData():
-    """Utility methods to convert instances to and from standard types, for interop with other environments.
-
-    The goal of this is to be able to read and write instances of InteropData classes as JSON, or similar,
-    for sharing with other environments, like Matlab.  Automatic, field-by-field serializers would expose
-    implementation details that don't make sense in other environments, for example numpy array internals
-    that make no sense in Matlab.  To avoid this, InteropData instances must convert themselves to and
-    from standard types that can be represented in interoperable formats like JSON, using typical types
-    types like int, float, str, dict, and list.
-    """
-
-    def to_interop(self) -> Any:
-        """Convert this instance to a standard types / collections like int, float, str, dict, or list."""
-        raise NotImplemented  # pragma: no cover
-
-    @classmethod
-    def from_interop(cls, interop) -> Self:
-        """Create a new instance of this class from standard types / collections, as from to_interop()"""
-        raise NotImplemented  # pragma: no cover
-
-
-class BufferData(InteropData):
+class BufferData():
     """An interface to tell us what Pyramid data types must have in common in order to flow from Reader to Trial."""
 
     def copy(self) -> Self:
         """Create a new, independent copy of the data -- allows reusing raw data along multuple routes/buffers."""
-        raise NotImplemented  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     def copy_time_range(self, start_time: float = None, end_time: float = None) -> Self:
         """Copy subset of data in half-open interval [start_time, end_time) -- allows selecting data into trials.
@@ -75,23 +54,23 @@ class BufferData(InteropData):
         Omit start_time to copy all events strictly before end_time.
         Omit end_time to copy all events at and after start_time.
         """
-        raise NotImplemented  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     def append(self, other: Self) -> None:
         """Append data from the given object to this object, in place -- this is the main buffering operation."""
-        raise NotImplemented  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     def discard_before(self, start_time: float) -> None:
         """Discard data strictly before the given start_time -- to prevent buffers from consuming unlimited memory."""
-        raise NotImplemented  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     def shift_times(self, shift: float) -> None:
         """Shift data times, in place -- allows allows Trial "wrt" alignment and Reader clock adjustments."""
-        raise NotImplemented  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     def get_end_time(self) -> float:
         """Report the time of the latest data item still in the buffer."""
-        raise NotImplemented  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
 
 class Buffer():

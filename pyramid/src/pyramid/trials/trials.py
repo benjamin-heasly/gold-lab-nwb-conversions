@@ -2,13 +2,13 @@ from typing import Any, Self
 from dataclasses import dataclass, field
 import logging
 
-from pyramid.model.model import DynamicImport, InteropData, Buffer, BufferData
+from pyramid.model.model import DynamicImport, Buffer, BufferData
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 
 
 @dataclass
-class Trial(InteropData):
+class Trial():
     """A delimited part of the timeline with named event, signal, and computed data from the same time range."""
 
     start_time: float
@@ -28,48 +28,6 @@ class Trial(InteropData):
 
     enhancements: dict[str, Any] = field(default_factory=dict)
     """Named arbitrary values to save along with the trial."""
-
-    def to_interop(self) -> Any:
-        interop = {
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "wrt_time": self.wrt_time
-        }
-
-        if self.numeric_events:
-            interop["numeric_events"] = {
-                name: event_list.to_interop() for name, event_list in self.numeric_events.items()
-            }
-
-        if self.signals:
-            interop["signals"] = {
-                name: signal_chunk.to_interop() for name, signal_chunk in self.signals.items()
-            }
-
-        if self.enhancements:
-            interop["enhancements"] = self.enhancements
-
-        return interop
-
-    @classmethod
-    def from_interop(cls, interop) -> Self:
-        numeric_events = {
-            name: NumericEventList.from_interop(event_data)
-            for name, event_data in interop.get("numeric_events", {}).items()
-        }
-        signals = {
-            name: SignalChunk.from_interop(sample_data)
-            for name, sample_data in interop.get("signals", {}).items()
-        }
-        trial = Trial(
-            start_time=interop["start_time"],
-            end_time=interop["end_time"],
-            wrt_time=interop["wrt_time"],
-            numeric_events=numeric_events,
-            signals=signals,
-            enhancements=interop.get("enhancements", {})
-        )
-        return trial
 
     def add_buffer_data(self, name: str, data: BufferData) -> bool:
         """Add named data to this trial, of a specific buffer data type that requires conversion before writing."""
@@ -165,7 +123,7 @@ class TrialEnhancer(DynamicImport):
         """Return a dict of name-value pairs to add to the given trial.
 
         The returned dict will be added to the trial's "enhancements" field along with results from other TrialEnhancers.
-        The dict values must be standard, interoperable data types like int, float or string or lists and dicts of these types.
+        The dict values must be standard, portable data types like int, float, or string, or lists and dicts of these types.
         Other data types might not survive being written to or read from the trial file.
         """
         raise NotImplementedError  # pragma: no cover

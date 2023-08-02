@@ -70,16 +70,6 @@ class NumericEventList(BufferData):
         else:
             return None
 
-    def to_interop(self) -> Any:
-        """Implementing InteropData superclass."""
-        return self.event_data.tolist()
-
-    @classmethod
-    def from_interop(cls, interop) -> Self:
-        """Implementing InteropData superclass."""
-        event_data = np.array(interop)
-        return cls(event_data)
-
     def get_times_of(
         self,
         event_value: float,

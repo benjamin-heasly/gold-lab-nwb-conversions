@@ -9,108 +9,6 @@ from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor, TrialEn
 from pyramid.trials.standard_enhancers import TrialDurationEnhancer
 
 
-def test_trial_interop_no_data():
-    start_time = 0
-    end_time = 100
-    wrt_time = 50
-    trial = Trial(start_time, end_time, wrt_time)
-
-    assert not trial.add_buffer_data("ignored type", {})
-
-    interop = trial.to_interop()
-    assert "numeric_events" not in interop.keys()
-    assert "signals" not in interop.keys()
-    assert "enhancements" not in interop.keys()
-
-    trial_2 = Trial.from_interop(interop)
-    assert trial_2 == trial
-
-    interop_2 = trial_2.to_interop()
-    assert interop_2 == interop
-
-
-def test_trial_interop_with_numeric_events():
-    start_time = 0
-    end_time = 100
-    wrt_time = 50
-    trial = Trial(start_time, end_time, wrt_time)
-
-    foo_events = NumericEventList(np.array([[t, 10*t] for t in range(100)]))
-    assert trial.add_buffer_data("foo", foo_events)
-
-    bar_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))
-    assert trial.add_buffer_data("bar", bar_events)
-
-    empty_events = NumericEventList(np.empty([0, 2]))
-    assert trial.add_buffer_data("empty", empty_events)
-
-    interop = trial.to_interop()
-    assert "numeric_events" in interop.keys()
-    assert "signals" not in interop.keys()
-    assert "enhancements" not in interop.keys()
-
-    trial_2 = Trial.from_interop(interop)
-    assert trial_2 == trial
-
-    interop_2 = trial_2.to_interop()
-    assert interop_2 == interop
-
-def test_trial_interop_with_signals():
-    start_time = 0
-    end_time = 100
-    wrt_time = 50
-    trial = Trial(start_time, end_time, wrt_time)
-
-    sample_data = np.array([[v, 10*v] for v in range(100)])
-    foo_signal = SignalChunk(sample_data, sample_frequency=10, first_sample_time=0, channel_ids=["a", "b"])
-    assert trial.add_buffer_data("foo", foo_signal)
-
-    empty_signal = SignalChunk(np.empty([0, 2]), sample_frequency=10, first_sample_time=0, channel_ids=["c", "d"])
-    assert trial.add_buffer_data("empty", empty_signal)
-
-    interop = trial.to_interop()
-    assert "numeric_events" not in interop.keys()
-    assert "signals" in interop.keys()
-    assert "enhancements" not in interop.keys()
-
-    trial_2 = Trial.from_interop(interop)
-    assert trial_2 == trial
-
-    interop_2 = trial_2.to_interop()
-    assert interop_2 == interop
-
-
-def test_trial_interop_with_enhancements():
-    start_time = 0
-    end_time = 100
-    wrt_time = 50
-    trial = Trial(start_time, end_time, wrt_time)
-
-    assert trial.add_enhancement("string", "I'm a string")
-    assert trial.add_enhancement("int", 42)
-    assert trial.add_enhancement("float", 1.11)
-    assert trial.add_enhancement("empty_dict", {})
-    assert trial.add_enhancement("empty_list", [])
-    assert trial.add_enhancement("dict", {"a": 1, "b": "2"})
-    assert trial.add_enhancement("list", ["a", 1, "b", "2"])
-
-    # if an "enhancement" is a buffer data type, add it to the corresponding typed field.
-    sample_data = np.array([[v, 10*v] for v in range(100)])
-    foo_signal = SignalChunk(sample_data, sample_frequency=10, first_sample_time=0, channel_ids=["a", "b"])
-    assert trial.add_enhancement("buffer_data", foo_signal)
-
-    interop = trial.to_interop()
-    assert "numeric_events" not in interop.keys()
-    assert "signals" in interop.keys()
-    assert "enhancements" in interop.keys()
-
-    trial_2 = Trial.from_interop(interop)
-    assert trial_2 == trial
-
-    interop_2 = trial_2.to_interop()
-    assert interop_2 == interop
-
-
 class FakeNumericEventReader(Reader):
 
     def __init__(self, script=[]) -> None:
@@ -506,6 +404,7 @@ def test_populate_trials_from_shared_buffers():
 
 class DurationPlusTrialCount(TrialEnhancer):
     """Nonsense calculation just to test enhancement ordering and passed-in data."""
+
     def enhance(
         self,
         trial: Trial,
@@ -522,6 +421,7 @@ class DurationPlusTrialCount(TrialEnhancer):
 
 class BadEnhancer(TrialEnhancer):
     """Nonsense enhancer that always errors."""
+
     def enhance(
         self,
         trial: Trial,
@@ -624,3 +524,49 @@ def test_enhance_trials():
             "duration_plus_trial_count": None
         }
     )
+
+
+def test_add_buffer_data():
+    event_list = NumericEventList(np.array([[0, 0]]))
+    signal_chunk = SignalChunk(
+        sample_data=NumericEventList(np.array([[0, 0], [1, 1]])),
+        sample_frequency=1.0,
+        first_sample_time=0.0,
+        channel_ids=["a", "b"]
+    )
+
+    trial = Trial(start_time=0.0, end_time=1.0)
+
+    # Buffer data should be added by name and type.
+    assert trial.add_buffer_data("events", event_list)
+    assert trial.add_buffer_data("signal", signal_chunk)
+
+    # Buffer data must be a BufferData type.
+    assert not trial.add_buffer_data("int", 42)
+    assert not trial.add_buffer_data("string", "a string!")
+
+    # Enhancements should be added by name.
+    assert trial.add_enhancement("int", 42)
+    assert trial.add_enhancement("string", "a string!")
+
+    # Enhancements that are a BufferData type should be added by name and type.
+    assert trial.add_enhancement("events_2", event_list)
+    assert trial.add_enhancement("signal_2", signal_chunk)
+
+    expected_trial = Trial(
+        start_time=0.0,
+        end_time=1.0,
+        numeric_events={
+            "events": event_list,
+            "events_2": event_list
+        },
+        signals={
+            "signal": signal_chunk,
+            "signal_2": signal_chunk
+        },
+        enhancements={
+            "int": 42,
+            "string": "a string!"
+        }
+    )
+    assert trial == expected_trial

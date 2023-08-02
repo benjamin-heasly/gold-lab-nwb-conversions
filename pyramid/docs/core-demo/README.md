@@ -150,20 +150,14 @@ Let's look at the trial file to see if it matches our expectations from above.
 For this demo the trial file is not very long, and it looks like this (mildly formatted here for clarity):
 
 ```
-[
-{"start_time": 0.0, "end_time": 1.0, "wrt_time": 0.0,
-  "numeric_events": {"foo": [[0.2, 0.0]], "bar": [[0.1, 1.0]], "bar_2": [[0.1, -22.0]]}},
-{"start_time": 1.0, "end_time": 2.0, "wrt_time": 1.5,
-  "numeric_events": {"foo": [[-0.3, 0.0], [-0.2, 1.0]], "bar": [], "bar_2": []}},
-{"start_time": 2.0, "end_time": 3.0, "wrt_time": 2.5,
-  "numeric_events": {"foo": [[-0.3, 0.0], [-0.2, 1.0]], "bar": [], "bar_2": []}},
-{"start_time": 3.0, "end_time": null, "wrt_time": 3.5,
-  "numeric_events": {"foo": [], "bar": [[-0.4, 0.0]], "bar_2": [[-0.4, -20.0]]}}
-]
+{"start_time": 0.0, "end_time": 1.0, "wrt_time": 0.0, "numeric_events": {"foo": [[0.2, 0.0]], "bar": [[0.1, 1.0]], "bar_2": [[0.1, -22.0]]}},
+{"start_time": 1.0, "end_time": 2.0, "wrt_time": 1.5, "numeric_events": {"foo": [[-0.3, 0.0], [-0.2, 1.0]], "bar": [], "bar_2": []}},
+{"start_time": 2.0, "end_time": 3.0, "wrt_time": 2.5, "numeric_events": {"foo": [[-0.3, 0.0], [-0.2, 1.0]], "bar": [], "bar_2": []}},
+{"start_time": 3.0, "end_time": null, "wrt_time": 3.5, "numeric_events": {"foo": [], "bar": [[-0.4, 0.0]], "bar_2": [[-0.4, -20.0]]}}
 ```
 
 Each trial found during the `convert` run is written to its own line in the trial file.
-In addition, the whole trial file is a valid JSON array of trial objects.
+As a whole, the file uses the [JSON Lines](https://jsonlines.org/) convention where each line of the file is a valid JSON object.
 
 We got 4 trials as expected, delimited by start and end times that fall on whole-numbered seconds.
 Each trial has a wrt time that falls between the start and end.
@@ -195,6 +189,9 @@ This is because Pyramid is simulating the delay between trial "start" event time
 Delay simulation is optional for demo purposes and only happens if a reader's YAML contains `simulate_delay: True`.
 
 ## loading data in Matlab
+
+TODO: revisit loading after change to JSON lines
+TODO: revisit loading with HDF5!
 
 Since the trial file is JSON, it should be readable in a variety of environments, not just Pyramid or Python.
 Here's Matlab example for reading a trial file into a struct.

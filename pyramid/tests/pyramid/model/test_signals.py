@@ -179,24 +179,6 @@ def test_signal_chunk_copy_time_range():
     assert np.array_equal(signal_chunk.get_channel_values("a"), np.array(range(100)))
 
 
-def test_signal_chunk_interop():
-    sample_count = 100
-    raw_data = [[v, 10 + v, 10 * v] for v in range(sample_count)]
-    signal_chunk = SignalChunk(
-        np.array(raw_data),
-        10,
-        0,
-        ["a", "b", "c"]
-    )
-
-    interop = signal_chunk.to_interop()
-    signal_chunk_2 = SignalChunk.from_interop(interop)
-    assert signal_chunk_2 == signal_chunk
-
-    interop_2 = signal_chunk_2.to_interop()
-    assert interop_2 == interop
-
-
 def test_signal_chunk_equality():
     foo_chunk = SignalChunk(
         np.array([[v, 10 + v, 10 * v] for v in range(100)]),

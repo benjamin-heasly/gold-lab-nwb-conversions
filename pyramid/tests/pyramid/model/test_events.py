@@ -146,20 +146,6 @@ def test_numeric_list_copy_time_range():
     assert np.array_equal(event_list.get_values(), 10*np.array(range(100)))
 
 
-def test_numeric_list_interop():
-    event_count = 100
-    raw_data = [[t, 10*t] for t in range(event_count)]
-    event_data = np.array(raw_data)
-    event_list = NumericEventList(event_data)
-
-    interop = event_list.to_interop()
-    event_list_2 = NumericEventList.from_interop(interop)
-    assert event_list_2 == event_list
-
-    interop_2 = event_list_2.to_interop()
-    assert interop_2 == interop
-
-
 def test_numeric_list_equality():
     foo_events = NumericEventList(np.array([[t, 10*t] for t in range(100)]))
     bar_events = NumericEventList(np.array([[t/10, 2*t] for t in range(1000)]))

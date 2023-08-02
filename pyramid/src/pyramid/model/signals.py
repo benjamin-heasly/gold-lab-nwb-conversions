@@ -109,25 +109,6 @@ class SignalChunk(BufferData):
         else:
             return None
 
-    def to_interop(self) -> Any:
-        """Implementing InteropData superclass."""
-        return {
-            "signal_data": self.sample_data.tolist(),
-            "sample_frequency": self.sample_frequency,
-            "first_sample_time": self.first_sample_time,
-            "channel_ids": self.channel_ids
-        }
-
-    @classmethod
-    def from_interop(cls, interop) -> Self:
-        """Implementing InteropData superclass."""
-        return cls(
-            np.array(interop["signal_data"]),
-            interop["sample_frequency"],
-            interop["first_sample_time"],
-            interop["channel_ids"]
-        )
-
     def apply_offset_then_gain(self, offset: float = 0, gain: float = 1, channel_id: str | int = None) -> None:
         """Transform sample data by a constant gain and offset.
 

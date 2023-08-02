@@ -11,7 +11,7 @@ from pyramid.model.model import Buffer
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialEnhancer
-from pyramid.trials.trial_file import TrialFileWriter
+from pyramid.trials.trial_file import TrialFile
 from pyramid.plotters.plotters import Plotter, PlotFigureController
 
 
@@ -104,7 +104,7 @@ class PyramidContext():
         """
         with ExitStack() as stack:
             # All these "context managers" will clean up automatically when the "with" exits.
-            writer = stack.enter_context(TrialFileWriter(trial_file))
+            writer = stack.enter_context(TrialFile.for_file_suffix(trial_file))
             for reader in self.readers.values():
                 stack.enter_context(reader)
 
@@ -148,7 +148,7 @@ class PyramidContext():
         """
         with ExitStack() as stack:
             # All these "context managers" will clean up automatically when the "with" exits.
-            writer = stack.enter_context(TrialFileWriter(trial_file))
+            writer = stack.enter_context(TrialFile.for_file_suffix(trial_file))
             for reader in self.readers.values():
                 stack.enter_context(reader)
             stack.enter_context(self.plot_figure_controller)
