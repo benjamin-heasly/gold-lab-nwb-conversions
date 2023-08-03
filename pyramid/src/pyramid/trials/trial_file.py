@@ -223,7 +223,9 @@ class Hdf5TrialFile(TrialFile):
 
     def dump_trial(self, trial: Trial, trial_group: h5py.Group) -> None:
         trial_group.attrs["start_time"] = trial.start_time
-        if trial.end_time is not None:
+        if trial.end_time is None:
+            trial_group.attrs["end_time"] = np.empty([0,0])
+        else:
             trial_group.attrs["end_time"] = trial.end_time
         trial_group.attrs["wrt_time"] = trial.wrt_time
 
@@ -260,9 +262,13 @@ class Hdf5TrialFile(TrialFile):
         else:
             enhancements = {}
 
+        if trial_group.attrs["end_time"].size < 1:
+            end_time = None
+        else:
+            end_time = trial_group.attrs["end_time"]
         trial = Trial(
             start_time=trial_group.attrs["start_time"],
-            end_time=trial_group.attrs.get("end_time", None),
+            end_time=end_time,
             wrt_time=trial_group.attrs["wrt_time"],
             numeric_events=numeric_events,
             signals=signals,

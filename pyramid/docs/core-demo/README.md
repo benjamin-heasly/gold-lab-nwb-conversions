@@ -188,28 +188,131 @@ Why does `gui` mode run for several seconds, when the data are just sitting ther
 This is because Pyramid is simulating the delay between trial "start" event time stamps, as written `delimiter.csv`.
 Delay simulation is optional for demo purposes and only happens if a reader's YAML contains `simulate_delay: True`.
 
-## loading data in Matlab
+## loading JSON trial file in Matlab
 
-TODO: revisit loading after change to JSON lines
-TODO: revisit loading with HDF5!
-
-Since the trial file is JSON, it should be readable in a variety of environments, not just Pyramid or Python.
-Here's Matlab example for reading a trial file into a struct.
+It should be possible to read a JSON trial file in a variety of environments, not just Pyramid or Python.
+Here's a Matlab example for reading lines of JSON into from a trial file into a struct array.
 
 ```
-trial_file = 'demo_trials.json';
-trial_json = fileread(trial_file, "Encoding", "UTF-8");
-trials = jsondecode(trial_json)
+trialFile = 'demo_trials.json';
+trialCell = {};
+fid = fopen(trialFile, 'r');
+while true
+    trialJson = fgetl(fid);
+    if ~ischar(trialJson) || isempty(trialJson)
+        break
+    end
+    trialCell{end+1} = jsondecode(trialJson);
+end
 
-trials = 
+trials = [trialCell{:}]
+%  trials =
+%
+%    1×4 struct array with fields:
+%
+%      start_time
+%      end_time
+%      wrt_time
+%      numeric_events
 
-  4×1 struct array with fields:
+events = [trials.numeric_events]
+%  events =
+%
+%    1×4 struct array with fields:
+%
+%      foo
+%      bar
+%      bar_2
+```
+
+This example loads all the lines/trials into memory at once.
+For larger trial files it might be better to load one or a few trials at a time (i.e. don't always append loaded trials to one big array).
+
+## HDF5 trial file
+
+Pyramid can also produce trial files using HDF5.
+This is a binary format that supports folder-like "Groups" and numeric array-like "Datasets".
+It's likely to be faster and smaller than JSON, though potentially less portable and less human-readable for tutorial purposes.
+
+To create an HDF5 trial file, just use the `.hdf5` extension for the '--trial-file' argument.
+```
+cd gold-lab-nwb-conversions/pyramid/docs/core-demo
+
+pyramid convert --trial-file demo_trials.hdf5 --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv
+```
+
+Matlab supports reading HDF5 files.
+Here's a Matlab example for reading trials from an HDF5 trial file into a struct array.
+This takes a little more coding than for the JSON example above.
+This is because there are many potentially reasonable ways to convet between Python data types, HDF5 data types, and Matlab data types, and the conventions are not as obvious or 1:1 as they are with JSON.
+
+```
+trialFile = 'demo_trials.hdf5';
+info = h5info(trialFile);
+trialCell = {};
+for trialGroup = info.Groups'
+    trial = struct();
+
+    % Get top-level trial fields like start_time, end_time, and wrt_time.
+    % Decode any trial enhancements from JSON.
+    for attribute = trialGroup.Attributes'
+        switch attribute.Name
+            case 'enhancements'
+                trial.enhancements = jsondecode(attribute.Value);
+            otherwise
+                trial.(attribute.Name) = attribute.Value;
+        end
+    end
+
+    % Unpack data assigned to the trial, depending on Neutral Zone type.
+    for dataGroup = trialGroup.Groups'
+        subgroupName = dataGroup.Name(numel(trialGroup.Name)+2:end);
+        switch subgroupName
+            case 'numeric_events'
+                for dataset = dataGroup.Datasets'
+                    dataPath = [dataGroup.Name '/' dataset.Name];
+                    data = h5read(trialFile, dataPath);
+                    trial.numeric_events.(dataset.Name) = data';
+                end
+
+            case 'signals'
+                for dataset = dataGroup.Datasets'
+                    dataPath = [dataGroup.Name '/' dataset.Name];
+                    data = h5read(trialFile, dataPath);
+                    trial.signals.(dataset.Name).sample_data = data';
+
+                    for attribute = dataset.Attributes'
+                        trial.signals.(dataset.Name).(attribute.Name) = attribute.Value;
+                    end
+                end
+        end
+    end
+
+    trialCell{end+1} = trial;
+end
+
+trials = [trialCell{:}]
+trials =
+
+  1×4 struct array with fields:
 
     start_time
     end_time
     wrt_time
     numeric_events
+
+events = [trials.numeric_events]
+events =
+
+  1×4 struct array with fields:
+
+    bar
+    bar_2
+    foo
 ```
 
-For trial files small enough to load in to memory, this might be all we need!
-For larger trial files, we might need custom Matlab code that read part of the data at a time.
+Note: this still uses a little bit of JSON to encode/decode trial `enhamcements`, which are arbitrary key-value pairs and support nested collections like dictionaries and lists.  But the bulk of trial event and signal data are stored using HDF5's compressed, binary format.
+
+As above, this example loads all the trials into memory at once.
+HDF5 also supports reading files a piece at a time, even for very large files.
+For larger trial files it might be better to load one or a few trials at a time (i.e. don't always append loaded trials to one big array).
