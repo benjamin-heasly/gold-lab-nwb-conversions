@@ -71,7 +71,7 @@ sample_trials = [
     ),
     Trial(
         start_time=4.0,
-        end_time=5.0,
+        end_time=None,
         wrt_time=4.5,
         numeric_events=sample_numeric_events,
         signals=sample_signals,
