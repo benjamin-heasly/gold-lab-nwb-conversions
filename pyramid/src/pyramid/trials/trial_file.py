@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import json
+import h5py
 import numpy as np
 
 from pyramid.model.events import NumericEventList
@@ -63,8 +64,8 @@ class TrialFile(ContextManager):
         suffix = Path(file_name).suffix.lower()
         if suffix in {".json", ".jsonl"}:
             return JsonTrialFile(file_name)
-        # elif suffix == ".hd5":
-        #     return Hdf5TrialFile(file_name)
+        elif suffix in {".hdf", ".h5", ".hdf5", ".he5"}:
+            return Hdf5TrialFile(file_name)
         else:
             raise NotImplementedError(f"Unsupported trial file suffix: {suffix}")
 
@@ -161,4 +162,109 @@ class JsonTrialFile(TrialFile):
         )
         return trial
 
-# TODO: Hdf5TrialFile !
+
+class Hdf5TrialFile(TrialFile):
+    """HDF5-based trial file using one top-level group per trial.
+
+    The trial file should be loadable from many environments, including:
+     - Python: https://docs.h5py.org/en/latest/quick.html
+     - Matlab: https://www.mathworks.com/help/matlab/ref/h5read.html
+    """
+
+    def __init__(self, file_name: str) -> None:
+        self.file_name = file_name
+
+    def __enter__(self) -> Self:
+        with h5py.File(self.file_name, "w"):
+            logging.info(f"Creating empty HDF5 trial file: {self.file_name}")
+        return self
+
+    def append_trial(self, trial: Trial) -> None:
+        with h5py.File(self.file_name, "a") as f:
+            group_name = f"trial_{len(f.keys())}"
+            trial_group = f.create_group(group_name, track_order=True)
+            self.dump_trial(trial, trial_group)
+
+    def read_trials(self) -> Iterator[Trial]:
+        with h5py.File(self.file_name, "r") as f:
+            for trial_group in f.values():
+                yield self.load_trial(trial_group)
+
+    def dump_numeric_event_list(
+        self,
+        numeric_event_list: NumericEventList,
+        name: str,
+        numeric_events_group: h5py.Group
+    ) -> None:
+        if numeric_event_list.event_data.size > 1:
+            numeric_events_group.create_dataset(name, data=numeric_event_list.event_data, compression="gzip")
+        else:
+            numeric_events_group.create_dataset(name, data=numeric_event_list.event_data)
+
+    def load_numeric_event_list(self, dataset: h5py.Dataset) -> NumericEventList:
+        return NumericEventList(np.array(dataset[()]))
+
+    def dump_signal_chunk(self, signal_chunk: SignalChunk, name: str, signals_group: h5py.Group) -> dict:
+        if signal_chunk.sample_data.size > 1:
+            dataset = signals_group.create_dataset(name, data=signal_chunk.sample_data, compression="gzip")
+        else:
+            dataset = signals_group.create_dataset(name, data=signal_chunk.sample_data)
+        dataset.attrs["sample_frequency"] = signal_chunk.sample_frequency
+        dataset.attrs["first_sample_time"] = signal_chunk.first_sample_time
+        dataset.attrs["channel_ids"] = signal_chunk.channel_ids
+
+    def load_signal_chunk(self, dataset: h5py.Dataset) -> SignalChunk:
+        return SignalChunk(
+            sample_data=np.array(dataset[()]),
+            sample_frequency=dataset.attrs["sample_frequency"],
+            first_sample_time=dataset.attrs["first_sample_time"],
+            channel_ids=dataset.attrs["channel_ids"].tolist()
+        )
+
+    def dump_trial(self, trial: Trial, trial_group: h5py.Group) -> None:
+        trial_group.attrs["start_time"] = trial.start_time
+        trial_group.attrs["end_time"] = trial.end_time
+        trial_group.attrs["wrt_time"] = trial.wrt_time
+
+        if trial.numeric_events:
+            numeric_events_group = trial_group.create_group("numeric_events")
+            for name, event_list in trial.numeric_events.items():
+                self.dump_numeric_event_list(event_list, name, numeric_events_group)
+
+        if trial.signals:
+            signals_group = trial_group.create_group("signals")
+            for name, signal_chunk in trial.signals.items():
+                self.dump_signal_chunk(signal_chunk, name, signals_group)
+
+        if trial.enhancements:
+            enhancements_json = json.dumps(trial.enhancements)
+            trial_group.attrs["enhancements"] = enhancements_json
+
+    def load_trial(self, trial_group: h5py.Group) -> Trial:
+        numeric_events = {}
+        numeric_events_group = trial_group.get("numeric_events", None)
+        if numeric_events_group:
+            for name, dataset in numeric_events_group.items():
+                numeric_events[name] = self.load_numeric_event_list(dataset)
+
+        signals = {}
+        signals_group = trial_group.get("signals", None)
+        if signals_group:
+            for name, dataset in signals_group.items():
+                signals[name] = self.load_signal_chunk(dataset)
+
+        enhancements_json = trial_group.attrs.get("enhancements", None)
+        if enhancements_json:
+            enhancements = json.loads(enhancements_json)
+        else:
+            enhancements = {}
+
+        trial = Trial(
+            start_time=trial_group.attrs["start_time"],
+            end_time=trial_group.attrs["end_time"],
+            wrt_time=trial_group.attrs["wrt_time"],
+            numeric_events=numeric_events,
+            signals=signals,
+            enhancements=enhancements
+        )
+        return trial

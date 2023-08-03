@@ -5,7 +5,7 @@ from pytest import raises
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 from pyramid.trials.trials import Trial
-from pyramid.trials.trial_file import TrialFile, JsonTrialFile
+from pyramid.trials.trial_file import TrialFile, JsonTrialFile, Hdf5TrialFile
 
 
 sample_numeric_events = {
@@ -83,6 +83,10 @@ sample_trials = [
 def test_for_file_suffix():
     assert isinstance(TrialFile.for_file_suffix("trial_file.json"), JsonTrialFile)
     assert isinstance(TrialFile.for_file_suffix("trial_file.jsonl"), JsonTrialFile)
+    assert isinstance(TrialFile.for_file_suffix("trial_file.hdf"), Hdf5TrialFile)
+    assert isinstance(TrialFile.for_file_suffix("trial_file.h5"), Hdf5TrialFile)
+    assert isinstance(TrialFile.for_file_suffix("trial_file.hdf5"), Hdf5TrialFile)
+    assert isinstance(TrialFile.for_file_suffix("trial_file.he5"), Hdf5TrialFile)
 
     with raises(NotImplementedError) as exception_info:
         TrialFile.for_file_suffix("trial_file.noway")
@@ -120,6 +124,44 @@ def test_json_interleave_write_and_read(tmp_path):
     assert not file_path.exists()
 
     with JsonTrialFile(file_path) as trial_file:
+        assert file_path.exists()
+        for sample_trial in sample_trials:
+            trial_file.append_trial(sample_trial)
+            trials = [trial for trial in trial_file.read_trials()]
+            assert trials[0] == sample_trials[0]
+            assert trials[-1] == sample_trial
+
+
+def test_hdf5_empty_trial_file(tmp_path):
+    file_path = Path(tmp_path, 'trial_file.hdf5')
+    assert not file_path.exists()
+
+    with Hdf5TrialFile(file_path) as trial_file:
+        assert file_path.exists()
+        trials = [trial for trial in trial_file.read_trials()]
+
+    assert len(trials) == 0
+
+
+def test_hdf5_sample_trials(tmp_path):
+    file_path = Path(tmp_path, 'trial_file.hdf5')
+    assert not file_path.exists()
+
+    with Hdf5TrialFile(file_path) as trial_file:
+        assert file_path.exists()
+        for sample_trial in sample_trials:
+            trial_file.append_trial(sample_trial)
+
+        trials = [trial for trial in trial_file.read_trials()]
+
+    assert trials == sample_trials
+
+
+def test_hdf5_interleave_write_and_read(tmp_path):
+    file_path = Path(tmp_path, 'trial_file.hdf5')
+    assert not file_path.exists()
+
+    with Hdf5TrialFile(file_path) as trial_file:
         assert file_path.exists()
         for sample_trial in sample_trials:
             trial_file.append_trial(sample_trial)
