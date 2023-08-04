@@ -181,7 +181,7 @@ class Hdf5TrialFile(TrialFile):
 
     def append_trial(self, trial: Trial) -> None:
         with h5py.File(self.file_name, "a") as f:
-            group_name = f"trial_{len(f.keys())}"
+            group_name = f"trial_{len(f.keys()):04d}"
             trial_group = f.create_group(group_name, track_order=True)
             self.dump_trial(trial, trial_group)
 

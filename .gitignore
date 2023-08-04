@@ -131,3 +131,4 @@ nwb-cache/
 trials.json
 slow_trials.csv
 demo_experiment.json
+demo_experiment.hdf5
