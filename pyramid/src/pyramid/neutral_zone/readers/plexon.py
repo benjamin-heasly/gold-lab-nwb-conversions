@@ -468,7 +468,7 @@ class PlexonPlxReader(Reader):
         if name != "skip":
             results[name] = data
         first_data_time = data.get_end_time()
-        while data.get_end_time() - first_data_time < self.seconds_per_read and name is not None:
+        while name is not None and data.get_end_time() - first_data_time < self.seconds_per_read:
             (name, data) = self.read_one_block()
             if name == "skip":
                 continue
