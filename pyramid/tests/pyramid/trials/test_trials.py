@@ -412,11 +412,12 @@ class DurationPlusTrialCount(TrialEnhancer):
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> dict[str, Any]:
-        duration = trial.enhancements["duration"]
+        duration = trial.enhancements["value"]["duration"]
         if duration is None:
-            return {"duration_plus_trial_count": None}
+            duration_plus_trial_count = None
         else:
-            return {"duration_plus_trial_count": duration + trial_count}
+            duration_plus_trial_count = duration + trial_count
+        trial.add_enhancement("duration_plus_trial_count", duration_plus_trial_count, "value")
 
 
 class BadEnhancer(TrialEnhancer):
@@ -428,7 +429,7 @@ class BadEnhancer(TrialEnhancer):
         trial_count: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
-    ) -> dict[str, Any]:
+    ) -> None:
         raise RuntimeError
 
 
@@ -469,8 +470,10 @@ def test_enhance_trials():
         end_time=1.0,
         wrt_time=0.0,
         enhancements={
-            "duration": 1.0,
-            "duration_plus_trial_count": 2.0
+            "value": {
+                "duration": 1.0,
+                "duration_plus_trial_count": 2.0
+            }
         }
     )
 
@@ -487,8 +490,10 @@ def test_enhance_trials():
         end_time=2.1,
         wrt_time=1.5,
         enhancements={
-            "duration": 1.1,
-            "duration_plus_trial_count": 3.1
+            "value": {
+                "duration": 1.1,
+                "duration_plus_trial_count": 3.1
+            }
         }
     )
 
@@ -504,8 +509,10 @@ def test_enhance_trials():
         end_time=3.3,
         wrt_time=2.5,
         enhancements={
-            "duration": 3.3 - 2.1,
-            "duration_plus_trial_count": 3 + 3.3 - 2.1
+            "value": {
+                "duration": 3.3 - 2.1,
+                "duration_plus_trial_count": 3 + 3.3 - 2.1
+            }
         }
     )
 
@@ -520,8 +527,10 @@ def test_enhance_trials():
         end_time=None,
         wrt_time=3.5,
         enhancements={
-            "duration": None,
-            "duration_plus_trial_count": None
+            "value": {
+                "duration": None,
+                "duration_plus_trial_count": None
+            }
         }
     )
 
@@ -545,9 +554,13 @@ def test_add_buffer_data():
     assert not trial.add_buffer_data("int", 42)
     assert not trial.add_buffer_data("string", "a string!")
 
-    # Enhancements should be added by name.
+    # Enhancements should be added by name in the default "other" category.
     assert trial.add_enhancement("int", 42)
     assert trial.add_enhancement("string", "a string!")
+
+    # Enhancements should be added by name in a given category.
+    assert trial.add_enhancement("int", 42, "my_category")
+    assert trial.add_enhancement("string", "a string!", "my_category")
 
     # Enhancements that are a BufferData type should be added by name and type.
     assert trial.add_enhancement("events_2", event_list)
@@ -565,8 +578,14 @@ def test_add_buffer_data():
             "signal_2": signal_chunk
         },
         enhancements={
-            "int": 42,
-            "string": "a string!"
+            "other": {
+                "int": 42,
+                "string": "a string!"
+            },
+            "my_category": {
+                "int": 42,
+                "string": "a string!"
+            }
         }
     )
     assert trial == expected_trial

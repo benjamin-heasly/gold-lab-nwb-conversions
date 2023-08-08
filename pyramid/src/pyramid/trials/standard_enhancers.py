@@ -16,11 +16,12 @@ class TrialDurationEnhancer(TrialEnhancer):
         trial_count: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
-    ) -> dict[str, Any]:
+    ) -> None:
         if trial.end_time is None:
-            return {"duration": None}
+            duration = None
         else:
-            return {"duration": trial.end_time - trial.start_time}
+            duration = trial.end_time - trial.start_time
+        trial.add_enhancement("duration", duration, "value")
 
 
 class PairedCodesEnhancer(TrialEnhancer):
@@ -50,7 +51,7 @@ class PairedCodesEnhancer(TrialEnhancer):
         trial_count: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
-    ) -> dict[str, Any]:
+    ) -> None:
         event_list = trial.numeric_events[self.buffer_name]
         value_list = event_list.copy_value_range(min=self.value_min, max=self.value_max, value_index=self.value_index)
         value_list.apply_offset_then_gain(-self.value_offset, self.value_scale)
@@ -61,6 +62,4 @@ class PairedCodesEnhancer(TrialEnhancer):
             for property_time in property_times:
                 values = value_list.get_values(start_time=property_time, value_index=self.value_index)
                 if values.size > 0:
-                    enhancements[name] = values[0]
-
-        return enhancements
+                    trial.add_enhancement(name, values[0], "value")

@@ -1,7 +1,7 @@
 import numpy as np
 
 from pyramid.model.events import NumericEventList
-from pyramid.trials.trials import Trial, TrialEnhancer
+from pyramid.trials.trials import Trial
 from pyramid.trials.standard_enhancers import PairedCodesEnhancer
 
 
@@ -50,11 +50,13 @@ def test_paired_codes_enhancer():
         }
     )
 
-    enhancements = enhancer.enhance(trial, 0, {}, {})
+    enhancer.enhance(trial, 0, {}, {})
     expected_enhancements = {
-        "foo": 0.0,
-        "bar": 1.25,
-        "baz": 151.0,
-        "quux": 25.25,
+        "value": {
+            "foo": 0.0,
+            "bar": 1.25,
+            "baz": 151.0,
+            "quux": 25.25,
+        }
     }
-    assert enhancements == expected_enhancements
+    assert trial.enhancements == expected_enhancements
