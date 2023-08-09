@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 
 from pyramid.model.events import NumericEventList
@@ -5,21 +6,30 @@ from pyramid.trials.trials import Trial
 from pyramid.trials.standard_enhancers import PairedCodesEnhancer
 
 
-def test_paired_codes_enhancer():
-    code_names = {
-        "foo": 42,
-        "bar": 43,
-        "baz": 44,
-        "quux": 45,
-    }
+def test_paired_codes_enhancer(tmp_path):
+    # Write out a .csv file with rules in it.
+    rules_csv = Path(tmp_path, "rules.csv")
+    with open(rules_csv, 'w') as f:
+        f.write('type,value,name,base,min,max,scale,comment\n')
+        f.write('id,42,foo,3000,2000,4000,0.25,this is just a comment\n')
+        f.write('id,43,bar,3000,2000,4000,0.25,this is just a comment\n')
+        f.write('value,44,baz,3000,2000,4000,0.25,this is just a comment\n')
+        f.write('value,45,quux,3000,2000,4000,0.025,this is just a comment\n')
+        f.write('ignore,777,ignore_me,3000,2000,4000,0.25,this is just a comment\n')
+
     enhancer = PairedCodesEnhancer(
         buffer_name="propcodes",
-        code_names=code_names,
-        value_min=2000,
-        value_offset=3000,
-        value_max=4000,
-        value_scale=0.25
+        rules_csv=rules_csv
     )
+
+    # The "id" and "value" types should be included.
+    assert 42 in enhancer.rules.keys()
+    assert 43 in enhancer.rules.keys()
+    assert 44 in enhancer.rules.keys()
+    assert 45 in enhancer.rules.keys()
+
+    # Other types should ne ignored.
+    assert 777 not in enhancer.rules.keys()
 
     paired_code_data = [
         [0.0, 42.0],    # code for property "foo"
@@ -38,7 +48,7 @@ def test_paired_codes_enhancer():
         [13, 20002],    # irrelevant
         [14, 15],       # irrelevant
         [15, 16],       # irrelevant
-        [16, 3101],      # value 25.25
+        [16, 3101],     # value 2.525 (quux has scale 10 time finer than the others)
     ]
     event_list = NumericEventList(event_data=np.array(paired_code_data))
     trial = Trial(
@@ -52,11 +62,13 @@ def test_paired_codes_enhancer():
 
     enhancer.enhance(trial, 0, {}, {})
     expected_enhancements = {
-        "value": {
+        "id": {
             "foo": 0.0,
             "bar": 1.25,
+        },
+        "value": {
             "baz": 151.0,
-            "quux": 25.25,
+            "quux": 2.5250000000000004,
         }
     }
     assert trial.enhancements == expected_enhancements

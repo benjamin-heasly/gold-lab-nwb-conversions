@@ -1,4 +1,5 @@
 from typing import Any
+import csv
 
 from pyramid.trials.trials import Trial, TrialEnhancer
 
@@ -25,25 +26,62 @@ class TrialDurationEnhancer(TrialEnhancer):
 
 
 class PairedCodesEnhancer(TrialEnhancer):
-    """Look for pairs of numeric events that represent property-value pairs."""
+    """Look for pairs of numeric events that represent property-value pairs.
+
+    buffer_name is the name of a buffer of NumericEventList.
+
+    rules_csv is a .csv file where each row represents a property to extract from the named buffer
+    and the rules for how to extract each property.  The .csv must have the following columns:
+        - "type": Used to select relevant rows of the .csv, and also the trial enhancement category to
+                  use for each property.  By defalt only types "id" and "value" will be used.
+                  Pass in rule_types to change this default.
+        - "value": a numeric value that represents a property, for example 1010
+        - "name": the string name to use for the property, for example "fp_on"
+        - "base": the base value to subtract from the property's value events, for example 7000
+        - "min": the smallest event value to consier when looking for the property's value events
+        - "max": the largest event value to consier when looking for the property's value events
+    The .csv may contain additional columns, which will be ignored (eg "comment").
+
+    value_index is which event value to look for, in the NumericEventList
+    (default is 0, the first value for each event).
+
+    rule_types is a list of strings to match against the .csv "type" column.
+
+    dialect and any additional fmtparams are passed on to the .csv reader.
+    """
 
     def __init__(
         self,
         buffer_name: str,
-        code_names: dict[str, int],
-        value_min: int = 0,
-        value_offset: int = 0,
-        value_max: int = 1000,
-        value_scale: float = 1.0,
-        value_index: int = 0
+        rules_csv: str,
+        value_index: int = 0,
+        rule_types: list[str] = ["id", "value"],
+        dialect: str = 'excel',
+        **fmtparams
     ) -> None:
         self.buffer_name = buffer_name
-        self.property_codes = code_names
-        self.value_min = value_min
-        self.value_offset = value_offset
-        self.value_max = value_max
-        self.value_scale = value_scale
+        self.rules_csv = rules_csv
         self.value_index = value_index
+        self.rule_types = rule_types
+        self.dialect = dialect
+        self.fmtparams = fmtparams
+
+        rules = {}
+        with open(self.rules_csv, mode='r', newline='') as f:
+            csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
+            for row in csv_reader:
+                print(row)
+                if row['type'] in self.rule_types:
+                    value = float(row['value'])
+                    rules[value] = {
+                        'type': row['type'],
+                        'name': row['name'],
+                        'base': float(row['base']),
+                        'min': float(row['min']),
+                        'max': float(row['max']),
+                        'scale': float(row['scale']),
+                    }
+        self.rules = rules
 
     def enhance(
         self,
@@ -53,13 +91,15 @@ class PairedCodesEnhancer(TrialEnhancer):
         subject_info: dict[str: Any]
     ) -> None:
         event_list = trial.numeric_events[self.buffer_name]
-        value_list = event_list.copy_value_range(min=self.value_min, max=self.value_max, value_index=self.value_index)
-        value_list.apply_offset_then_gain(-self.value_offset, self.value_scale)
-
-        enhancements = {}
-        for name, code in self.property_codes.items():
-            property_times = event_list.get_times_of(code, self.value_index)
-            for property_time in property_times:
-                values = value_list.get_values(start_time=property_time, value_index=self.value_index)
-                if values.size > 0:
-                    trial.add_enhancement(name, values[0], "value")
+        for value, rule in self.rules.items():
+            # Did / when did this trial contain events indicating this rule/property?
+            property_times = event_list.get_times_of(value, self.value_index)
+            if property_times is not None and property_times.size > 0:
+                # Get potential events that hold values for the indicated rule/property.
+                value_list = event_list.copy_value_range(min=rule['min'], max=rule['max'], value_index=self.value_index)
+                value_list.apply_offset_then_gain(-rule['base'], rule['scale'])
+                for property_time in property_times:
+                    # For each property event, pick the soonest value event that follows.
+                    values = value_list.get_values(start_time=property_time, value_index=self.value_index)
+                    if values.size > 0:
+                        trial.add_enhancement(rule['name'], values[0], rule['type'])
