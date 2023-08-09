@@ -1,11 +1,14 @@
 from typing import Any
 import time
+import re
 from binascii import crc32
+
 from matplotlib.figure import Figure
 from matplotlib.pyplot import get_cmap
 
 from pyramid.trials.trials import Trial
 from pyramid.plotters.plotters import Plotter
+
 
 color_map = get_cmap('Set1', 16)
 def name_to_color(name: str, alpha: float = 1.0) -> str:
@@ -19,6 +22,7 @@ def format_number(number):
         return ""
     else:
         return '{:.3f} sec'.format(number)
+
 
 class BasicInfoPlotter(Plotter):
 
@@ -79,15 +83,21 @@ class BasicInfoPlotter(Plotter):
         pass
 
 
-
 class NumericEventsPlotter(Plotter):
 
-    def __init__(self, history_size: int = 10, xmin: float = -2.0, xmax:float = 2.0) -> None:
+    def __init__(
+        self,
+        history_size: int = 10,
+        xmin: float = -2.0,
+        xmax:float = 2.0,
+        match_pattern: str = None
+    ) -> None:
         self.history_size = history_size
         self.history = []
 
         self.xmin = xmin
         self.xmax = xmax
+        self.match_pattern = match_pattern
 
     def set_up(
         self,
@@ -114,7 +124,11 @@ class NumericEventsPlotter(Plotter):
                 self.ax.scatter(data.get_times(), data.get_values(), color=name_to_color(name, 0.25))
 
         # Update finite, rolling history.
-        new_events = current_trial.numeric_events
+        new_events = {
+            name: event_list
+            for name, event_list in current_trial.numeric_events.items()
+            if self.match_pattern is None or re.fullmatch(self.match_pattern, name)
+        }
         self.history.append(new_events)
         self.history = self.history[-self.history_size:]
 

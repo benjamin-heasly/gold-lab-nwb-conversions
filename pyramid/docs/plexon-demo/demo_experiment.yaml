@@ -53,3 +53,9 @@ plotters:
     args:
       xmin: -1.0
       xmax: 5.0
+      match_pattern: ecodes
+  - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
+    args:
+      xmin: -1.0
+      xmax: 5.0
+      match_pattern: spike_.*
