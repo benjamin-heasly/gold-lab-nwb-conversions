@@ -70,7 +70,6 @@ class PairedCodesEnhancer(TrialEnhancer):
         with open(self.rules_csv, mode='r', newline='') as f:
             csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
             for row in csv_reader:
-                print(row)
                 if row['type'] in self.rule_types:
                     value = float(row['value'])
                     rules[value] = {

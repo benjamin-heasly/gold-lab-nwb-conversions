@@ -74,13 +74,15 @@ class TrialDelimiter():
         start_value: float,
         start_value_index: int = 0,
         trial_start_time: float = 0.0,
-        trial_count: int = 0
+        trial_count: int = 0,
+        trial_log_mod: int = 50
     ) -> None:
         self.start_buffer = start_buffer
         self.start_value = start_value
         self.start_value_index = start_value_index
         self.trial_start_time = trial_start_time
         self.trial_count = trial_count
+        self.trial_log_mod = trial_log_mod
 
     def __eq__(self, other: object) -> bool:
         """Compare delimiters field-wise, to support use of this class in tests."""
@@ -108,6 +110,9 @@ class TrialDelimiter():
                 trials.append(trial)
                 self.trial_start_time = next_start_time
                 self.trial_count += 1
+                if self.trial_count % self.trial_log_mod == 0:
+                    logging.info(f"Delimited {self.trial_count} trials.")
+
         return trials
 
     def last(self) -> Trial:
@@ -117,6 +122,7 @@ class TrialDelimiter():
         """
         trial = Trial(start_time=self.trial_start_time, end_time=None)
         self.trial_count += 1
+        logging.info(f"Delimited {self.trial_count} trials (last one).")
         return trial
 
     def discard_before(self, time: float):

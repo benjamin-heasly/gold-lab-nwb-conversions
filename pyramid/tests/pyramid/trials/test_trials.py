@@ -50,7 +50,8 @@ def test_delimit_trials_from_pivate_buffer():
     start_route = ReaderRoute("events", "start")
     start_router = router_for_reader_and_routes(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
+    # Log every other trial, just to get code coverage on the logging conditional!
+    delimiter = TrialDelimiter(start_router.buffers["start"], 1010, trial_log_mod=2)
 
     # trial zero will be garbage, whatever happens before the first start event
     assert start_router.route_next() == True
