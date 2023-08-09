@@ -64,6 +64,12 @@ class Trial():
             self.enhancements[category][name] = data
             return True
 
+    def get_enhancement(self, name: str, category: str = "other") -> Any:
+        """Get the value of an enhancement that was previously added via add_enhancement()."""
+        if category not in self.enhancements.keys():
+            return None
+        return self.enhancements[category].get(name, None)
+
 
 class TrialDelimiter():
     """Monitor a "start" event buffer, making new trials as delimiting events arrive."""

@@ -560,12 +560,22 @@ def test_add_buffer_data():
     assert trial.add_enhancement("string", "a string!")
 
     # Enhancements should be added by name in a given category.
-    assert trial.add_enhancement("int", 42, "my_category")
-    assert trial.add_enhancement("string", "a string!", "my_category")
+    assert trial.add_enhancement("int", 43, "my_category")
+    assert trial.add_enhancement("string", "another string!", "my_category")
 
     # Enhancements that are a BufferData type should be added by name and type.
     assert trial.add_enhancement("events_2", event_list)
     assert trial.add_enhancement("signal_2", signal_chunk)
+
+    # Retreive individual enchancements as-added.
+    assert trial.get_enhancement("int") == 42
+    assert trial.get_enhancement("string") == "a string!"
+    assert trial.get_enhancement("int", "my_category") == 43
+    assert trial.get_enhancement("string", "my_category") == "another string!"
+
+    # It should be save to get enhancements and categories that are missing.
+    assert trial.get_enhancement("missing") is None
+    assert trial.get_enhancement("missing", "missing") is None
 
     expected_trial = Trial(
         start_time=0.0,
@@ -584,8 +594,8 @@ def test_add_buffer_data():
                 "string": "a string!"
             },
             "my_category": {
-                "int": 42,
-                "string": "a string!"
+                "int": 43,
+                "string": "another string!"
             }
         }
     )

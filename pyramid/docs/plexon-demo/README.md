@@ -18,7 +18,6 @@ This example will read `all` spike channels (`all` is the default) and selected 
 It will delimit trials based on the `Strobed` event channel, using value `1005` to delimit trials and `1010` as the trial wrt event.
 These values are also configurable in the YAML.
 
-
 ## visualizing experiment configuration
 
 Let's start by running Pyramid to generate an overview.

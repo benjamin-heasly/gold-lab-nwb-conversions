@@ -42,6 +42,8 @@ trials:
       args:
         buffer_name: ecodes
         rules_csv: ecode-rules.csv
+    - class: custom_enhancers.CustomEnhancer
+      package_path: .
 plotters:
   # In "gui" mode, Pyramid will set up plotters and update each plotter after each trial.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter

@@ -383,8 +383,9 @@ def configure_trials(
     enhancers_config = trials_config.get("enhancers", [])
     for enhancer_config in enhancers_config:
         enhancer_class = enhancer_config["class"]
+        package_path = enhancer_config.get("package_path", None)
         enhancer_args = enhancer_config.get("args", {})
-        enhancer = TrialEnhancer.from_dynamic_import(enhancer_class, **enhancer_args)
+        enhancer = TrialEnhancer.from_dynamic_import(enhancer_class, external_package_path=package_path, **enhancer_args)
         enhancers.append(enhancer)
 
     trial_extractor = TrialExtractor(

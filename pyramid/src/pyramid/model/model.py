@@ -29,6 +29,7 @@ class DynamicImport():
         try:
             original_sys_path = sys.path
             if external_package_path:
+                print(external_package_path)
                 sys.path = original_sys_path.copy()
                 sys.path.append(external_package_path)
             imported_module = import_module(module_spec, package=None)
