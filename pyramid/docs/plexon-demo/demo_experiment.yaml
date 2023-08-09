@@ -38,6 +38,10 @@ trials:
       args:
         buffer_name: ecodes
         rules_csv: ecode-rules.csv
+    - class: pyramid.trials.standard_enhancers.EventTimesEnhancer
+      args:
+        buffer_name: ecodes
+        rules_csv: ecode-rules.csv
 plotters:
   # In "gui" mode, Pyramid will set up plotters and update each plotter after each trial.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
