@@ -85,6 +85,6 @@ digraph demo_experiment {
 	plexon_reader_route_19:e -> delimiter:w [color="#DC267F"]
 	trial_delimiter [label="TrialDelimiter|start = 1005" shape=record]
 	delimiter -> trial_delimiter [label=start arrowhead=none arrowtail=none]
-	trial_extractor [label="TrialExtractor|wrt = 1010" shape=record]
+	trial_extractor [label="TrialExtractor|wrt = 1010|PairedCodesEnhancer" shape=record]
 	delimiter -> trial_extractor [label=wrt arrowhead=none arrowtail=none]
 }
