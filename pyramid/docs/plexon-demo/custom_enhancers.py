@@ -14,10 +14,10 @@ class CustomEnhancer(TrialEnhancer):
 
         # Use trial.get_enhancement() to get values already set by PairedCodesEnhancer and ecode-rules.csv.
 
-        task_id = trial.get_enhancement("task_id", "id")
+        task_id = trial.get_enhancement("task_id")
         if task_id is None:
             return
-        trial_id = trial.get_enhancement("trial_id", "id") - 100 * task_id
+        trial_id = trial.get_enhancement("trial_id") - 100 * task_id
 
         # Use trial.add_enhancement() to set new values from custom computations.
 
@@ -62,3 +62,11 @@ class CustomEnhancer(TrialEnhancer):
         trial.add_enhancement("sac_dur", 42, "value")
         trial.add_enhancement("sac_vmax", 42, "value")
         trial.add_enhancement("sac_amp", 42, "value")
+
+# ang_def
+# ang_diff
+# subject-specific conditional
+# extract saccades
+# choose a saccade to save
+# a custom plot
+# get multiple ecode scalars for list of names

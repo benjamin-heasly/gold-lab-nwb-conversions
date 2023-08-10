@@ -67,7 +67,8 @@ sample_trials = [
         start_time=3.0,
         end_time=4.0,
         wrt_time=3.5,
-        enhancements=sample_enhancements
+        enhancements=sample_enhancements,
+        enhancement_categories={"value": list(sample_enhancements.keys())}
     ),
     Trial(
         start_time=4.0,
@@ -75,7 +76,8 @@ sample_trials = [
         wrt_time=4.5,
         numeric_events=sample_numeric_events,
         signals=sample_signals,
-        enhancements=sample_enhancements
+        enhancements=sample_enhancements,
+        enhancement_categories={"value": list(sample_enhancements.keys())}
     )
 ]
 

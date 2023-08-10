@@ -26,8 +26,11 @@ class Trial():
     signals: dict[str, SignalChunk] = field(default_factory=dict)
     """Named signal chunks assigned to this trial."""
 
-    enhancements: dict[str, dict[str, Any]] = field(default_factory=dict)
-    """Name-data pairs, added to categories like "time", "id", "value", or "other"."""
+    enhancements: dict[str, Any] = field(default_factory=dict)
+    """Name-data pairs, to add to the trial."""
+
+    enhancement_categories: dict[str, list[str]] = field(default_factory=dict)
+    """Enhancement names grouped by category, like "id", "value", or "time"."""
 
     def add_buffer_data(self, name: str, data: BufferData) -> bool:
         """Add named data to this trial, of a specific buffer data type that requires conversion before writing."""
@@ -42,33 +45,39 @@ class Trial():
                 f"Data for name {name} not added to trial because class {data.__class__.__name__} is not supported.")
             return False
 
-    def add_enhancement(self, name: str, data: Any, category: str = "other") -> bool:
-        """Add named data to this trial, of a standard type that doesn't require converting before writing.
+    def add_enhancement(self, name: str, data: Any, category: str = "value") -> bool:
+        """Add a name-data pair to the trial.
 
-        Enhancements are added to the trial as name-data pairs, and each pair goes in a given category.
-        The category can be used to inform downstream utilities how to interprete the data, for example:
-         - "time": data is a list of timestamps for when a named event occurred during the trial -- perhaps zero or more occurrences
-         - "id": data is a nominal or ordinal description of the trial -- a key you might use to group or sort trials
-         - "value": data are discrete or continuous scores or metrics measured or computed for the trial -- a distance, a duration, etc.
-         - "other": the default category, with no particular interpretation
+        Enhancements are added to the trial as name-data pairs.  The names must be unique per trial.
 
-        Note: if the given data is one of the BufferData types, like NumericEventList or SignalChunk, it will be added to the
-        corresponding trial filed (trial.numeric_events or trial.signals), instead of to trial.enchancements.  This should avoid
-        type confusion when downstream utilities try to read and interpret the data.
+        The names are grouped in categories that inform downstream utilities how to interpret the data, for example:
+         - "value": (default) discrete or continuous score or metric like a distance, a duration, etc.
+         - "id": nominal or ordinal label for the trial -- a key you might use to group or sort trials
+         - "time": list of timestamps for when a named event occurred during the trial -- zero or more occurrences
+
+        The given data should be of a simple type that doesn't require special conversion to/from file, for example:
+         - str
+         - int
+         - float
+         - list (can be nested)
+         - dict (can be nested)
+
+        If the given data is one of the BufferData types, like NumericEventList or SignalChunk,
+        it will be passed to add_buffer_data() instead of being saved as an enchancement.
         """
         if isinstance(data, BufferData):
             return self.add_buffer_data(name, data)
         else:
-            if category not in self.enhancements.keys():
-                self.enhancements[category] = {}
-            self.enhancements[category][name] = data
+            if category not in self.enhancement_categories:
+                self.enhancement_categories[category] = []
+            if name not in self.enhancement_categories[category]:
+                self.enhancement_categories[category].append(name)
+            self.enhancements[name] = data
             return True
 
-    def get_enhancement(self, name: str, category: str = "other") -> Any:
-        """Get the value of an enhancement that was previously added via add_enhancement()."""
-        if category not in self.enhancements.keys():
-            return None
-        return self.enhancements[category].get(name, None)
+    def get_enhancement(self, name: str, default: Any = None) -> Any:
+        """Get the value of a previously added enhancement, or return the given default."""
+        return self.enhancements.get(name, default)
 
 
 class TrialDelimiter():

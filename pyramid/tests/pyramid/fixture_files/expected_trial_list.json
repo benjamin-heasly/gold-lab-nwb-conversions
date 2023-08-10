@@ -17,9 +17,10 @@
             }
         },
         "enhancements": {
-            "value": {
-                "duration": 1.0
-            }
+            "duration": 1.0
+        },
+        "enhancement_categories": {
+            "value": ["duration"]
         }
     },
     {
@@ -43,9 +44,10 @@
             }
         },
         "enhancements": {
-            "value": {
-                "duration": 1.0
-            }
+            "duration": 1.0
+        },
+        "enhancement_categories": {
+            "value": ["duration"]
         }
     },
     {
@@ -69,9 +71,10 @@
             }
         },
         "enhancements": {
-            "value": {
-                "duration": 1.0
-            }
+            "duration": 1.0
+        },
+        "enhancement_categories": {
+            "value": ["duration"]
         }
     },
     {
@@ -92,9 +95,10 @@
             }
         },
         "enhancements": {
-            "value": {
-                "duration": null
-            }
+            "duration": null
+        },
+        "enhancement_categories": {
+            "value": ["duration"]
         }
     }
 ]

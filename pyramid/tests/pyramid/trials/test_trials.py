@@ -413,7 +413,7 @@ class DurationPlusTrialCount(TrialEnhancer):
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> dict[str, Any]:
-        duration = trial.enhancements["value"]["duration"]
+        duration = trial.get_enhancement("duration")
         if duration is None:
             duration_plus_trial_count = None
         else:
@@ -471,10 +471,11 @@ def test_enhance_trials():
         end_time=1.0,
         wrt_time=0.0,
         enhancements={
-            "value": {
-                "duration": 1.0,
-                "duration_plus_trial_count": 2.0
-            }
+            "duration": 1.0,
+            "duration_plus_trial_count": 2.0
+        },
+        enhancement_categories={
+            "value": ["duration", "duration_plus_trial_count"]
         }
     )
 
@@ -491,10 +492,11 @@ def test_enhance_trials():
         end_time=2.1,
         wrt_time=1.5,
         enhancements={
-            "value": {
-                "duration": 1.1,
-                "duration_plus_trial_count": 3.1
-            }
+            "duration": 1.1,
+            "duration_plus_trial_count": 3.1
+        },
+        enhancement_categories={
+            "value": ["duration", "duration_plus_trial_count"]
         }
     )
 
@@ -510,10 +512,11 @@ def test_enhance_trials():
         end_time=3.3,
         wrt_time=2.5,
         enhancements={
-            "value": {
-                "duration": 3.3 - 2.1,
-                "duration_plus_trial_count": 3 + 3.3 - 2.1
-            }
+            "duration": 3.3 - 2.1,
+            "duration_plus_trial_count": 3 + 3.3 - 2.1
+        },
+        enhancement_categories={
+            "value": ["duration", "duration_plus_trial_count"]
         }
     )
 
@@ -528,15 +531,16 @@ def test_enhance_trials():
         end_time=None,
         wrt_time=3.5,
         enhancements={
-            "value": {
-                "duration": None,
-                "duration_plus_trial_count": None
-            }
+            "duration": None,
+            "duration_plus_trial_count": None
+        },
+        enhancement_categories={
+            "value": ["duration", "duration_plus_trial_count"]
         }
     )
 
 
-def test_add_buffer_data():
+def test_add_buffer_data_and_enhancements():
     event_list = NumericEventList(np.array([[0, 0]]))
     signal_chunk = SignalChunk(
         sample_data=NumericEventList(np.array([[0, 0], [1, 1]])),
@@ -555,27 +559,37 @@ def test_add_buffer_data():
     assert not trial.add_buffer_data("int", 42)
     assert not trial.add_buffer_data("string", "a string!")
 
-    # Enhancements should be added by name in the default "other" category.
-    assert trial.add_enhancement("int", 42)
-    assert trial.add_enhancement("string", "a string!")
-
-    # Enhancements should be added by name in a given category.
-    assert trial.add_enhancement("int", 43, "my_category")
-    assert trial.add_enhancement("string", "another string!", "my_category")
-
     # Enhancements that are a BufferData type should be added by name and type.
     assert trial.add_enhancement("events_2", event_list)
     assert trial.add_enhancement("signal_2", signal_chunk)
 
-    # Retreive individual enchancements as-added.
+    # Enhancements should be added by name in the default "value" category.
+    assert trial.add_enhancement("int", 42)
+    assert trial.add_enhancement("string", "a string!")
+
     assert trial.get_enhancement("int") == 42
     assert trial.get_enhancement("string") == "a string!"
-    assert trial.get_enhancement("int", "my_category") == 43
-    assert trial.get_enhancement("string", "my_category") == "another string!"
+    assert "int" in trial.enhancement_categories["value"]
+    assert "string" in trial.enhancement_categories["value"]
 
-    # It should be save to get enhancements and categories that are missing.
+    # Enhancements should be unique by name.
+    assert trial.add_enhancement("int", 42.42)
+    assert trial.add_enhancement("string", "a replacement string!")
+
+    assert trial.get_enhancement("int") == 42.42
+    assert trial.get_enhancement("string") == "a replacement string!"
+
+    # Enhancements should be added by name in a given category.
+    assert trial.add_enhancement("int_2", 43, "my_category")
+    assert trial.add_enhancement("string_2", "another string!", "my_category")
+    assert trial.get_enhancement("int_2") == 43
+    assert trial.get_enhancement("string_2") == "another string!"
+    assert "int_2" in trial.enhancement_categories["my_category"]
+    assert "string_2" in trial.enhancement_categories["my_category"]
+
+    # Safe to get missing enhancements with a default.
     assert trial.get_enhancement("missing") is None
-    assert trial.get_enhancement("missing", "missing") is None
+    assert trial.get_enhancement("missing", "default") == "default"
 
     expected_trial = Trial(
         start_time=0.0,
@@ -589,14 +603,14 @@ def test_add_buffer_data():
             "signal_2": signal_chunk
         },
         enhancements={
-            "other": {
-                "int": 42,
-                "string": "a string!"
-            },
-            "my_category": {
-                "int": 43,
-                "string": "another string!"
-            }
+            "int": 42.42,
+            "string": "a replacement string!",
+            "int_2": 43,
+            "string_2": "another string!"
+        },
+        enhancement_categories={
+            "value": ["int", "string"],
+            "my_category": ["int_2", "string_2"]
         }
     )
     assert trial == expected_trial

@@ -139,6 +139,9 @@ class JsonTrialFile(TrialFile):
         if trial.enhancements:
             raw_dict["enhancements"] = trial.enhancements
 
+        if trial.enhancement_categories:
+            raw_dict["enhancement_categories"] = trial.enhancement_categories
+
         return raw_dict
 
     def load_trial(self, raw_dict) -> Trial:
@@ -158,7 +161,8 @@ class JsonTrialFile(TrialFile):
             wrt_time=raw_dict["wrt_time"],
             numeric_events=numeric_events,
             signals=signals,
-            enhancements=raw_dict.get("enhancements", {})
+            enhancements=raw_dict.get("enhancements", {}),
+            enhancement_categories=raw_dict.get("enhancement_categories", {})
         )
         return trial
 
@@ -243,6 +247,10 @@ class Hdf5TrialFile(TrialFile):
             enhancements_json = json.dumps(trial.enhancements)
             trial_group.attrs["enhancements"] = enhancements_json
 
+        if trial.enhancement_categories:
+            categories_json = json.dumps(trial.enhancement_categories)
+            trial_group.attrs["enhancement_categories"] = categories_json
+
     def load_trial(self, trial_group: h5py.Group) -> Trial:
         numeric_events = {}
         numeric_events_group = trial_group.get("numeric_events", None)
@@ -262,6 +270,12 @@ class Hdf5TrialFile(TrialFile):
         else:
             enhancements = {}
 
+        categories_json = trial_group.attrs.get("enhancement_categories", None)
+        if categories_json:
+            enhancement_categories = json.loads(categories_json)
+        else:
+            enhancement_categories = {}
+
         if trial_group.attrs["end_time"].size < 1:
             end_time = None
         else:
@@ -272,6 +286,7 @@ class Hdf5TrialFile(TrialFile):
             wrt_time=trial_group.attrs["wrt_time"],
             numeric_events=numeric_events,
             signals=signals,
-            enhancements=enhancements
+            enhancements=enhancements,
+            enhancement_categories=enhancement_categories
         )
         return trial

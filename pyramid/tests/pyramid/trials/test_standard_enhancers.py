@@ -62,16 +62,18 @@ def test_paired_codes_enhancer(tmp_path):
 
     enhancer.enhance(trial, 0, {}, {})
     expected_enhancements = {
-        "id": {
-            "foo": 0.0,
-            "bar": 1.25,
-        },
-        "value": {
-            "baz": 151.0,
-            "quux": 2.5250000000000004,
-        }
+        "foo": 0.0,
+        "bar": 1.25,
+        "baz": 151.0,
+        "quux": 2.5250000000000004,
     }
     assert trial.enhancements == expected_enhancements
+
+    expected_categories = {
+        "id": ["foo", "bar"],
+        "value": ["baz", "quux"]
+    }
+    assert trial.enhancement_categories == expected_categories
 
 
 def test_event_times_enhancer(tmp_path):
@@ -118,10 +120,13 @@ def test_event_times_enhancer(tmp_path):
 
     enhancer.enhance(trial, 0, {}, {})
     expected_enhancements = {
-        "time": {
-            "foo": [0.0, 5.0],
-            "bar": [2.0],
-            "baz": []
-        }
+        "foo": [0.0, 5.0],
+        "bar": [2.0],
+        "baz": []
     }
     assert trial.enhancements == expected_enhancements
+
+    expected_categories = {
+        "time": ["foo", "bar", "baz"]
+    }
+    assert trial.enhancement_categories == expected_categories

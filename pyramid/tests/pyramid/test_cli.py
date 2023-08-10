@@ -59,10 +59,10 @@ experiment_config = {
                 "bar_2": {
                     "results_key": "bar",
                     "transformers": [
-                      {
-                          "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",
-                          "args": {"offset": 10, "gain": -2}
-                      }
+                        {
+                            "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",
+                            "args": {"offset": 10, "gain": -2}
+                        }
                     ]
                 },
             }
