@@ -587,9 +587,20 @@ def test_add_buffer_data_and_enhancements():
     assert "int_2" in trial.enhancement_categories["my_category"]
     assert "string_2" in trial.enhancement_categories["my_category"]
 
-    # Safe to get missing enhancements with a default.
+    # Enhancements can be lists with convenient element access.
+    assert trial.add_enhancement("empty_list", [])
+    assert trial.add_enhancement("list", [0, 1, 2])
+    assert trial.get_one("empty_list") is None
+    assert trial.get_one("empty_list", "default") is "default"
+    assert trial.get_one("list") is 0
+    assert trial.get_one("list", index=-1) is 2
+    assert trial.get_one("int") == 42.42
+
+    # It's safe to get missing enhancements with a default.
     assert trial.get_enhancement("missing") is None
     assert trial.get_enhancement("missing", "default") == "default"
+    assert trial.get_one("missing") is None
+    assert trial.get_one("missing", "default") == "default"
 
     expected_trial = Trial(
         start_time=0.0,
@@ -606,10 +617,12 @@ def test_add_buffer_data_and_enhancements():
             "int": 42.42,
             "string": "a replacement string!",
             "int_2": 43,
-            "string_2": "another string!"
+            "string_2": "another string!",
+            "empty_list": [],
+            "list": [0, 1, 2]
         },
         enhancement_categories={
-            "value": ["int", "string"],
+            "value": ["int", "string", "empty_list", "list"],
             "my_category": ["int_2", "string_2"]
         }
     )

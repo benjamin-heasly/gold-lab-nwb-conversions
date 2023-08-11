@@ -79,6 +79,20 @@ class Trial():
         """Get the value of a previously added enhancement, or return the given default."""
         return self.enhancements.get(name, default)
 
+    def get_one(self, name: str, default: Any = None, index: int = 0) -> Any:
+        """Get one element from of a list previously added as an enhancement, or return the given default."""
+        data = self.get_enhancement(name, default)
+        if isinstance(data, list):
+            if len(data):
+                # One list element.
+                return data[index]
+            else:
+                # Empty list!
+                return default
+        else:
+            # Data is already a scalar.
+            return data
+
 
 class TrialDelimiter():
     """Monitor a "start" event buffer, making new trials as delimiting events arrive."""
