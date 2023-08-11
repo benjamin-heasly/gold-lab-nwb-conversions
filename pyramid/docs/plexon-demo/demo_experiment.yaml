@@ -28,7 +28,7 @@ readers:
       ecodes:
         results_key: ecodes
 trials:
-  # How to delimit Trials in time, and how to align data within each trial.
+  # How to delimit and align Trials in time, what to compute per trial.
   start_buffer: delimiter
   start_value: 1005
   wrt_buffer: delimiter
@@ -42,6 +42,8 @@ trials:
       args:
         buffer_name: ecodes
         rules_csv: ecode-rules.csv
+    - class: custom_enhancers.SaccadesEnhancer
+      package_path: .
     - class: custom_enhancers.CustomEnhancer
       package_path: .
 plotters:

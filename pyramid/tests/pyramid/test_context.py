@@ -110,9 +110,6 @@ def test_configure_readers():
             }
         ),
     ]
-    print("fart")
-    print(reader_routers[0].routes)
-    print(expected_reader_routers[0].routes)
     assert reader_routers == expected_reader_routers
 
 

@@ -296,12 +296,15 @@ def configure_readers(
     readers = {}
     named_buffers = {}
     routers = []
+    logging.info(f"Using {len(readers_config)} readers.")
     for (reader_name, reader_config) in readers_config.items():
         # Instantiate the reader by dynamic import.
         reader_class = reader_config["class"]
+        logging.info(f"  {reader_class}")
+        package_path = reader_config.get("package_path", None)
         reader_args = reader_config.get("args", {})
         simulate_delay = allow_simulate_delay and reader_config.get("simulate_delay", False)
-        reader = Reader.from_dynamic_import(reader_class, **reader_args)
+        reader = Reader.from_dynamic_import(reader_class, external_package_path=package_path, **reader_args)
         if simulate_delay:
             reader = DelaySimulatorReader(reader)
         readers[reader_name] = reader
@@ -317,10 +320,17 @@ def configure_readers(
             # Instantiate transformers by dynamic import.
             transformers = []
             transformers_config = buffer_config.get("transformers", [])
+            logging.info(f"Buffer {buffer_name} using {len(transformers_config)} transformers.")
             for transformer_config in transformers_config:
                 transformer_class = transformer_config["class"]
+                logging.info(f"  {transformer_class}")
+                package_path = transformer_config.get("package_path", None)
                 transformer_args = transformer_config.get("args", {})
-                transformer = Transformer.from_dynamic_import(transformer_class, **transformer_args)
+                transformer = Transformer.from_dynamic_import(
+                    transformer_class,
+                    external_package_path=package_path,
+                    **transformer_args
+                )
                 transformers.append(transformer)
 
             results_key = buffer_config.get("results_key", buffer_name)
@@ -381,11 +391,17 @@ def configure_trials(
 
     enhancers = []
     enhancers_config = trials_config.get("enhancers", [])
+    logging.info(f"Using {len(enhancers_config)} per-trial enhancers.")
     for enhancer_config in enhancers_config:
         enhancer_class = enhancer_config["class"]
+        logging.info(f"  {enhancer_class}")
         package_path = enhancer_config.get("package_path", None)
         enhancer_args = enhancer_config.get("args", {})
-        enhancer = TrialEnhancer.from_dynamic_import(enhancer_class, external_package_path=package_path, **enhancer_args)
+        enhancer = TrialEnhancer.from_dynamic_import(
+            enhancer_class,
+            external_package_path=package_path,
+            **enhancer_args
+        )
         enhancers.append(enhancer)
 
     trial_extractor = TrialExtractor(
@@ -408,8 +424,10 @@ def configure_plotters(plotters_config: list[dict[str, str]]) -> list[Plotter]:
     plotters = []
     for plotter_config in plotters_config:
         plotter_class = plotter_config["class"]
-        plotter_args = plotter_config.get("args", {})
         logging.info(f"  {plotter_class}")
-        plotters.append(Plotter.from_dynamic_import(plotter_class, **plotter_args))
+        package_path = plotter_config.get("package_path", None)
+        plotter_args = plotter_config.get("args", {})
+        plotter = Plotter.from_dynamic_import(plotter_class, external_package_path=package_path, **plotter_args)
+        plotters.append(plotter)
 
     return plotters

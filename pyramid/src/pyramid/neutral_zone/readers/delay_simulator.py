@@ -5,6 +5,7 @@ import time
 from pyramid.neutral_zone.readers.readers import Reader
 from pyramid.model.model import BufferData
 
+
 class DelaySimulatorReader(Reader):
     """Simulate delay between events so offline plays back sort of like online.
     """
@@ -41,7 +42,8 @@ class DelaySimulatorReader(Reader):
                 self.stashed_result = None
                 self.stash_until = None
                 return stashed
-            else:
+            else: # pragma: no cover
+                # This branch may or may not occur during tests because it depends on timing.
                 return None
 
         next_result = self.reader.read_next()
