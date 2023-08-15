@@ -313,8 +313,7 @@ class PlexonPlxRawReader(ContextManager):
     def consume_block_waveforms(self, block_header: np.ndarray) -> np.ndarray:
         n = int(block_header["NumberOfWaveforms"])
         m = int(block_header["NumberOfWordsInWaveform"])
-        byte_count = n * m * 2
-        bytes = self.plx_stream.read(byte_count)
+        bytes = self.plx_stream.read(n * m * 2)
         waveforms = np.frombuffer(bytes, dtype='int16')
         waveforms.reshape([n, m])
         return waveforms
