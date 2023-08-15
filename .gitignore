@@ -132,3 +132,7 @@ trials.json
 slow_trials.csv
 demo_experiment.json
 demo_experiment.hdf5
+
+# line_profiler / kernprof
+profile.py
+*.lprof

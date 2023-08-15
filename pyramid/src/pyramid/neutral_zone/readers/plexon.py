@@ -267,6 +267,7 @@ class PlexonPlxRawReader(ContextManager):
             gains[header['Channel']] = gain
         return gains
 
+    #@profile
     def next_block(self) -> dict[str, Any]:
         # Consume the next block header and any waveform data.
         block_header = self.consume_type(DataBlockHeader)
@@ -276,7 +277,7 @@ class PlexonPlxRawReader(ContextManager):
         self.block_count += 1
 
         file_offset = self.plx_stream.tell()
-        timestamp = block_header['UpperByteOf5ByteTimestamp'] * 2 ** 32 + block_header['TimeStamp']
+        timestamp = int(block_header['UpperByteOf5ByteTimestamp']) * 2 ** 32 + int(block_header['TimeStamp'])
         block_type = block_header['Type']
         if block_type == 4:
             # An event value with no waveform payload.
@@ -291,6 +292,7 @@ class PlexonPlxRawReader(ContextManager):
             logging.warning(f"Skipping block of unknown type {block_type}.  Block header is: {block_header}")
             return None
 
+    #@profile
     def block_event_data(
         self,
         block_header: np.ndarray,
@@ -307,14 +309,17 @@ class PlexonPlxRawReader(ContextManager):
             "unit": block_header['Unit'],
         }
 
+    #@profile
     def consume_block_waveforms(self, block_header: np.ndarray) -> np.ndarray:
-        shape = (block_header["NumberOfWaveforms"], block_header["NumberOfWordsInWaveform"])
-        byte_count = shape[0] * shape[1] * 2
+        n = int(block_header["NumberOfWaveforms"])
+        m = int(block_header["NumberOfWordsInWaveform"])
+        byte_count = n * m * 2
         bytes = self.plx_stream.read(byte_count)
         waveforms = np.frombuffer(bytes, dtype='int16')
-        waveforms.reshape(shape)
+        waveforms.reshape([n, m])
         return waveforms
 
+    #@profile
     def block_dsp_data(
         self,
         block_header: np.ndarray,
@@ -336,6 +341,7 @@ class PlexonPlxRawReader(ContextManager):
             "waveforms": waveforms * gain
         }
 
+    #@profile
     def block_slow_data(
         self,
         block_header: np.ndarray,
@@ -457,6 +463,7 @@ class PlexonPlxReader(Reader):
     ) -> bool | None:
         return self.raw_reader.__exit__(__exc_type, __exc_value, __traceback)
 
+    #@profile
     def read_next(self) -> dict[str, BufferData]:
         (name, data) = self.read_one_block()
         if name is None:
@@ -479,6 +486,7 @@ class PlexonPlxReader(Reader):
 
         return results
 
+    #@profile
     def read_one_block(self) -> tuple[str, BufferData]:
         block = self.raw_reader.next_block()
         if block is None:
@@ -498,18 +506,21 @@ class PlexonPlxReader(Reader):
             logging.warning(f"Ignoring block of unknown type {block_type}.")
             return (None, None)
 
+    #@profile
     def block_spike_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         channel_id = block['channel']
         name = self.spike_channel_names.get(channel_id, "skip")
         event_list = NumericEventList(np.array([[block['timestamp_seconds'], channel_id, block['unit']]]))
         return (name, event_list)
 
+    #@profile
     def block_event(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         channel_id = block['channel']
         name = self.event_channel_names.get(channel_id, "skip")
         event_list = NumericEventList(np.array([[block['timestamp_seconds'], block['unit']]]))
         return (name, event_list)
 
+    #@profile
     def block_signal_chunk(self, block: dict[str, Any]) -> tuple[str, BufferData]:
         channel_id = block['channel']
         name = self.signal_channel_names.get(channel_id, "skip")
