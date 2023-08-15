@@ -53,6 +53,7 @@ plotters:
     args:
       xmin: -1.0
       xmax: 5.0
+      ylabel: analog mystery
   - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
     args:
       xmin: -1.0
@@ -63,3 +64,21 @@ plotters:
       xmin: -1.0
       xmax: 5.0
       match_pattern: spike_.*
+      value_index: 1
+      ylabel: unit
+      marker: "|"
+  - class: pyramid.plotters.standard_plotters.EnhancementTimesPlotter
+    args:
+      xmin: -1.0
+      xmax: 5.0
+  - class: pyramid.plotters.standard_plotters.EnhancementXYPlotter
+    args:
+      xmin: -20
+      xmax: 20
+      ymin: -15
+      ymax: 15
+      xy_pairs:
+        fp_x: fp_y
+        t1_x: t1_y
+        t2_x: t2_y
+        sample_x: sample_y
