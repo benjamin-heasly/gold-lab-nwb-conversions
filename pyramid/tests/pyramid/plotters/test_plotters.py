@@ -8,7 +8,7 @@ from pytest import fixture
 import matplotlib.pyplot as plt
 
 from pyramid.trials.trials import Trial
-from pyramid.plotters.plotters import Plotter, PlotFigureController, get_figure_position, set_figure_position
+from pyramid.plotters.plotters import Plotter, PlotFigureController, get_figure_position, set_figure_position, looks_like_tkinter
 from pyramid.plotters.standard_plotters import NumericEventsPlotter, SignalChunksPlotter
 
 
@@ -115,7 +115,6 @@ def test_close_figure_early():
     assert len(controller.get_open_figures()) == 0
 
 
-# TODO: what happens when we run this on the CI server?
 def test_restore_figure_positions(tmp_path):
     plot_positions = {
         '1': {
@@ -150,10 +149,16 @@ def test_restore_figure_positions(tmp_path):
             position = get_figure_position(fig)
             figure_key = str(fig.number)
             expected_position = plot_positions[figure_key]
-            assert position == expected_position
+
+            if looks_like_tkinter(fig):
+                assert position == expected_position
+            else:  # pragma: no cover
+                # This case happens on the headless test server.
+                # There, the Matplotlib backend is "agg" for writing image files,
+                # so there's no figure window to position.
+                assert position is None
 
 
-# TODO: what happens when we run this on the CI server?
 def test_record_figure_positions(tmp_path):
     expected_plot_positions = {
         '1': {
@@ -186,8 +191,16 @@ def test_record_figure_positions(tmp_path):
             plot_position = expected_plot_positions[figure_key]
             set_figure_position(fig, plot_position)
             fig.canvas.flush_events()
+            is_tkinter = looks_like_tkinter(fig)
 
     with open(plot_positions_yaml, "r") as f:
         plot_positions = yaml.safe_load(f)
 
-    assert plot_positions == expected_plot_positions
+    if is_tkinter:
+        assert plot_positions == expected_plot_positions
+    else:  # pragma: no cover
+        # This case happens on the headless test server.
+        # There, the Matplotlib backend is "agg" for writing image files,
+        # so there's no figure window to position.
+        for position in plot_positions:
+            assert position is None
