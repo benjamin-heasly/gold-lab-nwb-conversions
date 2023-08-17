@@ -202,5 +202,5 @@ def test_record_figure_positions(tmp_path):
         # This case happens on the headless test server.
         # There, the Matplotlib backend is "agg" for writing image files,
         # so there's no figure window to position.
-        for position in plot_positions:
+        for position in plot_positions.values():
             assert position is None
