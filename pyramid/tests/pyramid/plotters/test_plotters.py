@@ -1,10 +1,14 @@
 import sys
 from pathlib import Path
+
+import yaml
+
 from pytest import fixture
+
 import matplotlib.pyplot as plt
 
 from pyramid.trials.trials import Trial
-from pyramid.plotters.plotters import Plotter, PlotFigureController
+from pyramid.plotters.plotters import Plotter, PlotFigureController, get_figure_position, set_figure_position
 from pyramid.plotters.standard_plotters import NumericEventsPlotter, SignalChunksPlotter
 
 
@@ -109,3 +113,81 @@ def test_close_figure_early():
     for plotter in plotters:
         assert len(plotter.history) == 0
     assert len(controller.get_open_figures()) == 0
+
+
+# TODO: what happens when we run this on the CI server?
+def test_restore_figure_positions(tmp_path):
+    plot_positions = {
+        '1': {
+            "height": 100,
+            "width": 101,
+            "x": 1,
+            "y": 51,
+        },
+        '2': {
+            "height": 200,
+            "width": 202,
+            "x": 2,
+            "y": 52,
+        },
+        '3': {
+            "height": 300,
+            "width": 303,
+            "x": 3,
+            "y": 53,
+        }
+    }
+    plot_positions_yaml = Path(tmp_path, "plot_positions.yaml").as_posix()
+    with open(plot_positions_yaml, "w") as f:
+        yaml.safe_dump(plot_positions, f)
+
+    plotters = [NumericEventsPlotter(), SignalChunksPlotter(), NumericEventsPlotter()]
+    with PlotFigureController(plotters, plot_positions_yaml=plot_positions_yaml) as controller:
+        assert len(controller.get_open_figures()) == len(plotters)
+
+        for fig in controller.figures.values():
+            fig.canvas.flush_events()
+            position = get_figure_position(fig)
+            figure_key = str(fig.number)
+            expected_position = plot_positions[figure_key]
+            assert position == expected_position
+
+
+# TODO: what happens when we run this on the CI server?
+def test_record_figure_positions(tmp_path):
+    expected_plot_positions = {
+        '1': {
+            "height": 100,
+            "width": 101,
+            "x": 1,
+            "y": 51,
+        },
+        '2': {
+            "height": 200,
+            "width": 202,
+            "x": 2,
+            "y": 52,
+        },
+        '3': {
+            "height": 300,
+            "width": 303,
+            "x": 3,
+            "y": 53,
+        }
+    }
+
+    plot_positions_yaml = Path(tmp_path, "plot_positions.yaml").as_posix()
+    plotters = [NumericEventsPlotter(), SignalChunksPlotter(), NumericEventsPlotter()]
+    with PlotFigureController(plotters, plot_positions_yaml=plot_positions_yaml) as controller:
+        assert len(controller.get_open_figures()) == len(plotters)
+
+        for fig in controller.figures.values():
+            figure_key = str(fig.number)
+            plot_position = expected_plot_positions[figure_key]
+            set_figure_position(fig, plot_position)
+            fig.canvas.flush_events()
+
+    with open(plot_positions_yaml, "r") as f:
+        plot_positions = yaml.safe_load(f)
+
+    assert plot_positions == expected_plot_positions

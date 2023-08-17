@@ -33,7 +33,8 @@ class PyramidContext():
         experiment_yaml: str,
         subject_yaml: str = None,
         reader_overrides: list[str] = [],
-        allow_simulate_delay: bool = False
+        allow_simulate_delay: bool = False,
+        plot_positions_yaml: str = None
     ) -> Self:
         with open(experiment_yaml) as f:
             experiment_config = yaml.safe_load(f)
@@ -54,7 +55,7 @@ class PyramidContext():
         else:
             subject_config = {}
 
-        pyramid_context = cls.from_dict(experiment_config, subject_config, allow_simulate_delay)
+        pyramid_context = cls.from_dict(experiment_config, subject_config, allow_simulate_delay, plot_positions_yaml)
         return pyramid_context
 
     @classmethod
@@ -62,7 +63,8 @@ class PyramidContext():
         cls,
         experiment_config: dict[str, Any],
         subject_config: dict[str, Any],
-        allow_simulate_delay: bool = False
+        allow_simulate_delay: bool = False,
+        plot_positions_yaml: str = None
     ) -> Self:
         (readers, named_buffers, reader_routers) = configure_readers(experiment_config["readers"], allow_simulate_delay)
         (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(
@@ -82,6 +84,7 @@ class PyramidContext():
             plotters=plotters,
             experiment_info=experiment,
             subject_info=subject,
+            plot_positions_yaml=plot_positions_yaml
         )
         return PyramidContext(
             subject=subject,
@@ -155,7 +158,7 @@ class PyramidContext():
 
             # Extract trials indefinitely, as they come.
             next_gui_update = time.time()
-            while self.start_router.still_going() and self.plot_figure_controller.get_open_figures():
+            while self.start_router.still_going() and self.plot_figure_controller.stil_going():
                 if time.time() > next_gui_update:
                     self.plot_figure_controller.update()
                     next_gui_update += plot_update_period

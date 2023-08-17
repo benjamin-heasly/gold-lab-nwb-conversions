@@ -46,6 +46,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--graph-file", '-g',
                         type=str,
                         help="Graph file to write")
+    parser.add_argument("--plot-positions", "-p",
+                        type=str,
+                        default=None,
+                        help="Name of a YAML where Pyramid can record and restore plot figure window positions")
     parser.add_argument("--version", "-v",
                         action="version",
                         version=version_string)
@@ -61,7 +65,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     experiment_yaml=cli_args.experiment,
                     subject_yaml=cli_args.subject,
                     reader_overrides=cli_args.readers,
-                    allow_simulate_delay=True
+                    allow_simulate_delay=True,
+                    plot_positions_yaml=cli_args.plot_positions
                 )
                 context.run_with_plots(cli_args.trial_file)
                 exit_code = 0
