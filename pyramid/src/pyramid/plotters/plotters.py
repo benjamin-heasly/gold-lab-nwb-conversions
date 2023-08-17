@@ -16,6 +16,15 @@ from pyramid.trials.trials import Trial
 class Plotter(DynamicImport):
     """Abstract interface for objects that plot to a figure and update each trial."""
 
+    please_quit:bool = False
+
+    def quit(self, event: Any = None) -> None:
+        """Any plotter instance may call quit() on itself to request Pyramid quit from gui mode.
+
+        Takes an event argument to make convenient as a Matplotlib widget callback.
+        """
+        self.please_quit = True
+
     def set_up(
         self,
         fig: Figure,
@@ -147,10 +156,7 @@ class PlotFigureController(ContextManager):
         return [figure for figure in self.figures.values() if plt.fignum_exists(figure.number)]
 
     def stil_going(self) -> bool:
-        # TODO: a GUI way to exit without closing the figure -- so the first figure position can be recorded/restored.
-        # https://matplotlib.org/stable/gallery/widgets/buttons.html
-        # Figures can set some property like "please_quit", and we can check it here.
-        return len(self.get_open_figures()) > 0
+        return len(self.get_open_figures()) > 0 and not any([plotter.please_quit for plotter in self.plotters])
 
 
 # I thought it would be easy and handy to restore figure positions automatically.

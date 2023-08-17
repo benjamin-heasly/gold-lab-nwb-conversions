@@ -115,6 +115,40 @@ def test_close_figure_early():
     assert len(controller.get_open_figures()) == 0
 
 
+def test_close_all_figures():
+    plotters = [NumericEventsPlotter(), SignalChunksPlotter(), NumericEventsPlotter()]
+    with PlotFigureController(plotters) as controller:
+        assert len(controller.get_open_figures()) == len(plotters)
+        assert len(controller.get_open_figures()) == 3
+        assert controller.stil_going()
+
+        plt.close(controller.figures[plotters[0]])
+        controller.update()
+        assert len(controller.get_open_figures()) == 2
+        assert controller.stil_going()
+
+        plt.close(controller.figures[plotters[1]])
+        controller.update()
+        assert len(controller.get_open_figures()) == 1
+        assert controller.stil_going()
+
+        plt.close(controller.figures[plotters[2]])
+        controller.update()
+        assert len(controller.get_open_figures()) == 0
+        assert not controller.stil_going()
+
+
+def test_please_quit():
+    plotters = [NumericEventsPlotter(), SignalChunksPlotter(), NumericEventsPlotter()]
+    with PlotFigureController(plotters) as controller:
+        assert len(controller.get_open_figures()) == len(plotters)
+        assert len(controller.get_open_figures()) == 3
+        assert controller.stil_going()
+
+        plotters[0].quit()
+        assert not controller.stil_going()
+
+
 def test_restore_figure_positions(tmp_path):
     plot_positions = {
         '1': {

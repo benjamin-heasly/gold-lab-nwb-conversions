@@ -6,6 +6,7 @@ from binascii import crc32
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.pyplot import get_cmap
+from matplotlib.widgets import Button
 
 from pyramid.trials.trials import Trial
 from pyramid.plotters.plotters import Plotter
@@ -64,6 +65,10 @@ class BasicInfoPlotter(Plotter):
             cellLoc="left",
             loc="center"
         )
+
+        quit_axes = fig.add_axes([0, 0, .1, .05])
+        self.quit_button = Button(quit_axes, "Quit")
+        self.quit_button.on_clicked(self.quit)
 
         self.start_time = time.time()
 
