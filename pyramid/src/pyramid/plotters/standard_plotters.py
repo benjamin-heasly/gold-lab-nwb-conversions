@@ -178,6 +178,7 @@ class SignalChunksPlotter(Plotter):
         history_size: int = 10,
         xmin: float = -2.0,
         xmax:float = 2.0,
+        match_pattern: str = None,
         channel_ids: list[str|int] = None,
         ylabel:str = None
         ) -> None:
@@ -186,6 +187,7 @@ class SignalChunksPlotter(Plotter):
 
         self.xmin = xmin
         self.xmax = xmax
+        self.match_pattern = match_pattern
         self.channel_ids = channel_ids
         self.ylabel = ylabel
 
@@ -228,7 +230,11 @@ class SignalChunksPlotter(Plotter):
                     self.ax.plot(data.get_times(), data.get_channel_values(channel_id), color=name_to_color(full_name, 0.25))
 
         # Update finite, rolling history.
-        new = current_trial.signals
+        new = {
+            name: signal_chunk
+            for name, signal_chunk in current_trial.signals.items()
+            if self.match_pattern is None or re.fullmatch(self.match_pattern, name) and signal_chunk.sample_count() > 0
+        }
         self.history.append(new)
         self.history = self.history[-self.history_size:]
 
@@ -394,7 +400,7 @@ class EnhancementXYPlotter(Plotter):
     def clean_up(self, fig: Figure) -> None:
         self.history = []
 
+
 # TODO: "id" enhancements
 # TODO: non-xy "value" enhancements
 # TODO: saccades
-# TODO: include in cli test for coverage

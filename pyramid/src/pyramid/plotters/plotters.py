@@ -246,7 +246,7 @@ def measure_geometry_offsets(fig: Figure) -> dict[str, int]:
     It does this by moving the figure, so we should only call this right before setting the position, anyway.
     """
 
-    if looks_like_tkinter(fig):  # TODO: coverage
+    if looks_like_tkinter(fig):
         # Go to the screen origin at the top-left, which is usually possible, and seems to give consistent results.
         fig.canvas.manager.window.geometry("+0+0")
         fig.canvas.flush_events()

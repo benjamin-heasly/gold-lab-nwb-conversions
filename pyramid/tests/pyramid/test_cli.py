@@ -87,12 +87,12 @@ experiment_config = {
     },
     "plotters": [
         {"class": "pyramid.plotters.standard_plotters.SignalChunksPlotter"},
-        {"class": "pyramid.plotters.standard_plotters.SignalChunksPlotter", "args": {"channel_ids": ["no_match"]}},
         {"class": "pyramid.plotters.standard_plotters.NumericEventsPlotter"},
         {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"},
+        {"class": "pyramid.plotters.standard_plotters.EnhancementTimesPlotter"},
+        {"class": "pyramid.plotters.standard_plotters.EnhancementXYPlotter"},
     ]
 }
-
 
 def test_gui_success(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()
