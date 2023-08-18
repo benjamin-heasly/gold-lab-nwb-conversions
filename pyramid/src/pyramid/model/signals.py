@@ -142,8 +142,10 @@ class SignalChunk(BufferData):
         sample_times = self.first_sample_time + sample_offsets
         return sample_times
 
-    def get_channel_values(self, channel_id: str | int) -> np.ndarray:
+    def get_channel_values(self, channel_id: str | int = None) -> np.ndarray:
         """Get sample values from one channel, by id.
         """
+        if channel_id is None:
+            channel_id = self.channel_ids[0]
         channel_index = self.channel_ids.index(channel_id)
         return self.sample_data[:, channel_index]

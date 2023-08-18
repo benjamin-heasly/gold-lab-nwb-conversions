@@ -1,5 +1,6 @@
 from typing import Any
 import math
+
 from pyramid.trials.trials import Trial, TrialEnhancer
 
 
@@ -107,7 +108,7 @@ class CustomEnhancer(TrialEnhancer):
         score = -1
         if broken_fixation:
             score = -2
-        elif not saccades or not math.isfinite(saccades[0]["latency"]):
+        elif not saccades or not math.isfinite(saccades[0]["t_start"]):
             score = -1
         else:
             # EventTimesEnhancer stores lists of named event times.
@@ -118,9 +119,9 @@ class CustomEnhancer(TrialEnhancer):
             targ_acq = trial.get_one("targ_acq", 0) - trial.get_one("fp_off", 0)
             score = 0
             for saccade in saccades:
-                if saccade["latency"] > targ_acq:
+                if saccade["t_start"] > targ_acq:
                     score = 1
-                    trial.add_enhancement("RT", saccade["latency"])
+                    trial.add_enhancement("RT", saccade["t_start"])
                     trial.add_enhancement("scored_saccade", saccade, "saccades")
 
         # 1=correct, 0=error, -1=nc, -2=brfix,-3=sample
@@ -153,8 +154,8 @@ class SaccadesEnhancer(TrialEnhancer):
         self,
         num_saccades: int = 2,
         recal: bool = True,
-        horiz_buffer_name: str = "horiz_eye",
-        vert_buffer_name: str = "vert_eye",
+        horiz_buffer_name: str = "gaze_x",
+        vert_buffer_name: str = "gaze_y",
         fp_off_name: str = "fp_off",
         fp_x_name: str = "fp_x",
         fp_y_name: str = "fp_y",
@@ -198,40 +199,44 @@ class SaccadesEnhancer(TrialEnhancer):
     def enhance(self, trial: Trial, trial_count: int, experiment_info: dict, subject_info: dict) -> None:
         # This is only a placeholder to show how to access trial data and create saccade data.
 
-        # Use trial.get_one() to get the time of the first occurence of the named "time" event.
+        # We could have lots of actual saccade code here!
+        # It might be good to fold this code into Pyramid itself, and get it under test coverage.
 
-        fp_off_time = trial.get_one("fp_off_name")
+        # Use trial.get_one() to get the time of the first occurence of the named "time" event.
+        fp_off_time = trial.get_one(self.fp_off_name)
         if fp_off_time is None:
             return
 
         # Use trial.signals for gaze signal chunks.
-        # Use signal chunk get_end_time() to get the time of the last sample.
-
-        eye_x = trial.signals[self.horiz_buffer_name]
-        eye_y = trial.signals[self.vert_buffer_name]
-        if eye_x.get_end_time() < fp_off_time or eye_y.get_end_time() < fp_off_time:
+        x_signal = trial.signals[self.horiz_buffer_name]
+        y_signal = trial.signals[self.vert_buffer_name]
+        if x_signal.get_end_time() < fp_off_time or y_signal.get_end_time() < fp_off_time:
             return
 
-        if eye_x.sample_frequency != eye_y.sample_frequency:
-            return
+        # Placeholder: start a bogus "saccade" at fp_off_time, and end it 1 second later.
+        arbitrary_duration = 1.0
+        x_values = x_signal.copy_time_range(fp_off_time, fp_off_time + arbitrary_duration).get_channel_values()
+        x_start = x_values[0]
+        x_end = x_values[-1]
+        y_values = y_signal.copy_time_range(fp_off_time, fp_off_time + arbitrary_duration).get_channel_values()
+        y_start = y_values[0]
+        y_end = y_values[-1]
 
-        # sample interval, in ms
-        t_int = 1000 / eye_x.sample_frequency
+        x_displacement = x_end - x_start
+        y_displacement = y_end - y_start
+        raw_distance = math.sqrt(x_displacement ** 2 + y_displacement ** 2)
 
-        # We could have lots of actual saccade code here!
-        # It might be good to fold this code into Pyramid itself, and get it under test coverage.
-
-        # TODO: phony saccades based on data, maby just gaze at 0 and 3 seconds.
-
-        # Maybe represent each saccade as a dictionary that uses certain keys by convention.
+        # Represent each saccade as a dictionary that has certain keys by convention.
         example_saccade = {
-             "latency": 0,
-             "duration": 0.1,
-             "vmax": 100,
-             "vavg": 50,
-             "end_x": 0,
-             "end_y": 0,
-             "raw_distance": 5,
+             "t_start": fp_off_time,
+             "t_end": fp_off_time + arbitrary_duration,
+             "v_max": raw_distance / arbitrary_duration,
+             "v_avg": raw_distance / arbitrary_duration,
+             "x_start": x_start,
+             "y_start": y_start,
+             "x_end": x_end,
+             "y_end": y_end,
+             "raw_distance": raw_distance,
              "vector_distance": 1,
         }
 

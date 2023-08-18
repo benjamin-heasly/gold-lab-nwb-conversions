@@ -1,6 +1,7 @@
 import numpy as np
 
 from pyramid.model.events import NumericEventList
+from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.transformers.transformers import Transformer
 from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGain, FilterRange
 
@@ -27,7 +28,7 @@ def test_filter_range_dynamic_imports_with_kwargs():
     assert filter_range.max == 55
 
 
-def test_offset_then_gain():
+def test_offset_then_gain_event_list():
     event_count = 100
     raw_data = [[t, 10*t] for t in range(event_count)]
     event_list = NumericEventList(np.array(raw_data))
@@ -37,6 +38,19 @@ def test_offset_then_gain():
 
     expected_data = [[t, -2 * (10 + (10*t))] for t in range(event_count)]
     expected = NumericEventList(np.array(expected_data))
+    assert transformed == expected
+
+
+def test_offset_then_gain_signal_chunk():
+    sample_count = 100
+    raw_data = [[s, 10 * s] for s in range(sample_count)]
+    signal_chunk = SignalChunk(np.array(raw_data), sample_frequency=1.0, first_sample_time=0.0, channel_ids=[0, 1])
+
+    transformer = OffsetThenGain(offset=10, gain=-2)
+    transformed = transformer.transform(signal_chunk)
+
+    expected_data = [[-2 * (10 + s), -2 * (10 + (10 * s))] for s in range(sample_count)]
+    expected = SignalChunk(np.array(expected_data), sample_frequency=1.0, first_sample_time=0.0, channel_ids=[0, 1])
     assert transformed == expected
 
 

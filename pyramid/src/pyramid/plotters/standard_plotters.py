@@ -341,6 +341,7 @@ class EnhancementXYPlotter(Plotter):
     def __init__(
         self,
         xy_pairs: dict[str, str] = {},
+        nested: dict[str, dict[str, str]] = {},
         history_size: int = 10,
         xmin: float = -2.0,
         xmax:float = 2.0,
@@ -348,6 +349,7 @@ class EnhancementXYPlotter(Plotter):
         ymax:float = 2.0
     ) -> None:
         self.xy_pairs = xy_pairs
+        self.nested = nested
 
         self.history_size = history_size
         self.history = []
@@ -391,6 +393,18 @@ class EnhancementXYPlotter(Plotter):
             y_value = current_trial.get_enhancement(y_name)
             if x_value is not None and y_value is not None:
                 new[x_name] = (x_value, y_value)
+
+        for nested_name, nested_pairs in self.nested.items():
+            nested = current_trial.get_enhancement(nested_name)
+            if isinstance(nested, dict):
+                # Get xy pairs out of a nested dictionary.
+                for x_name, y_name in nested_pairs.items():
+                    x_value = nested.get(x_name, None)
+                    y_value = nested.get(y_name, None)
+                    if x_value is not None and y_value is not None:
+                        nested_key = f"{nested_name}.{x_name}"
+                        new[nested_key] = (x_value, y_value)
+
         self.history.append(new)
         self.history = self.history[-self.history_size:]
 
@@ -407,5 +421,4 @@ class EnhancementXYPlotter(Plotter):
 
 
 # TODO: scalar, non-xy "id" and "value" enhancements
-# TODO: support saccades in xy plot
 # TODO: spikes plotter with integer channel and fractional unit

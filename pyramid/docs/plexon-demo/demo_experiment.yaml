@@ -27,6 +27,18 @@ readers:
         results_key: ecodes
       ecodes:
         results_key: ecodes
+      gaze_x:
+        results_key: gaze_x
+        transformers:
+          - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
+            args:
+              gain: 10
+      gaze_y:
+        results_key: gaze_y
+        transformers:
+          - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
+            args:
+              gain: 10
 trials:
   # How to delimit and align Trials in time, what to compute per trial.
   start_buffer: delimiter
@@ -53,7 +65,7 @@ plotters:
     args:
       xmin: -1.0
       xmax: 5.0
-      ylabel: analog mystery
+      ylabel: 10x raw signal
   - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
     args:
       xmin: -1.0
@@ -82,3 +94,7 @@ plotters:
         t1_x: t1_y
         t2_x: t2_y
         sample_x: sample_y
+      nested:
+        scored_saccade:
+          x_start: y_start
+          x_end: y_end

@@ -18,6 +18,7 @@ def test_signal_chunk_getters():
 
     assert np.array_equal(signal_chunk.get_times(), np.array(range(sample_count)) / 10)
     assert signal_chunk.get_end_time() == 0 + (sample_count - 1) / 10
+    assert np.array_equal(signal_chunk.get_channel_values(), np.array(range(sample_count)))
     assert np.array_equal(signal_chunk.get_channel_values("a"), np.array(range(sample_count)))
     assert np.array_equal(signal_chunk.get_channel_values("b"), np.array(range(sample_count)) + 10)
     assert np.array_equal(signal_chunk.get_channel_values("c"), np.array(range(sample_count)) * 10)

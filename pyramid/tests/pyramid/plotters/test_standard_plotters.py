@@ -186,28 +186,25 @@ def test_enhancement_xy_plotter():
     trial_0 = Trial(0.0, 1.0, 0.5)
     trial_0.add_enhancement("foox", 0)
     trial_0.add_enhancement("fooy", 1)
-    trial_0.add_enhancement("barx", 2)
-    trial_0.add_enhancement("bary", 3)
+    trial_0.add_enhancement("bar", {"x": 2, "y": 3})
     trial_0.add_enhancement("bazx", 4)
     trial_0.add_enhancement("bazy", 5)
     trial_1 = Trial(1.0, 2.0, 1.5)
     trial_1.add_enhancement("foox", 6)
     trial_1.add_enhancement("fooy", 7)
-    trial_1.add_enhancement("barx", 8)
-    trial_1.add_enhancement("bary", 9)
+    trial_1.add_enhancement("bar", {"x": 8, "y": 9})
     trial_1.add_enhancement("bazx", 0)
     trial_1.add_enhancement("bazy", 1)
-    xy_pairs={
-        "foox": "fooy",
-        "barx": "bary"
-    }
-    plotter = EnhancementXYPlotter(xy_pairs)
+    plotter = EnhancementXYPlotter(
+        xy_pairs = {"foox": "fooy"},
+        nested={"bar": {"x": "y"}}
+    )
     with PlotFigureController([plotter]) as controller:
         controller.plot_next(trial_0, trial_count=1)
         controller.update()
         assert len(plotter.history) == 1
         assert plotter.history[0]["foox"] == (trial_0.get_enhancement("foox"), trial_0.get_enhancement("fooy"))
-        assert plotter.history[0]["barx"] == (trial_0.get_enhancement("barx"), trial_0.get_enhancement("bary"))
+        assert plotter.history[0]["bar.x"] == (trial_0.get_enhancement("bar")['x'], trial_0.get_enhancement("bar")['y'])
         assert "bazx" not in plotter.history[0]
         assert "bazy" not in plotter.history[0]
 
@@ -215,10 +212,10 @@ def test_enhancement_xy_plotter():
         controller.update()
         assert len(plotter.history) == 2
         assert plotter.history[0]["foox"] == (trial_0.get_enhancement("foox"), trial_0.get_enhancement("fooy"))
-        assert plotter.history[0]["barx"] == (trial_0.get_enhancement("barx"), trial_0.get_enhancement("bary"))
+        assert plotter.history[0]["bar.x"] == (trial_0.get_enhancement("bar")['x'], trial_0.get_enhancement("bar")['y'])
         assert "bazx" not in plotter.history[0]
         assert "bazy" not in plotter.history[0]
         assert plotter.history[1]["foox"] == (trial_1.get_enhancement("foox"), trial_1.get_enhancement("fooy"))
-        assert plotter.history[1]["barx"] == (trial_1.get_enhancement("barx"), trial_1.get_enhancement("bary"))
+        assert plotter.history[1]["bar.x"] == (trial_1.get_enhancement("bar")['x'], trial_1.get_enhancement("bar")['y'])
         assert "bazx" not in plotter.history[1]
         assert "bazy" not in plotter.history[1]
