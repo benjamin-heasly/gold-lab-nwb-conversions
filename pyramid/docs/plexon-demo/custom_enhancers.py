@@ -221,6 +221,8 @@ class SaccadesEnhancer(TrialEnhancer):
         # We could have lots of actual saccade code here!
         # It might be good to fold this code into Pyramid itself, and get it under test coverage.
 
+        # TODO: phony saccades based on data, maby just gaze at 0 and 3 seconds.
+
         # Maybe represent each saccade as a dictionary that uses certain keys by convention.
         example_saccade = {
              "latency": 0,

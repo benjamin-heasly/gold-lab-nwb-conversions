@@ -406,6 +406,6 @@ class EnhancementXYPlotter(Plotter):
         self.history = []
 
 
-# TODO: "id" enhancements
-# TODO: non-xy "value" enhancements
-# TODO: saccades
+# TODO: scalar, non-xy "id" and "value" enhancements
+# TODO: support saccades in xy plot
+# TODO: spikes plotter with integer channel and fractional unit

@@ -7,7 +7,7 @@ import yaml
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-from matplotlib import get_backend
+from matplotlib import get_backend, use
 
 from pyramid.model.model import DynamicImport
 from pyramid.trials.trials import Trial
@@ -102,6 +102,11 @@ class PlotFigureController(ContextManager):
     def __enter__(self) -> Self:
         # Use matplotlib in interactive mode instead of blocking on eg plt.show().
         plt.ion()
+
+        # Prefer the Python "tkinter" backend over the "MacOSX" backend,
+        # so we can position and resize figure windows.
+        if get_backend() == 'MacOSX':
+            use("TkAgg")
 
         # Create a managed figure for each plotter to use.
         self.figures = {plotter: plt.figure() for plotter in self.plotters}

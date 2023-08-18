@@ -591,9 +591,9 @@ def test_add_buffer_data_and_enhancements():
     assert trial.add_enhancement("empty_list", [])
     assert trial.add_enhancement("list", [0, 1, 2])
     assert trial.get_one("empty_list") is None
-    assert trial.get_one("empty_list", "default") is "default"
-    assert trial.get_one("list") is 0
-    assert trial.get_one("list", index=-1) is 2
+    assert trial.get_one("empty_list", "default") == "default"
+    assert trial.get_one("list") == 0
+    assert trial.get_one("list", index=-1) == 2
     assert trial.get_one("int") == 42.42
 
     # It's safe to get missing enhancements with a default.
