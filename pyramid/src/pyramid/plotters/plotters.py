@@ -105,7 +105,7 @@ class PlotFigureController(ContextManager):
 
         # Prefer the Python "tkinter" backend over the "MacOSX" backend,
         # so we can position and resize figure windows.
-        if get_backend() == 'MacOSX':
+        if get_backend() == 'MacOSX':  # pragma: no cover
             use("TkAgg")
 
         # Create a managed figure for each plotter to use.
