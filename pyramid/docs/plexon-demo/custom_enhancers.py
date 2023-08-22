@@ -197,9 +197,9 @@ class SaccadesEnhancer(TrialEnhancer):
         self.broken_fixation_category = broken_fixation_category
 
     def enhance(self, trial: Trial, trial_count: int, experiment_info: dict, subject_info: dict) -> None:
-        # This is only a placeholder to show how to access trial data and create saccade data.
+        # This is only a placeholder to show how to access trial data and a way to represent saccade data.
 
-        # We could have lots of actual saccade code here!
+        # We could have lots of *actual* saccade analysis code here!
         # It might be good to fold this code into Pyramid itself, and get it under test coverage.
 
         # Use trial.get_one() to get the time of the first occurence of the named "time" event.

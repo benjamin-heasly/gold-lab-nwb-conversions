@@ -1,6 +1,7 @@
 import logging
 from types import TracebackType
 from typing import ContextManager, Self, Any
+from pathlib import Path
 
 import numpy as np
 from pyramid.model.model import BufferData
@@ -168,7 +169,8 @@ class PlexonPlxRawReader(ContextManager):
         self.frequency_per_slow_channel = None
 
     def __enter__(self) -> Self:
-        self.plx_stream = open(self.plx_file, 'br')
+        plx_file = Path(self.plx_file).expanduser().as_posix()
+        self.plx_stream = open(plx_file, 'br')
 
         self.global_header = self.consume_type_as_dict(GlobalHeader)
 

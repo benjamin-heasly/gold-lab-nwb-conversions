@@ -14,6 +14,8 @@ from pyramid.plotters.plotters import Plotter
 
 color_count = 14
 color_map = get_cmap('brg', color_count)
+
+
 def name_to_color(name: str, alpha: float = 1.0) -> str:
     hash = crc32(name.encode("utf-8"))
     index = hash % color_count
@@ -35,7 +37,7 @@ class BasicInfoPlotter(Plotter):
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
-        axes = fig.subplots(2,1)
+        axes = fig.subplots(2, 1)
         axes[0].set_title(f"Pyramid!")
         axes[0].axis("off")
         axes[1].axis("off")
@@ -46,7 +48,7 @@ class BasicInfoPlotter(Plotter):
 
         if subject_info:
             static_info += [[name, value] for name, value in subject_info.items()]
-        
+
         if static_info:
             self.static_table = axes[0].table(
                 cellText=static_info,
@@ -97,11 +99,12 @@ class NumericEventsPlotter(Plotter):
         self,
         history_size: int = 10,
         xmin: float = -2.0,
-        xmax:float = 2.0,
+        xmax: float = 2.0,
         match_pattern: str = None,
-        ylabel:str = None,
+        ylabel: str = None,
         value_index: int = 0,
-        marker: str = "o"
+        marker: str = "o",
+        old_marker: str = '.'
     ) -> None:
         self.history_size = history_size
         self.history = []
@@ -112,6 +115,7 @@ class NumericEventsPlotter(Plotter):
         self.ylabel = ylabel
         self.value_index = value_index
         self.marker = marker
+        self.old_marker = old_marker
 
     def set_up(
         self,
@@ -147,7 +151,7 @@ class NumericEventsPlotter(Plotter):
                     data.get_times(),
                     data.get_values(value_index=self.value_index),
                     color=name_to_color(name, 0.125),
-                    marker=self.marker
+                    marker=self.old_marker,
                 )
 
         # Update finite, rolling history.
@@ -182,11 +186,11 @@ class SignalChunksPlotter(Plotter):
         self,
         history_size: int = 10,
         xmin: float = -2.0,
-        xmax:float = 2.0,
+        xmax: float = 2.0,
         match_pattern: str = None,
-        channel_ids: list[str|int] = None,
-        ylabel:str = None
-        ) -> None:
+        channel_ids: list[str | int] = None,
+        ylabel: str = None
+    ) -> None:
         self.history_size = history_size
         self.history = []
 
@@ -232,7 +236,8 @@ class SignalChunksPlotter(Plotter):
                     ids = data.channel_ids
                 for channel_id in ids:
                     full_name = f"{name} {channel_id}"
-                    self.ax.plot(data.get_times(), data.get_channel_values(channel_id), color=name_to_color(full_name, 0.25))
+                    self.ax.plot(data.get_times(), data.get_channel_values(
+                        channel_id), color=name_to_color(full_name, 0.25))
 
         # Update finite, rolling history.
         new = {
@@ -251,7 +256,11 @@ class SignalChunksPlotter(Plotter):
                 ids = data.channel_ids
             for channel_id in ids:
                 full_name = f"{name} {channel_id}"
-                self.ax.plot(data.get_times(), data.get_channel_values(channel_id), color=name_to_color(full_name), label=full_name)
+                self.ax.plot(
+                    data.get_times(),
+                    data.get_channel_values(channel_id),
+                    color=name_to_color(full_name),
+                    label=full_name)
 
         self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
         self.ax.legend()
@@ -266,9 +275,11 @@ class EnhancementTimesPlotter(Plotter):
         self,
         history_size: int = 10,
         xmin: float = -2.0,
-        xmax:float = 2.0,
+        xmax: float = 2.0,
         enhancement_categories: list[str] = ["time"],
-        match_pattern: str = None
+        match_pattern: str = None,
+        marker: str = "o",
+        old_marker: str = '.'
     ) -> None:
         self.history_size = history_size
         self.history = []
@@ -277,6 +288,9 @@ class EnhancementTimesPlotter(Plotter):
         self.xmax = xmax
         self.enhancement_categories = enhancement_categories
         self.match_pattern = match_pattern
+
+        self.marker = marker
+        self.old_marker = old_marker
 
     def set_up(
         self,
@@ -309,7 +323,10 @@ class EnhancementTimesPlotter(Plotter):
         for old in self.history:
             for name, times in old.items():
                 row = self.all_names.index(name)
-                self.ax.scatter(times, row * np.ones([1, len(times)]), color=name_to_color(name, 0.25))
+                self.ax.scatter(
+                    times, row * np.ones([1, len(times)]),
+                    color=name_to_color(name, 0.25),
+                    marker=self.old_marker)
 
         # Update finite, rolling history.
         enhancement_names = []
@@ -328,7 +345,10 @@ class EnhancementTimesPlotter(Plotter):
         # Show new events on top in full color.
         for name, times in new.items():
             row = self.all_names.index(name)
-            self.ax.scatter(times, row * np.ones([1, len(times)]), color=name_to_color(name), label=name)
+            self.ax.scatter(
+                times, row * np.ones([1, len(times)]),
+                color=name_to_color(name),
+                label=name, marker=self.marker)
 
         self.ax.set_yticks(range(len(self.all_names)), self.all_names)
         self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
@@ -336,20 +356,24 @@ class EnhancementTimesPlotter(Plotter):
     def clean_up(self, fig: Figure) -> None:
         self.history = []
 
+
 class EnhancementXYPlotter(Plotter):
 
     def __init__(
         self,
-        xy_pairs: dict[str, str] = {},
-        nested: dict[str, dict[str, str]] = {},
+        xy_points: dict[str, str] = {},
+        xy_groups: dict[str, dict[str, str]] = {},
         history_size: int = 10,
         xmin: float = -2.0,
-        xmax:float = 2.0,
+        xmax: float = 2.0,
         ymin: float = -2.0,
-        ymax:float = 2.0
+        ymax: float = 2.0,
+        marker: str = "o",
+        old_marker: str = '.',
+        linestyle: str = ":"
     ) -> None:
-        self.xy_pairs = xy_pairs
-        self.nested = nested
+        self.xy_points = xy_points
+        self.xy_groups = xy_groups
 
         self.history_size = history_size
         self.history = []
@@ -358,6 +382,10 @@ class EnhancementXYPlotter(Plotter):
         self.xmax = xmax
         self.ymin = ymin
         self.ymax = ymax
+
+        self.marker = marker
+        self.old_marker = old_marker
+        self.linestyle = linestyle
 
     def set_up(
         self,
@@ -385,32 +413,56 @@ class EnhancementXYPlotter(Plotter):
         # Show old events faded out.
         for old in self.history:
             for name, point in old.items():
-                self.ax.scatter(point[0], point[1], color=name_to_color(name, 0.25))
+                if isinstance(point[0], list):
+                    self.ax.plot(
+                        point[0],
+                        point[1],
+                        color=name_to_color(name, 0.25),
+                        linestyle=self.linestyle,
+                        marker=self.old_marker,
+                        markevery=[-1]
+                    )
+                else:
+                    self.ax.scatter(point[0], point[1], color=name_to_color(name, 0.25), marker=self.old_marker)
 
         new = {}
-        for x_name, y_name in self.xy_pairs.items():
+        for x_name, y_name in self.xy_points.items():
             x_value = current_trial.get_enhancement(x_name)
             y_value = current_trial.get_enhancement(y_name)
             if x_value is not None and y_value is not None:
                 new[x_name] = (x_value, y_value)
 
-        for nested_name, nested_pairs in self.nested.items():
-            nested = current_trial.get_enhancement(nested_name)
-            if isinstance(nested, dict):
+        for group_name, group_xy_pairs in self.xy_groups.items():
+            group = current_trial.get_enhancement(group_name)
+            if isinstance(group, dict):
                 # Get xy pairs out of a nested dictionary.
-                for x_name, y_name in nested_pairs.items():
-                    x_value = nested.get(x_name, None)
-                    y_value = nested.get(y_name, None)
+                x_values = []
+                y_values = []
+                for x_name, y_name in group_xy_pairs.items():
+                    x_value = group.get(x_name, None)
+                    y_value = group.get(y_name, None)
                     if x_value is not None and y_value is not None:
-                        nested_key = f"{nested_name}.{x_name}"
-                        new[nested_key] = (x_value, y_value)
+                        x_values.append(x_value)
+                        y_values.append(y_value)
+                new[group_name] = (x_values, y_values)
 
         self.history.append(new)
         self.history = self.history[-self.history_size:]
 
         # Show new events on top in full color.
         for name, point in new.items():
-            self.ax.scatter(point[0], point[1], color=name_to_color(name), label=name)
+            if isinstance(point[0], list):
+                self.ax.plot(
+                    point[0],
+                    point[1],
+                    color=name_to_color(name),
+                    label=name,
+                    linestyle=self.linestyle,
+                    marker=self.marker,
+                    markevery=[-1]
+                )
+            else:
+                self.ax.scatter(point[0], point[1], color=name_to_color(name), label=name, marker=self.marker)
 
         self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
         self.ax.set_ylim(ymin=self.ymin, ymax=self.ymax)
@@ -418,7 +470,3 @@ class EnhancementXYPlotter(Plotter):
 
     def clean_up(self, fig: Figure) -> None:
         self.history = []
-
-
-# TODO: scalar, non-xy "id" and "value" enhancements
-# TODO: spikes plotter with integer channel and fractional unit

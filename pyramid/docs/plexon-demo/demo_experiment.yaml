@@ -10,23 +10,25 @@ experiment:
     - fictional
     - test
 readers:
-  # Where to read data from, and how to map/transform it into buffers that trials can pick from.
+  # How to get data, from where, and how to get it into buffers that trials can pick from.
   plexon_reader:
     class: pyramid.neutral_zone.readers.plexon.PlexonPlxReader
     args:
-      plx_file: my_file.plx # override on cli with --readers plexon_reader.plx_file=real.plx
+      # Override plx_file on cli with: --readers plexon_reader.plx_file=my_real_file.plx
+      plx_file: my_file.plx
       spikes: "all"
       events:
         Strobed: ecodes
       signals:
         X50: gaze_x
         Y51: gaze_y
-    simulate_delay: True # wait between events, gui demonstration
+    # For gui demo, wait between trial delimiting events.
+    simulate_delay: True
     buffers:
+      # Use ecodes as the delimiter for trials in time.
       delimiter:
         results_key: ecodes
-      ecodes:
-        results_key: ecodes
+      # Scale up the gaze signals by a known gain.
       gaze_x:
         results_key: gaze_x
         transformers:
@@ -40,37 +42,44 @@ readers:
             args:
               gain: 10
 trials:
-  # How to delimit and align Trials in time, what to compute per trial.
   start_buffer: delimiter
   start_value: 1005
   wrt_buffer: delimiter
   wrt_value: 1010
+  # Add named values to each trial, after event and signal data have been automatically added.
   enhancers:
+      # Standard enchancers come along with the Pyramid code.
     - class: pyramid.trials.standard_enhancers.PairedCodesEnhancer
       args:
         buffer_name: ecodes
         rules_csv: ecode-rules.csv
+      # Standard enchancers come along with the Pyramid code.
     - class: pyramid.trials.standard_enhancers.EventTimesEnhancer
       args:
         buffer_name: ecodes
         rules_csv: ecode-rules.csv
+      # Custom enchancers can be located in any specified "package path", eg the current folder.
     - class: custom_enhancers.SaccadesEnhancer
       package_path: .
+      # Custom enchancers can be located in any specified "package path", eg the current folder.
     - class: custom_enhancers.CustomEnhancer
       package_path: .
 plotters:
-  # In "gui" mode, Pyramid will set up plotters and update each plotter after each trial.
+    # Plot basic info about conversion process, plus a "Quit" button.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
+    # Plot gaze signal data.
   - class: pyramid.plotters.standard_plotters.SignalChunksPlotter
     args:
       xmin: -1.0
       xmax: 5.0
       ylabel: 10x raw signal
+    # Plot raw, numeric ecode data.
   - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
     args:
       xmin: -1.0
       xmax: 5.0
       match_pattern: ecodes
+    # Plot raw spike data with color-coded channels and units on the y-axis.
   - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
     args:
       xmin: -1.0
@@ -79,22 +88,26 @@ plotters:
       value_index: 1
       ylabel: unit
       marker: "|"
+    # Plot time(s) of key events during each trial (enhancements in the "time" category).
   - class: pyramid.plotters.standard_plotters.EnhancementTimesPlotter
     args:
       xmin: -1.0
       xmax: 5.0
+    # Plot XY value pairs from each trial (enhancements in the "value" category).
   - class: pyramid.plotters.standard_plotters.EnhancementXYPlotter
     args:
       xmin: -20
       xmax: 20
       ymin: -15
       ymax: 15
-      xy_pairs:
+      # These XY pairs are plotted as separate points.
+      xy_points:
         fp_x: fp_y
         t1_x: t1_y
         t2_x: t2_y
         sample_x: sample_y
-      nested:
+      # These XY pairs are grouped together and plotted as lines.
+      xy_groups:
         scored_saccade:
           x_start: y_start
           x_end: y_end

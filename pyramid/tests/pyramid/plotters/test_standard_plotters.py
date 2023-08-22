@@ -197,7 +197,7 @@ def test_enhancement_xy_plotter():
     trial_1.add_enhancement("bazy", 1)
     plotter = EnhancementXYPlotter(
         xy_pairs = {"foox": "fooy"},
-        nested={"bar": {"x": "y"}}
+        grouped={"bar": {"x": "y"}}
     )
     with PlotFigureController([plotter]) as controller:
         controller.plot_next(trial_0, trial_count=1)
