@@ -1,11 +1,11 @@
-# Plexon .plx Demo
+# Plexon Demo
 
-Here's a demo / example of Pyramid with a Plexon .plx file.
+Here's a demo / example of Pyramid with a Plexon `.plx` file.
 
 ## overview
 
 This example will read from a Plexon `.plx` file on your machine.
-Since .plx files can be large, you'll have to bring your own!
+Since `.plx` files can be large, you'll have to bring your own!
 Note the path of the file you want to use, for example,
 
 ```
@@ -250,17 +250,17 @@ This won't plot anything, and will convert the Plexon file to a trial file as fa
 
 ### record and restore figure window positions
 
-In case you get tired of rearranging plot figure windows, you can pass a plot positions YAML file to Pyramid.
+In case you get tired of rearranging plot figure windows, you can pass a `plot-positions` YAML file to Pyramid.
 
 ```
 pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/Desktop/data/MrM/Raw/MM_2022_08_05_REC.plx --plot-positions plot_positions.yaml
 ```
 
-When a `plot-positions` YAML file is specified, Pyramid will record and restore figure positions as follows:
+When a `plot-positions` YAML file is passed in, Pyramid will record and restore figure positions as follows:
 
- - First time, when the `plot-positions` YAML file is empty, open figures in the default locations, as usual.
- - When exiting, record the current, user-arranged location of each figure window to the YAML file.
- - Next time, when the YAML file is populated, restore each figure to its recorded location.
+ - On the first run, when the `plot-positions` YAML file doesn't exist yet, Pyramid will open figures in the default locations.
+ - When exiting, Pyramid will record the current, user-arranged location of each figure window to the YAML file.
+ - On subsequent runs, when the YAML file exists, restore each figure to its recorded location.
 
 This seems to work pretty well and has been tested on a Linux machine and a macOS machine.
 But this is only best-effort because matplotlib doesn't fully support arranging figure windows (as of writing in August 2023).
