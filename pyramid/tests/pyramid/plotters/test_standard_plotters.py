@@ -196,15 +196,15 @@ def test_enhancement_xy_plotter():
     trial_1.add_enhancement("bazx", 0)
     trial_1.add_enhancement("bazy", 1)
     plotter = EnhancementXYPlotter(
-        xy_pairs = {"foox": "fooy"},
-        grouped={"bar": {"x": "y"}}
+        xy_points={"foox": "fooy"},
+        xy_groups={"bar": {"x": "y"}}
     )
     with PlotFigureController([plotter]) as controller:
         controller.plot_next(trial_0, trial_count=1)
         controller.update()
         assert len(plotter.history) == 1
         assert plotter.history[0]["foox"] == (trial_0.get_enhancement("foox"), trial_0.get_enhancement("fooy"))
-        assert plotter.history[0]["bar.x"] == (trial_0.get_enhancement("bar")['x'], trial_0.get_enhancement("bar")['y'])
+        assert plotter.history[0]["bar"] == ([trial_0.get_enhancement("bar")['x']], [trial_0.get_enhancement("bar")['y']])
         assert "bazx" not in plotter.history[0]
         assert "bazy" not in plotter.history[0]
 
@@ -212,10 +212,10 @@ def test_enhancement_xy_plotter():
         controller.update()
         assert len(plotter.history) == 2
         assert plotter.history[0]["foox"] == (trial_0.get_enhancement("foox"), trial_0.get_enhancement("fooy"))
-        assert plotter.history[0]["bar.x"] == (trial_0.get_enhancement("bar")['x'], trial_0.get_enhancement("bar")['y'])
+        assert plotter.history[0]["bar"] == ([trial_0.get_enhancement("bar")['x']], [trial_0.get_enhancement("bar")['y']])
         assert "bazx" not in plotter.history[0]
         assert "bazy" not in plotter.history[0]
         assert plotter.history[1]["foox"] == (trial_1.get_enhancement("foox"), trial_1.get_enhancement("fooy"))
-        assert plotter.history[1]["bar.x"] == (trial_1.get_enhancement("bar")['x'], trial_1.get_enhancement("bar")['y'])
+        assert plotter.history[1]["bar"] == ([trial_1.get_enhancement("bar")['x']], [trial_1.get_enhancement("bar")['y']])
         assert "bazx" not in plotter.history[1]
         assert "bazy" not in plotter.history[1]
