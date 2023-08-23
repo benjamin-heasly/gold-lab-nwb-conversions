@@ -65,7 +65,7 @@ class BufferData():
         raise NotImplementedError  # pragma: no cover
 
     def shift_times(self, shift: float) -> None:
-        """Shift data times, in place -- allows allows Trial "wrt" alignment and Reader clock adjustments."""
+        """Shift data times, in place -- allows Trial "wrt" alignment and Reader clock adjustments."""
         raise NotImplementedError  # pragma: no cover
 
     def get_end_time(self) -> float:

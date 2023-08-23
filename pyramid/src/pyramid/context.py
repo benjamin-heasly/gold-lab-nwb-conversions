@@ -17,6 +17,7 @@ from pyramid.plotters.plotters import Plotter, PlotFigureController
 
 @dataclass
 class PyramidContext():
+    """Pyramid context holds everything needed to run Pyramid including experiment YAML, CLI args, etc."""
     subject: dict[str, Any]
     experiment: dict[str, Any]
     readers: dict[str, Reader]
@@ -36,6 +37,7 @@ class PyramidContext():
         allow_simulate_delay: bool = False,
         plot_positions_yaml: str = None
     ) -> Self:
+        """Load a context the way it comes from the CLI, with a YAML files etc."""
         with open(experiment_yaml) as f:
             experiment_config = yaml.safe_load(f)
 
@@ -66,6 +68,7 @@ class PyramidContext():
         allow_simulate_delay: bool = False,
         plot_positions_yaml: str = None
     ) -> Self:
+        """Load a context after things like YAML files are already read into memory."""
         (readers, named_buffers, reader_routers) = configure_readers(experiment_config["readers"], allow_simulate_delay)
         (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(
             experiment_config["trials"], named_buffers)
@@ -196,6 +199,7 @@ class PyramidContext():
                 self.plot_figure_controller.plot_next(last_trial, self.trial_delimiter.trial_count)
 
     def to_graphviz(self, graph_name: str, out_file: str):
+        """Do introspection of loaded config and write out a graphviz "dot" file and overview image for viewing."""
         dot = graphviz.Digraph(
             name=graph_name,
             graph_attr={
@@ -296,6 +300,8 @@ def configure_readers(
     readers_config: dict[str, dict],
     allow_simulate_delay: bool = False
 ) -> tuple[dict[str, Reader], dict[str, Buffer], list[ReaderRouter]]:
+    """Load the "readers:" section of an experiment YAML file."""
+
     readers = {}
     named_buffers = {}
     routers = []
@@ -372,6 +378,8 @@ def configure_trials(
     trials_config: dict[str, Any],
     named_buffers: dict[str, Buffer]
 ) -> tuple[TrialDelimiter, TrialExtractor, str]:
+    """Load the "trials:" section of an experiment YAML file."""
+
     start_buffer_name = trials_config.get("start_buffer", "start")
     start_value = trials_config.get("start_value", 0.0)
     start_value_index = trials_config.get("start_value_index", 0)
@@ -419,6 +427,8 @@ def configure_trials(
 
 
 def configure_plotters(plotters_config: list[dict[str, str]]) -> list[Plotter]:
+    """Load the "plotters:" section of an experiment YAML file."""
+
     if not plotters_config:
         logging.info(f"No plotters.")
         return []

@@ -21,7 +21,7 @@ class Plotter(DynamicImport):
     def quit(self, event: Any = None) -> None:
         """Any plotter instance may call quit() on itself to request Pyramid quit from gui mode.
 
-        Takes an event argument to make convenient as a Matplotlib widget callback.
+        Takes an event argument to make this convenient as a Matplotlib widget callback.
         """
         self.please_quit = True
 
@@ -54,13 +54,13 @@ class PlotFigureController(ContextManager):
     """Registry and utils for Plotter instances and corresponding, managed figures.
 
     We want pyramid GUI mode to be able to juggle several tasks at the same time:
-     - checking for new trial updates
+     - checking for new reader data and delimited trials
      - updating plots for each new trial
      - responding to GUI user inputs like resizing figures or pressing buttons/widgets
      - responding to GUI window closing so we can exit
 
-    So, things are asyncronous from the trial data side, and from the user interface side.
-    This is manageable, but not automatically.
+    So, things are asyncronous from both the trial data side and from the user interface side.
+    This is manageable with matplotlib, but not automatic.
     Here's some reading that informed the approach used here:
      - https://matplotlib.org/stable/users/explain/interactive_guide.html#explicitly-spinning-the-event-loop
      - https://stackoverflow.com/questions/7557098/matplotlib-interactive-mode-determine-if-figure-window-is-still-displayed
@@ -68,7 +68,6 @@ class PlotFigureController(ContextManager):
     We'll expect the pyramid GUI runner to loop through these tasks.
     It will expect the data side to poll for data or block with a short timeout.
     This will allow us to interleave GUI updates and event processing as well.
-
     This class implements the GUI updates and event processing part.
     """
 
@@ -100,7 +99,7 @@ class PlotFigureController(ContextManager):
             return False
 
     def __enter__(self) -> Self:
-        # Use matplotlib in interactive mode instead of blocking on eg plt.show().
+        # Use matplotlib in interactive mode instead of blocking on calls like plt.show().
         plt.ion()
 
         # Prefer the Python "tkinter" backend over the "MacOSX" backend,
@@ -126,13 +125,14 @@ class PlotFigureController(ContextManager):
         return self
 
     def plot_next(self, current_trial: Trial, trial_count: int) -> None:
-        # Let each plotter update for the current trial.
+        """Let each plotter update for the current trial."""
         for plotter, fig in self.figures.items():
             if plt.fignum_exists(fig.number):
                 plotter.update(fig, current_trial, trial_count, self.experiment_info, self.subject_info)
                 fig.canvas.draw_idle()
 
     def update(self) -> None:
+        """Let figure window process async, inteactive UI events."""
         for fig in self.figures.values():
             if plt.fignum_exists(fig.number):
                 fig.canvas.flush_events()
@@ -164,18 +164,19 @@ class PlotFigureController(ContextManager):
         return len(self.get_open_figures()) > 0 and not any([plotter.please_quit for plotter in self.plotters])
 
 
+# Here are several utils for wrangling figure window positions.
 # I thought it would be easy and handy to restore figure positions automatically.
 # It wasn't easy, darn it!
 # But I think it might still be handy.
-# Here are several utils for wrangling figure window positions.
 
 
 def looks_like_tkinter(fig: Figure) -> bool:
     """Check if the Matplotlib graphics backend has the functions we want to use.
 
     Matplotlib doesn't have a general way to get and set figure window position -- it depends on the graphics backend.
-    This checks for the Python "tkinter" backend (or compatible), which I think is default on Linux, macOS, and Win.
-    Let's start with this one and maybe add others if we find we need them.
+    This check ckecks for the Python "tkinter" backend (or compatible),
+    which I think is available by default on Linux, macOS, and Win.
+    Let's start with this one backend and maybe add others if we find we need them.
     """
     return (
         hasattr(fig, "canvas")
@@ -208,7 +209,7 @@ def parse_geometry(geometry: str) -> dict[str, int]:
 
 
 def set_figure_position(fig: Figure, position: dict[str, int]) -> None:
-    """Set the figure's current position given values from the tkinter "winfo_*()" functions.
+    """Set the figure's current position given position values corresponding to tkinter "winfo_*()" functions.
 
     For whatever reason, tkinter "winfo_*()" functions seem to be more accurate than the "geometry()" function.
     But the "geometry()" function is the only way to set the position!

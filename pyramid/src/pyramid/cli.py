@@ -24,7 +24,7 @@ def set_up_logging():
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = ArgumentParser(description="Import data and extract trials for viewing and analysis.")
+    parser = ArgumentParser(description="Read raw data and extract trials for viewing and analysis.")
     parser.add_argument("mode",
                         type=str,
                         choices=["gui", "convert", "graph"],

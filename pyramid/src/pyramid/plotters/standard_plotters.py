@@ -12,17 +12,20 @@ from pyramid.trials.trials import Trial
 from pyramid.plotters.plotters import Plotter
 
 
+# Choose some colors that are useful for plotting distict lines on a light background.
 color_count = 14
 color_map = get_cmap('brg', color_count)
 
 
 def name_to_color(name: str, alpha: float = 1.0) -> str:
+    """Choose a color that corresponds in a stable way to the name of a data element."""
     hash = crc32(name.encode("utf-8"))
     index = hash % color_count
     return color_map(index, alpha=alpha)
 
 
 def format_number(number):
+    """Choose an arbitrary, consistent way to format numbers in UI widgets."""
     if number is None:
         return ""
     else:
@@ -30,6 +33,7 @@ def format_number(number):
 
 
 class BasicInfoPlotter(Plotter):
+    """Show static experiment and subject data and progress through trials.  Also a Quit button."""
 
     def set_up(
         self,
@@ -94,6 +98,7 @@ class BasicInfoPlotter(Plotter):
 
 
 class NumericEventsPlotter(Plotter):
+    """Plot Pyramid NumericEventList data from buffers with names that match a pattern."""
 
     def __init__(
         self,
@@ -181,6 +186,7 @@ class NumericEventsPlotter(Plotter):
 
 
 class SignalChunksPlotter(Plotter):
+    """Plot Pyramid SignalChunk data from buffers with names that match a pattern and channels in a list."""
 
     def __init__(
         self,
@@ -270,6 +276,7 @@ class SignalChunksPlotter(Plotter):
 
 
 class EnhancementTimesPlotter(Plotter):
+    """Plot time-related Trial enhancements as occurence time(s) of named events."""
 
     def __init__(
         self,
@@ -358,6 +365,7 @@ class EnhancementTimesPlotter(Plotter):
 
 
 class EnhancementXYPlotter(Plotter):
+    """Plot 2D/XY data from specific pairs of Trial enhancements."""
 
     def __init__(
         self,

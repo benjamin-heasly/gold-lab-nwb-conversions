@@ -12,26 +12,26 @@ class Reader(DynamicImport, ContextManager):
 
     Each reader implementation should:
      - Encapsulate the details of how to connect to a data source and get data from it.
-     - Maintain internal state related to the data source, like a file handle and cursor, data block index,
-       socket descriptor, etc.
+     - Maintain internal state related to the data source, like a file handle and byte offset, a data block index,
+       a socket descriptor, etc.
      - Implement read_next() to consume an increment of available data from the source, update internal state
-       to reflect this, and return results in the form of named Pyramid BufferData types.
+       to reflect this, and return results as a dict of name - BufferData entries.
      - Implement __enter__() and __exit__() to confirm to Python's "context manager protocol"", which
        is how Pyramid manages acquisition and release of system and libarary resources.
        See: https://peps.python.org/pep-0343/#standard-terminology
      - Implement get_initial() to return a dictionary of name - BufferData entries, allowing users of the
        Reader to see the expected names and BufferData sub-types that the reader will produce.
 
-    Pyramid takes the results of get_initial() and read_next() from each reader and handles how the data
-    are copied into connected buffers, filtered and transformed into desired forms, and eventually
-    assigned to trials. So, the focus of a reader implementation can just be getting data out of the source
-    incrementally and converting each increment into Pyramid BufferData types.
+    The focus of a reader implementation should be getting data out of the source incrementally and converting
+    each increment into a dict of BufferData values.  From there, Pyramid takes the results of get_initial()
+    and read_next() and handles how the data are copied into connected buffers, filtered and transformed into
+    desired forms, and eventually assigned to trials.
     """
 
     def __enter__(self) -> Any:
         """Connect to a data source and acquire related system or library resources.
 
-        Return an object that we can "read_next()" on -- probably just "return self".
+        Return an object that we can "read_next()" on -- probably return self.
         """
         raise NotImplementedError  # pragma: no cover
 
@@ -49,7 +49,7 @@ class Reader(DynamicImport, ContextManager):
 
         This must not block when reading from its data source.
         Rather, it should read/poll for data once and just return None if no data are available yet.
-        Pyramid will call read_next() again, soon, to catch data when it is available.
+        Pyramid will call read_next() again, soon, to get the next available data.
         This convention allows multiple concurrent readers to be interleaved,
         and for the readers to be interleaved with other tasks like interactive GUI user event handling.
 
@@ -75,23 +75,23 @@ class Reader(DynamicImport, ContextManager):
 
 @dataclass
 class ReaderRoute():
-    """Specify the mapping from a reader result entry to a named buffer."""
+    """Specify the mapping from a reader get_initial() or read_next() diciontary entry to a named buffer."""
 
     results_key: str
-    """How the reader referred a result, like "spikes", "events", etc."""
+    """How the reader named a result, like "spikes", "events", etc."""
 
     buffer_name: str
-    """Name for the buffer that will receive reader results "spikes", "ecodes", etc."""
+    """Name for the buffer that will receive the BufferData for "spikes", "ecodes", etc."""
 
     transformers: list[Transformer] = field(default_factory=list)
-    """Optional data transformations between reader and buffer."""
+    """Optional data transformations between reader and buffer, applied in order."""
 
 
 class ReaderRouter():
     """Get incremental results from a reader, copy and route the data into named buffers.
 
     If the reader throws an exception, it will be ignored going forward.
-    This would apply to error situations as well as orderly end-of-data situations.
+    This would apply equally to errors and orderly end-of-data situations.
     """
 
     def __init__(
@@ -125,6 +125,7 @@ class ReaderRouter():
         return not self.reader_exception
 
     def route_next(self) -> bool:
+        """Ask the reader to consume an increment of data, unconditoinally, and deal results into connected buffers."""
         if self.reader_exception:
             return False
 
@@ -167,7 +168,7 @@ class ReaderRouter():
                 buffer.data.append(data_copy)
             except Exception as exception:
                 logging.error(
-                    "Route buffer had exception appending, skipping data for {route.results_key} -> {route.buffer_name}:",
+                    "Route buffer had exception appending data, skipping data for {route.results_key} -> {route.buffer_name}:",
                     exc_info=True
                 )
                 continue
@@ -181,6 +182,7 @@ class ReaderRouter():
         return True
 
     def route_until(self, target_time: float) -> float:
+        """Ask the reader to read data 0 or more times until catching up to a target time."""
         empty_reads = 0
         while self.max_buffer_time < target_time and empty_reads <= self.empty_reads_allowed:
             got_data = self.route_next()

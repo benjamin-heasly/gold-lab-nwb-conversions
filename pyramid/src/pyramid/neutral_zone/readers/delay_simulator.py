@@ -7,8 +7,7 @@ from pyramid.model.model import BufferData
 
 
 class DelaySimulatorReader(Reader):
-    """Simulate delay between events so offline plays back sort of like online.
-    """
+    """Simulate delay between events so offline plays back sort of like online."""
 
     def __init__(self, reader: Reader) -> None:
         self.reader = reader

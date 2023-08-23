@@ -20,8 +20,9 @@ class TrialFile(ContextManager):
     like JSON and HDF5.
 
     It's up to each implementation to handle data mapping/conversion details.
-    Each trial written with append_trial() should be recovered when returned from read_trials(),
-    such that original_trial == recovered_trial.
+    Each trial written with append_trial() should be recovered from read_trials() such that
+      original_trial == recovered_trial
+    in the Python sense of == or __eq__().
     """
 
     def __enter__(self) -> Self:

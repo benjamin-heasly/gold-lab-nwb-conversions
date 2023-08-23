@@ -210,13 +210,14 @@ class PlexonPlxRawReader(ContextManager):
         self.plx_stream = None
 
     def consume_type(self, dtype: np.dtype) -> np.ndarray:
-        # Consume part of the file, using the given dtype to choose the data size and format.
+        """Consume part of the file, using the given dtype to choose the data size and format."""
         bytes = self.plx_stream.read(dtype.itemsize)
         if not bytes:
             return None
         return np.frombuffer(bytes, dtype)[0]
 
     def consume_type_as_dict(self, dtype: np.dtype) -> dict[str, Any]:
+        """Consume part of the file using the given dtype, return a friendly dict-version of the data."""
         item = self.consume_type(dtype)
         if item is None:  # pragma: no cover
             return None
@@ -232,6 +233,7 @@ class PlexonPlxRawReader(ContextManager):
         return result
 
     def get_gain_per_slow_channel(self) -> dict[int, float]:
+        """Compute ad channel gain -- thanks to python-neo and Samuel Garcia!"""
         gains = {}
         for header in self.slow_channel_headers:
             # We don't currently have test files at versions < 103
@@ -253,6 +255,7 @@ class PlexonPlxRawReader(ContextManager):
         return frequencies
 
     def get_gain_per_dsp_channel(self) -> dict[int, float]:
+        """Compute spike channel gain -- thanks to python-neo and Samuel Garcia!"""
         gains = {}
         for header in self.dsp_channel_headers:
             # We don't currently have test files at versions < 103
@@ -271,7 +274,7 @@ class PlexonPlxRawReader(ContextManager):
 
     #@profile
     def next_block(self) -> dict[str, Any]:
-        # Consume the next block header and any waveform data.
+        """Consume the next block header and any waveform data, as a friendly dict."""
         block_header = self.consume_type(DataBlockHeader)
         if not block_header:
             return None
@@ -367,8 +370,7 @@ class PlexonPlxRawReader(ContextManager):
 
 
 class PlexonPlxReader(Reader):
-    """Read plexon .plx ad waveform chunks, spike events, and other numeric events.
-    """
+    """Read plexon .plx ad waveform chunks, spike events, and other numeric events."""
 
     def __init__(
         self,
@@ -395,7 +397,7 @@ class PlexonPlxReader(Reader):
                                 By default reads 1 second of data at a time by consuming blocks until the
                                 consumed data span 1 second or more.  This is useful since .plx files are only
                                 raggedly ordered in time (ordered within a channel, ragged between channels).
-                                I.e. the next block might have an earlier timestamp than the current block.
+                                So, the next block might have an earlier timestamp than the current block.
                                 Choose seconds_per_read to be greater than raggedness between channels.
                                 Or, use seconds_per_read=0 to read one block at a time.
             spikes_prefix:      Default prefix for spike channels when spikes="all", to avoid naming collisions.
@@ -534,7 +536,7 @@ class PlexonPlxReader(Reader):
         return (name, signal_chunk)
 
     def get_initial(self) -> dict[str, BufferData]:
-        # Peek at the .plx file so we can read headers -- but not consume data blocks yet.
+        """Peek at the .plx file so we can read headers and configure initial buffers -- but not consume data blocks yet."""
         initial = {}
         with PlexonPlxRawReader(self.plx_file) as peek_reader:
             # Spike channels have numeric events like [timestamp, channel_id, unit_id]
