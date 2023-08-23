@@ -18,7 +18,7 @@ sample_signals = {
     "empty": SignalChunk(
         sample_data=np.empty([0, 2]),
         sample_frequency=1,
-        first_sample_time=0,
+        first_sample_time=None,
         channel_ids=["q", "r"]
     ),
     "simple": SignalChunk(
