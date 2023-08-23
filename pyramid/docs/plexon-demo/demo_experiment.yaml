@@ -79,14 +79,15 @@ plotters:
       xmin: -1.0
       xmax: 5.0
       match_pattern: ecodes
-    # Plot raw spike data with color-coded channels and units on the y-axis.
-  - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
+    # Plot spike data with channels and units on the y-axis.
+  - class: pyramid.plotters.standard_plotters.SpikeEventsPlotter
     args:
       xmin: -1.0
       xmax: 5.0
       match_pattern: spike_.*
-      value_index: 1
-      ylabel: unit
+      channel_value_index: 0
+      unit_value_index: 1
+      unit_scale: 0.1
       marker: "|"
     # Plot time(s) of key events during each trial (enhancements in the "time" category).
   - class: pyramid.plotters.standard_plotters.EnhancementTimesPlotter

@@ -163,7 +163,7 @@ class NumericEventsPlotter(Plotter):
         new = {
             name: event_list
             for name, event_list in current_trial.numeric_events.items()
-            if self.match_pattern is None or re.fullmatch(self.match_pattern, name) and event_list.event_count() > 0
+            if (self.match_pattern is None or re.fullmatch(self.match_pattern, name)) and event_list.event_count() > 0
         }
         self.history.append(new)
         self.history = self.history[-self.history_size:]
@@ -173,7 +173,7 @@ class NumericEventsPlotter(Plotter):
             self.ax.scatter(
                 data.get_times(),
                 data.get_values(value_index=self.value_index),
-                color=name_to_color(name, 0.5),
+                color=name_to_color(name),
                 marker=self.marker,
                 label=name
             )
@@ -243,13 +243,13 @@ class SignalChunksPlotter(Plotter):
                 for channel_id in ids:
                     full_name = f"{name} {channel_id}"
                     self.ax.plot(data.get_times(), data.get_channel_values(
-                        channel_id), color=name_to_color(full_name, 0.25))
+                        channel_id), color=name_to_color(full_name, 0.125))
 
         # Update finite, rolling history.
         new = {
             name: signal_chunk
             for name, signal_chunk in current_trial.signals.items()
-            if self.match_pattern is None or re.fullmatch(self.match_pattern, name) and signal_chunk.sample_count() > 0
+            if (self.match_pattern is None or re.fullmatch(self.match_pattern, name)) and signal_chunk.sample_count() > 0
         }
         self.history.append(new)
         self.history = self.history[-self.history_size:]
@@ -332,7 +332,7 @@ class EnhancementTimesPlotter(Plotter):
                 row = self.all_names.index(name)
                 self.ax.scatter(
                     times, row * np.ones([1, len(times)]),
-                    color=name_to_color(name, 0.25),
+                    color=name_to_color(name, 0.125),
                     marker=self.old_marker)
 
         # Update finite, rolling history.
@@ -425,13 +425,13 @@ class EnhancementXYPlotter(Plotter):
                     self.ax.plot(
                         point[0],
                         point[1],
-                        color=name_to_color(name, 0.25),
+                        color=name_to_color(name, 0.125),
                         linestyle=self.linestyle,
                         marker=self.old_marker,
                         markevery=[-1]
                     )
                 else:
-                    self.ax.scatter(point[0], point[1], color=name_to_color(name, 0.25), marker=self.old_marker)
+                    self.ax.scatter(point[0], point[1], color=name_to_color(name, 0.125), marker=self.old_marker)
 
         new = {}
         for x_name, y_name in self.xy_points.items():
@@ -475,6 +475,92 @@ class EnhancementXYPlotter(Plotter):
         self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
         self.ax.set_ylim(ymin=self.ymin, ymax=self.ymax)
         self.ax.legend()
+
+    def clean_up(self, fig: Figure) -> None:
+        self.history = []
+
+
+class SpikeEventsPlotter(Plotter):
+    """Plot spike channel and unit event data from buffers with names that match a pattern."""
+
+    def __init__(
+        self,
+        history_size: int = 10,
+        xmin: float = -2.0,
+        xmax: float = 2.0,
+        match_pattern: str = None,
+        channel_value_index: int = 0,
+        unit_value_index: int = 1,
+        unit_scale: float = 0.1,
+        marker: str = "|",
+        old_marker: str = '.'
+    ) -> None:
+        self.history_size = history_size
+        self.history = []
+        self.highest_channel = 0
+
+        self.xmin = xmin
+        self.xmax = xmax
+        self.match_pattern = match_pattern
+        self.channel_value_index = channel_value_index
+        self.unit_value_index = unit_value_index
+        self.unit_scale = unit_scale
+        self.marker = marker
+        self.old_marker = old_marker
+
+    def set_up(
+        self,
+        fig: Figure,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
+        self.ax = fig.subplots()
+        self.ax.set_axisbelow(True)
+
+    def update(
+        self,
+        fig: Figure,
+        current_trial: Trial,
+        trial_count: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
+        self.ax.clear()
+        self.ax.grid(which="major", axis="both")
+        self.ax.set_xlabel("trial time (s)")
+        self.ax.set_ylabel("channel + unit * scale")
+
+        if self.match_pattern:
+            self.ax.set_title(f"Spike Events: {self.match_pattern}")
+        else:
+            self.ax.set_title("Spike Events")
+
+        # Show old events faded out.
+        for old in self.history:
+            for name, spikes in old.items():
+                self.ax.scatter(spikes[0], spikes[1], color=name_to_color(name, 0.125), marker=self.old_marker)
+
+        # Update finite, rolling history.
+        new = {}
+        for name, event_list in current_trial.numeric_events.items():
+            if (self.match_pattern is None or re.fullmatch(self.match_pattern, name)) and event_list.event_count() > 0:
+                times = event_list.get_times()
+                channels = event_list.get_values(value_index=self.channel_value_index)
+                self.highest_channel = max(self.highest_channel, channels.max())
+
+                units = event_list.get_values(value_index=self.unit_value_index)
+                channels_plus_units = channels + units * self.unit_scale
+                new[name] = (times, channels_plus_units)
+
+        self.history.append(new)
+        self.history = self.history[-self.history_size:]
+
+        # Show new events on top in full color.
+        for name, spikes in new.items():
+            self.ax.scatter(spikes[0], spikes[1], color=name_to_color(name), marker=self.marker, label=name)
+
+        self.ax.set_yticks(np.arange(0, self.highest_channel + 1))
+        self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
 
     def clean_up(self, fig: Figure) -> None:
         self.history = []

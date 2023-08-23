@@ -219,3 +219,6 @@ def test_enhancement_xy_plotter():
         assert plotter.history[1]["bar"] == ([trial_1.get_enhancement("bar")['x']], [trial_1.get_enhancement("bar")['y']])
         assert "bazx" not in plotter.history[1]
         assert "bazy" not in plotter.history[1]
+
+
+# TODO: tests for new SpikeEventPlotter

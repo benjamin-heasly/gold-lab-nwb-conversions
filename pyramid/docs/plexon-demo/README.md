@@ -201,10 +201,11 @@ The `SignalChunksPlotter` shows gaze signal traces over time, aligned to the zer
 
 ![Pyramid SignalChunksPlotter with gaze signal data.](SignalChunksPlotter.png "Pyramid SignalChunksPlotter")
 
-A `NumericEventsPlotter` shows event times and raw numeric values for the `ecodes` buffer which came from the original Plexon `Strobed` channel.  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
+The `NumericEventsPlotter` shows event times and raw numeric values for the `ecodes` buffer which came from the original Plexon `Strobed` channel.  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
 ![Pyramid NumericEventsPlotter for ecode event times and raw numeric values.](NumericEventsPlotter_ecodes.png "Pyramid NumericEventsPlotter for ecodes")
 
+# TODO: update for SpikeEventPlotter with new screen grab
 Another `NumericEventsPlotter` shows spike event times from all Plexon spike channels.  Each spike channel is color-coded in the legend, and Plexon units fall along the y-axis.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
 ![Pyramid NumericEventsPlotter for spike event times and channel and unit values.](NumericEventsPlotter_spikes.png "Pyramid NumericEventsPlotter for spikes")
