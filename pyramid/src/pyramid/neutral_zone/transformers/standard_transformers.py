@@ -28,7 +28,7 @@ class OffsetThenGain(Transformer):
     def transform(self, data: BufferData) -> BufferData:
         if isinstance(data, NumericEventList):
             data.apply_offset_then_gain(self.offset, self.gain, self.value_id)
-        if isinstance(data, SignalChunk):
+        elif isinstance(data, SignalChunk):
             data.apply_offset_then_gain(self.offset, self.gain)
         else:  # pragma: no cover
             logging.warning(f"OffsetThenGain doesn't know how to apply to {data.__class__.__name__}")
