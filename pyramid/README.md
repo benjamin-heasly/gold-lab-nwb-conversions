@@ -13,7 +13,7 @@ Pyramid can run online as an experiment happens or offline for later data analys
 Either way, it views data as a sliding window over time.
 This approach is helpful for dealing with live data as well as large data files.
 
-Pyramid is a work in progress, but here's an overview of the vision.
+Here's an overview of the vision!
 
 ![Pyramid reads data into the Neutral Zone and delimits and extracts Trials.](docs/pyramid-sketch-Page-1.png "Pyramid overview")
 
@@ -22,6 +22,7 @@ Pyramid is a work in progress, but here's an overview of the vision.
 Please see some demos, each with its own README:
  - [core functionality](docs/core-demo/README.md)
  - [signals](docs/signal-demo/README.md)
+ - [plexon](docs/plexon-demo/README.md)
 
 # Installation
 
