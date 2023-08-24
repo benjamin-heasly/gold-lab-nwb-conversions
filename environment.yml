@@ -17,3 +17,4 @@ dependencies:
     - probeinterface==0.2.16
     - nwbwidgets==0.10.2
     - jupyter==1.0.0
+    - pyzmq==25.1.1
