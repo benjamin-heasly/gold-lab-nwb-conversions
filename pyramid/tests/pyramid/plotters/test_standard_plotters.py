@@ -9,7 +9,8 @@ from pyramid.plotters.standard_plotters import (
     NumericEventsPlotter,
     SignalChunksPlotter,
     EnhancementTimesPlotter,
-    EnhancementXYPlotter
+    EnhancementXYPlotter,
+    SpikeEventsPlotter
 )
 
 
@@ -221,4 +222,34 @@ def test_enhancement_xy_plotter():
         assert "bazy" not in plotter.history[1]
 
 
-# TODO: tests for new SpikeEventPlotter
+def test_spike_events_plotter():
+    trial_0 = Trial(0.0, 1.0, 0.5)
+    trial_0.add_buffer_data("foo", NumericEventList(np.array([[0, 1, 0], [1, 1, 1], [2, 1, 0]])))
+    trial_0.add_buffer_data("bar", NumericEventList(np.array([[0, 2, 0], [1, 2, 1], [2, 2, 2]])))
+    trial_0.add_buffer_data("baz", NumericEventList(np.empty([0, 2])))
+    trial_1 = Trial(1.0, 2.0, 1.5)
+    trial_1.add_buffer_data("foo", NumericEventList(np.array([[0, 1, 1], [1, 1, 1], [2, 3, 0]])))
+    trial_1.add_buffer_data("bar", NumericEventList(np.array([[0, 2, 2], [1, 4, 1], [2, 2, 0]])))
+    trial_1.add_buffer_data("baz", NumericEventList(np.empty([0, 2])))
+    plotter = SpikeEventsPlotter(
+        match_pattern="foo|bar",
+        channel_value_index=0,
+        unit_value_index=1
+    )
+    with PlotFigureController([plotter]) as controller:
+        controller.plot_next(trial_0, trial_count=1)
+        controller.update()
+        assert len(plotter.history) == 1
+        assert np.array_equal(plotter.history[0]["foo"], ([0, 1, 2], [1.0, 1.1, 1.0]))
+        assert np.array_equal(plotter.history[0]["bar"], ([0, 1, 2], [2.0, 2.1, 2.2]))
+        assert "baz" not in plotter.history[0]
+
+        controller.plot_next(trial_1, trial_count=2)
+        controller.update()
+        assert len(plotter.history) == 2
+        assert np.array_equal(plotter.history[0]["foo"], ([0, 1, 2], [1.0, 1.1, 1.0]))
+        assert np.array_equal(plotter.history[0]["bar"], ([0, 1, 2], [2.0, 2.1, 2.2]))
+        assert "baz" not in plotter.history[0]
+        assert np.array_equal(plotter.history[1]["foo"], ([0, 1, 2], [1.1, 1.1, 3.0]))
+        assert np.array_equal(plotter.history[1]["bar"], ([0, 1, 2], [2.2, 4.1, 2.0]))
+        assert "baz" not in plotter.history[1]

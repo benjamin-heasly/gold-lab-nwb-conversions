@@ -490,7 +490,7 @@ class SpikeEventsPlotter(Plotter):
         xmax: float = 2.0,
         match_pattern: str = None,
         channel_value_index: int = 0,
-        unit_value_index: int = 1,
+        unit_value_index: int = None,
         unit_scale: float = 0.1,
         marker: str = "|",
         old_marker: str = '.'
@@ -548,9 +548,12 @@ class SpikeEventsPlotter(Plotter):
                 channels = event_list.get_values(value_index=self.channel_value_index)
                 self.highest_channel = max(self.highest_channel, channels.max())
 
-                units = event_list.get_values(value_index=self.unit_value_index)
-                channels_plus_units = channels + units * self.unit_scale
-                new[name] = (times, channels_plus_units)
+                if self.unit_value_index is None:
+                    new[name] = (times, channels)
+                else:
+                    units = event_list.get_values(value_index=self.unit_value_index)
+                    channels_plus_units = channels + units * self.unit_scale
+                    new[name] = (times, channels_plus_units)
 
         self.history.append(new)
         self.history = self.history[-self.history_size:]

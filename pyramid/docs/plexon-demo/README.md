@@ -205,10 +205,9 @@ The `NumericEventsPlotter` shows event times and raw numeric values for the `eco
 
 ![Pyramid NumericEventsPlotter for ecode event times and raw numeric values.](NumericEventsPlotter_ecodes.png "Pyramid NumericEventsPlotter for ecodes")
 
-# TODO: update for SpikeEventPlotter with new screen grab
-Another `NumericEventsPlotter` shows spike event times from all Plexon spike channels.  Each spike channel is color-coded in the legend, and Plexon units fall along the y-axis.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
+The `SpikeEventsPlotter` shows spike event times from all Plexon spike channels.  Spikes are grouped and color-coded by integer channel number and fractionally offset by unit number.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
-![Pyramid NumericEventsPlotter for spike event times and channel and unit values.](NumericEventsPlotter_spikes.png "Pyramid NumericEventsPlotter for spikes")
+![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
 
 The `EnhancementTimesPlotter` shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [ecode-rules.csv](ecode-rules.csv) and custom enhancements created from [custom_enhancers.py](custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 

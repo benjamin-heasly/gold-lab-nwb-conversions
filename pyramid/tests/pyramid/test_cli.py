@@ -91,7 +91,7 @@ experiment_config = {
         {"class": "pyramid.plotters.standard_plotters.BasicInfoPlotter"},
         {"class": "pyramid.plotters.standard_plotters.EnhancementTimesPlotter"},
         {"class": "pyramid.plotters.standard_plotters.EnhancementXYPlotter"},
-        {"class": "pyramid.plotters.standard_plotters.SpikeEventsPlotter", "args": {"unit_value_index": 0}},
+        {"class": "pyramid.plotters.standard_plotters.SpikeEventsPlotter"},
     ]
 }
 
