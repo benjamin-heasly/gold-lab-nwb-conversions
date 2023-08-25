@@ -1,17 +1,35 @@
 from types import TracebackType
 from typing import Any, ContextManager, Self
+import uuid
+import json
+
 import zmq
+
 
 
 class Client(ContextManager):
 
-    def __init__(self, host: str, port: int, scheme: str = "tcp", encoding: str = 'utf-8') -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        scheme: str = "tcp",
+        encoding: str = 'utf-8',
+        uuid: str = str(uuid.uuid4())
+    ) -> None:
         self.address = f"{scheme}://{host}:{port}"
         self.encoding = encoding
 
         self.context = None
         self.poller = None
         self.socket = None
+
+        heartbeat_info = {
+            "application" : "Pyramid",
+            "uuid" : uuid,
+            "type": "heartbeat"
+        }
+        self.heartbeat_message = json.dumps(heartbeat_info)
 
     def __enter__(self) -> Self:
         self.context = zmq.Context()
