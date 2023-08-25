@@ -107,10 +107,10 @@ To delimit trials in time, Pyramid will look at the `delimiter` buffer.  Events 
 
 To build each trial Pyramid will use two standard, rule-based enhancers and two custom code enhancers.  All of the enchancers will add some name-value pairs to each trial, indicating things like events of interest, trial scores, saccades, etc.
 
- - A standard, rule-based `PairedCodesEnhancer` will look for numeric events that encode property-value pairs for each trial.  The experiment-specific names and encodings for these are declared in a table, [ecode-rules.csv](ecode-rules.csv).
- - A standard, rule-based `EventTimesEnhancer` will look for named events of interest and record any occurrence times within each trial.  The experiment-specific names and code values for these are declared in the same table, [ecode-rules.csv](ecode-rules.csv).
- - A custom `SaccadesEnhancer` will examine the `gaze_x` and `gaze_y` AD signals for each trial and extract saccades.  Each saccade will be a dictionary of saccade parameters like `t_start`, `x_end`, `y_end`, etc.  The custom Python code for this is here in this folder, in [custom_enhancers.py](custom_enhancers.py)
- - Another `CustomEnhancer` will examine all of the trial data and enchancements above and compute experiment-specific labels, scores, etc.  The Python code for this is in the same file, [custom_enhancers.py](custom_enhancers.py)
+ - A standard, rule-based [PairedCodesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L28) will look for numeric events that encode property-value pairs for each trial.  The experiment-specific names and encodings for these are declared in a table, [ecode-rules.csv](ecode-rules.csv).
+ - A standard, rule-based [EventTimesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L111) will look for named events of interest and record any occurrence times within each trial.  The experiment-specific names and code values for these are declared in the same table, [ecode-rules.csv](ecode-rules.csv).
+ - A custom [SaccadesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L151) will examine the `gaze_x` and `gaze_y` AD signals for each trial and extract saccades.  Each saccade will be a dictionary of saccade parameters like `t_start`, `x_end`, `y_end`, etc.  The custom Python code for this is here in this folder, in [custom_enhancers.py](custom_enhancers.py)
+ - Another [CustomEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L25) will examine all of the trial data and enchancements above and compute experiment-specific labels, scores, etc.  The Python code for this is in the same file, [custom_enhancers.py](custom_enhancers.py)
 
 ```
 trials:
@@ -193,27 +193,27 @@ plotters:
           x_end: y_end
 ```
 
-The `BasicInfoPlotter` shows Pyramid's overall progress through the Plexon file along with static metadata about the experiment and subject.  It also has a `Quit` button -- _wow!_
+The [BasicInfoPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L35) shows Pyramid's overall progress through the Plexon file along with static metadata about the experiment and subject.  It also has a `Quit` button -- _wow!_
 
 ![Pyramid BasicInfoPlotter with static and progress info and Quit button.](BasicInfoPlotter.png "Pyramid BasicInfoPlotter")
 
-The `SignalChunksPlotter` shows gaze signal traces over time, aligned to the zero-time for each trial.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
+The [SignalChunksPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L188) shows gaze signal traces over time, aligned to the zero-time for each trial.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
 ![Pyramid SignalChunksPlotter with gaze signal data.](SignalChunksPlotter.png "Pyramid SignalChunksPlotter")
 
-The `NumericEventsPlotter` shows event times and raw numeric values for the `ecodes` buffer which came from the original Plexon `Strobed` channel.  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
+The [NumericEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L100) shows event times and raw numeric values for the `ecodes` buffer which came from the original Plexon `Strobed` channel.  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
 ![Pyramid NumericEventsPlotter for ecode event times and raw numeric values.](NumericEventsPlotter_ecodes.png "Pyramid NumericEventsPlotter for ecodes")
 
-The `SpikeEventsPlotter` shows spike event times from all Plexon spike channels.  Spikes are grouped and color-coded by integer channel number and fractionally offset by unit number.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
+The [SpikeEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L483) shows spike event times from all Plexon spike channels.  Spikes are grouped and color-coded by integer channel number and fractionally offset by unit number.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
 ![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
 
-The `EnhancementTimesPlotter` shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [ecode-rules.csv](ecode-rules.csv) and custom enhancements created from [custom_enhancers.py](custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
+The [EnhancementTimesPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L278) shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [ecode-rules.csv](ecode-rules.csv) and custom enhancements created from [custom_enhancers.py](custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
 ![Pyramid EnhancementTimesPlotter for named events of interest within each trial.](EnhancementTimesPlotter.png "Pyramid EnhancementTimesPlotter")
 
-The `EnhancementXYPlotter` shows 2D/XY values of interest from each trial.  Specific values to plot are declared by name:
+The [EnhancementXYPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L367) shows 2D/XY values of interest from each trial.  Specific values to plot are declared by name:
 
  - `fp_x`/`fp_y`, `t1_x`/`t1_y`, and `t2_x`/`t2_y` are plotted as individual points
  - `scored_saccade` is plotted as a group of several points and shown as a line.  To show direction, the last point in the line gets a marker.
