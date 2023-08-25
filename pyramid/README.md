@@ -40,7 +40,7 @@ cd gold-lab-nwb-conversions
 conda env create -f environment.yml
 ```
 
-If you've already dones that in the past but you want to make sure you're up to date, you can update your conda environment.
+If you've already done that in the past but you want to make sure you're up to date, you can update your conda environment.
 
 ```
 cd gold-lab-nwb-conversions
