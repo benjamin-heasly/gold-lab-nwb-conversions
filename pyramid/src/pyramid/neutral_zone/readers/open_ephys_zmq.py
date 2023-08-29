@@ -1,13 +1,15 @@
 from types import TracebackType
-from typing import ContextManager, Self
+from typing import Any, ContextManager, Self
+import logging
 import uuid
+import time
 import json
 
 import numpy as np
 import zmq
 
 
-# Where did all these message formats come from?
+# OpenEphys ZMQ message formats -- where did these come from?
 # Nice but incomplete/informal docs here:
 #   https://open-ephys.github.io/gui-docs/User-Manual/Plugins/ZMQ-Interface.html
 # Messy sample client code here:
@@ -183,7 +185,7 @@ def format_spike(
         "timestamp": timestamp
     }
 
-    # For some reason, spike envelope is "EVENT" -- why not "SPIKE"?
+    # For some reason, spike envelope is "EVENT", which makes it useless -- why not "SPIKE" to make it distinct?
     envelope_bytes = "EVENT".encode(encoding=encoding)
     header_bytes = json.dumps(header_info).encode(encoding=encoding)
     return [envelope_bytes, header_bytes, waveform.tobytes()]
@@ -203,31 +205,60 @@ def parse_spike(
     return (envelope, header_info, waveform)
 
 
-class Client(ContextManager):
+class OpenEphysZmqServer(ContextManager):
+    """Mimic the server side the Open Ephys ZMQ plugin -- as a standin for the actual Open Ephys application.
+
+    The Open Ephys ZMQ plugin docs are here:
+      https://open-ephys.github.io/gui-docs/User-Manual/Plugins/ZMQ-Interface.html
+
+    This class is really only used for Pyramid automated testing.
+    It's so closely related to the Pyramid reader and client code that it's convenient to include it here.
+    """
 
     def __init__(
         self,
         host: str,
-        port: int,
+        data_port: int,
+        heartbeat_port: int = None,
         scheme: str = "tcp",
-        encoding: str = 'utf-8',
-        uuid: str = str(uuid.uuid4())
+        timeout_ms: int = 100,
+        encoding: str = 'utf-8'
     ) -> None:
-        self.address = f"{scheme}://{host}:{port}"
+        self.data_address = f"{scheme}://{host}:{data_port}"
+
+        if heartbeat_port is None:
+            heartbeat_port = data_port + 1
+        self.heartbeat_address = f"{scheme}://{host}:{heartbeat_port}"
+
+        self.timeout_ms = timeout_ms
         self.encoding = encoding
-        self.heartbeat_message = format_heartbeat(uuid)
+
+        self.message_number = None
+        self.last_heartbeat = None
+        self.heartbeat_count = None
+        self.heartbeat_response_bytes = "heartbeat received".encode(encoding)
 
         self.context = None
+        self.data_socket = None
+        self.heartbeat_socket = None
         self.poller = None
-        self.socket = None
 
     def __enter__(self) -> Self:
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect(self.address)
+
+        self.data_socket = self.context.socket(zmq.PUB)
+        self.data_socket.bind(self.data_address)
+
+        self.heartbeat_socket = self.context.socket(zmq.REP)
+        self.heartbeat_socket.bind(self.heartbeat_address)
 
         self.poller = zmq.Poller()
-        self.poller.register(self.socket, zmq.POLLIN)
+        self.poller.register(self.heartbeat_socket, zmq.POLLIN)
+
+        self.message_number = 0
+        self.last_heartbeat = None
+        self.heartbeat_count = 0
+
         return self
 
     def __exit__(
@@ -241,39 +272,148 @@ class Client(ContextManager):
 
         self.context = None
         self.poller = None
-        self.socket = None
+        self.data_socket = None
+        self.heartbeat_socket = None
 
-    def send_request(self, messages: list[str]) -> None:
-        parts = [message.encode(self.encoding) for message in messages]
-        self.socket.send_multipart(parts)
+    def poll_heartbeat_and_reply(self) -> bool:
+        ready = dict(self.poller.poll(self.timeout_ms))
+        if self.heartbeat_socket in ready:
+            bytes = self.heartbeat_socket.recv(zmq.NOBLOCK)
+            if bytes:
+                self.last_heartbeat = parse_heartbeat(bytes, self.encoding)
+                self.heartbeat_count += 1
+                self.heartbeat_socket.send(self.heartbeat_response_bytes)
+                return True
 
-    def poll_reply(self, timeout_ms: int = 100) -> list[str]:
-        ready = dict(self.poller.poll(timeout_ms))
-        if self.socket in ready:
-            parts = self.socket.recv_multipart(zmq.NOBLOCK)
-            if parts:
-                messages = [part.decode(self.encoding) for part in parts]
-                return messages
-        return None
+        return False
+
+    def send_continuous_data(
+        self,
+        data: np.ndarray,
+        stream_name: str,
+        channel_num: int,
+        sample_num: int,
+        sample_rate: float,
+    ) -> None:
+        timestamp = round(time.time() * 1000)
+        parts = format_continuous_data(
+            data,
+            stream_name,
+            channel_num,
+            sample_num,
+            sample_rate,
+            self.message_number,
+            timestamp,
+            self.encoding
+        )
+        self.data_socket.send_multipart(parts)
+        self.message_number +=1
+
+    def send_ttl_event(
+        self,
+        event_line: int,
+        event_state: int,
+        ttl_word: int,
+        stream_name: str,
+        source_node: int,
+        type: int,
+        sample_num: int,
+    ) -> None:
+        data = event_data_to_bytes(event_line, event_state, ttl_word)
+        timestamp = round(time.time() * 1000)
+        parts = format_event(
+            data,
+            stream_name,
+            source_node,
+            type,
+            sample_num,
+            self.message_number,
+            timestamp,
+            self.encoding
+        )
+        self.data_socket.send_multipart(parts)
+        self.message_number +=1
+
+    def send_spike(
+        self,
+        waveform: np.ndarray,
+        stream_name: str,
+        source_node: int,
+        electrode: str,
+        sample_num: int,
+        sorted_id: int,
+        threshold: list[float],
+    ) -> None:
+        timestamp = round(time.time() * 1000)
+        parts = format_spike(
+            waveform,
+            stream_name,
+            source_node,
+            electrode,
+            sample_num,
+            sorted_id,
+            threshold,
+            self.message_number,
+            timestamp,
+            self.encoding
+        )
+        self.data_socket.send_multipart(parts)
+        self.message_number +=1
 
 
-class Server(ContextManager):
+class OpenEphysZmqClient(ContextManager):
+    """Connect and subscribe as a client to an Open Ephys app running the ZMQ plugin.
 
-    def __init__(self, host: str, port: int, scheme: str = "tcp", encoding: str = 'utf-8') -> None:
-        self.address = f"{scheme}://{host}:{port}"
+    The Open Ephys ZMQ plugin docs are here:
+      https://open-ephys.github.io/gui-docs/User-Manual/Plugins/ZMQ-Interface.html
+    """
+
+    def __init__(
+        self,
+        host: str,
+        data_port: int,
+        heartbeat_port: int = None,
+        scheme: str = "tcp",
+        timeout_ms: int = 100,
+        encoding: str = 'utf-8',
+        client_uuid: str = None
+    ) -> None:
+        self.data_address = f"{scheme}://{host}:{data_port}"
+
+        if heartbeat_port is None:
+            heartbeat_port = data_port + 1
+        self.heartbeat_address = f"{scheme}://{host}:{heartbeat_port}"
+
+        self.timeout_ms = timeout_ms
         self.encoding = encoding
 
+        if client_uuid is None:
+            client_uuid = str(uuid.uuid4())
+        self.client_uuid = client_uuid
+
+        self.last_heartbeat_time = None
+        self.heartbeat_bytes = format_heartbeat(client_uuid)
+
         self.context = None
+        self.data_socket = None
+        self.heartbeat_socket = None
         self.poller = None
-        self.socket = None
 
     def __enter__(self) -> Self:
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
-        self.socket.bind(self.address)
+
+        self.data_socket = self.context.socket(zmq.SUB)
+        self.data_socket.bind(self.data_address)
+
+        self.heartbeat_socket = self.context.socket(zmq.REQ)
+        self.heartbeat_socket.bind(self.heartbeat_address)
 
         self.poller = zmq.Poller()
-        self.poller.register(self.socket, zmq.POLLIN)
+        self.poller.register(self.data_socket, zmq.POLLIN)
+        self.poller.register(self.heartbeat_socket, zmq.POLLIN)
+
+        self.last_heartbeat_time = 0
+
         return self
 
     def __exit__(
@@ -287,17 +427,53 @@ class Server(ContextManager):
 
         self.context = None
         self.poller = None
-        self.socket = None
+        self.data_socket = None
+        self.heartbeat_socket = None
 
-    def poll_request(self, timeout_ms: int = 100) -> list[str]:
-        ready = dict(self.poller.poll(timeout_ms))
-        if self.socket in ready:
-            parts = self.socket.recv_multipart(zmq.NOBLOCK)
+    def send_heartbeat(self) -> None:
+        self.heartbeat_socket.send(self.heartbeat_bytes)
+
+    def poll_and_receive(self) -> dict[str, Any]:
+        received = {}
+        ready = dict(self.poller.poll(self.timeout_ms))
+        if self.heartbeat_socket in ready:
+            heartbeat_reply_bytes = self.heartbeat_socket.recv(zmq.NOBLOCK)
+            if heartbeat_reply_bytes:
+                heartbeat_reply = heartbeat_reply_bytes.decode(self.encoding)
+                received["heartbeat_reply"] = heartbeat_reply
+
+        if self.data_socket in ready:
+            parts = self.data_socket.recv_multipart(zmq.NOBLOCK)
             if parts:
-                messages = [part.decode(self.encoding) for part in parts]
-                return messages
-        return None
+                header_info = json.loads(parts[1].decode(self.encoding))
+                data_type = header_info["type"]
+                if data_type == "data":
+                    (envelope, header_info, data) = parse_continuous_data(parts, self.encoding)
+                    received["data"] = {
+                        "envelope": envelope,
+                        "header_info": header_info,
+                        "data": data
+                    }
 
-    def send_reply(self, messages: list[str]) -> None:
-        parts = [message.encode(self.encoding) for message in messages]
-        self.socket.send_multipart(parts)
+                elif data_type == "event":
+                    (envelope, header_info, data) = parse_event(parts, encoding=self.encoding)
+                    (event_line, event_state, ttl_word) = event_data_from_bytes(data)
+                    received["event"] = {
+                        "envelope": envelope,
+                        "header_info": header_info,
+                        "event_line": event_line,
+                        "event_state": event_state,
+                        "ttl_word": ttl_word
+                    }
+
+                elif data_type == "spike":
+                    (envelope, header_info, waveform) = parse_spike(parts, encoding=self.encoding)
+                    received["event"] = {
+                        "envelope": envelope,
+                        "header_info": header_info,
+                        "waveform": waveform
+                    }
+                else:
+                    logging.warning(f"OpenEphysZmqClient ignoring unknown data type: {data_type}")
+
+        return received

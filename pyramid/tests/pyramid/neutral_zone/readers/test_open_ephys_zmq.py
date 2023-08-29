@@ -3,8 +3,6 @@ import uuid
 import numpy as np
 
 from pyramid.neutral_zone.readers.open_ephys_zmq import (
-    Client,
-    Server,
     format_heartbeat,
     parse_heartbeat,
     format_continuous_data,
@@ -14,33 +12,10 @@ from pyramid.neutral_zone.readers.open_ephys_zmq import (
     format_event,
     parse_event,
     format_spike,
-    parse_spike
+    parse_spike,
+    OpenEphysZmqClient,
+    OpenEphysZmqServer,
 )
-
-
-def test_zmq_basics():
-    host = '127.0.0.1'
-    port = 10001
-
-    with Server(host=host, port=port) as server:
-        assert not server.poll_request()
-
-        with Client(host=host, port=port) as client:
-            assert not client.poll_reply()
-
-            for index in range(100):
-                request_at_client = [f"foo{index}", f"bar{index}", f"baz{index}"]
-                client.send_request(request_at_client)
-                request_at_server = server.poll_request()
-                assert request_at_server == request_at_client
-
-                reply_at_server = [f"quux{index}", f"quux{index}", f"baz{index}", f"quux{index}"]
-                server.send_reply(reply_at_server)
-                reply_at_client = client.poll_reply()
-                assert reply_at_client == reply_at_server
-
-    assert server.context is None
-    assert client.context is None
 
 
 def test_heartbeat_format():
@@ -230,3 +205,6 @@ def test_spike_format_multiple_channels():
     assert header["timestamp"] == timestamp
     assert waveform_2.shape == (num_channels, num_samples)
     assert np.array_equal(waveform_2, waveform)
+
+
+# TODO: tests for OpenEphysZmqClient paired with OpenEphysZmqServer
