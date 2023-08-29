@@ -9,6 +9,8 @@ from pyramid.neutral_zone.readers.open_ephys_zmq import (
     parse_heartbeat,
     format_continuous_data,
     parse_continuous_data,
+    event_data_to_bytes,
+    event_data_from_bytes,
     format_event,
     parse_event,
     format_spike,
@@ -57,33 +59,98 @@ def test_continuous_data_format():
     channel_num = 41
     sample_num = 42
     sample_rate = 1000
-    parts = format_continuous_data(data, stream_name, channel_num, sample_num, sample_rate)
-    (header, data_2) = parse_continuous_data(parts)
-    assert header["stream"] == stream_name
-    assert header["channel_num"] == channel_num
-    assert header["sample_num"] == sample_num
-    assert header["sample_rate"] == sample_rate
-    assert header["num_samples"] == data.size
+    message_num = 42
+    timestamp = 424242
+    parts = format_continuous_data(
+        data,
+        stream_name,
+        channel_num,
+        sample_num,
+        sample_rate,
+        message_num,
+        timestamp
+    )
+    (envelope, header, data_2) = parse_continuous_data(parts)
+    assert envelope == "DATA"
+    assert header["message_num"] == message_num
+    assert header["type"] == "data"
+    assert header["content"]["sample_rate"] == sample_rate
+    assert header["content"]["stream"] == stream_name
+    assert header["content"]["channel_num"] == channel_num
+    assert header["content"]["sample_num"] == sample_num
+    assert header["content"]["sample_rate"] == sample_rate
+    assert header["content"]["num_samples"] == data.size
+    assert header["data_size"] == data.size * data.itemsize
+    assert header["timestamp"] == timestamp
     assert np.array_equal(data_2, data)
 
 
-def test_event_format():
+def test_event_format_with_data():
+    event_line = 7
+    event_state = 1
+    ttl_word = 65535
+    data = event_data_to_bytes(event_line, event_state, ttl_word)
+
     stream_name = "Test"
     source_node = 42
     type = 3
     sample_num = 43
-    event_line = 7
-    event_state = 1
-    ttl_word = 65535
-    parts = format_event(stream_name, source_node, type, sample_num, event_line, event_state, ttl_word)
-    (header, event_line_2, event_state_2, ttl_word_2) = parse_event(parts)
-    assert header["stream"] == stream_name
-    assert header["source_node"] == source_node
-    assert header["type"] == type
-    assert header["sample_num"] == sample_num
+    message_num = 42
+    timestamp = 424242
+    parts = format_event(
+        data,
+        stream_name,
+        source_node,
+        type,
+        sample_num,
+        message_num,
+        timestamp
+    )
+    (envelope, header, data_2) = parse_event(parts)
+    assert envelope == "EVENT"
+    assert header["message_num"] == message_num
+    assert header["type"] == "event"
+    assert header["content"]["stream"] == stream_name
+    assert header["content"]["source_node"] == source_node
+    assert header["content"]["type"] == type
+    assert header["content"]["sample_num"] == sample_num
+    assert header["data_size"] == len(data)
+    assert header["timestamp"] == timestamp
+    assert data_2 == data
+
+    (event_line_2, event_state_2, ttl_word_2) = event_data_from_bytes(data_2)
     assert event_line_2 == event_line
     assert event_state_2 == event_state
     assert ttl_word_2 == ttl_word
+
+
+def test_event_format_without_data():
+    stream_name = "Test"
+    source_node = 42
+    type = 3
+    sample_num = 43
+    message_num = 42
+    timestamp = 424242
+    parts = format_event(
+        None,
+        stream_name,
+        source_node,
+        type,
+        sample_num,
+        message_num,
+        timestamp
+    )
+    (envelope, header, data_2) = parse_event(parts)
+    assert envelope == "EVENT"
+    assert header["message_num"] == message_num
+    assert header["type"] == "event"
+    assert header["content"]["stream"] == stream_name
+    assert header["content"]["source_node"] == source_node
+    assert header["content"]["type"] == type
+    assert header["content"]["sample_num"] == sample_num
+    assert header["data_size"] == 0
+    assert header["timestamp"] == timestamp
+    assert data_2 == None
 
 
 def test_spike_format_single_channel():
@@ -95,16 +162,33 @@ def test_spike_format_single_channel():
     sample_num = 123
     sorted_id = 7
     threshold = [20, 21]
-    parts = format_spike(waveform, stream_name, source_node, electrode, sample_num, sorted_id, threshold)
-    (header, waveform_2) = parse_spike(parts)
-    assert header["stream"] == stream_name
-    assert header["source_node"] == source_node
-    assert header["electrode"] == electrode
-    assert header["sample_num"] == sample_num
-    assert header["num_channels"] == 1
-    assert header["num_samples"] == num_samples
-    assert header["sorted_id"] == sorted_id
-    assert header["threshold"] == threshold
+    message_num = 42
+    timestamp = 424242
+    parts = format_spike(
+        waveform,
+        stream_name,
+        source_node,
+        electrode,
+        sample_num,
+        sorted_id,
+        threshold,
+        message_num,
+        timestamp
+    )
+    (envelope, header, waveform_2) = parse_spike(parts)
+    assert envelope == "EVENT"
+    assert header["message_num"] == message_num
+    assert header["type"] == "spike"
+    assert header["spike"]["stream"] == stream_name
+    assert header["spike"]["source_node"] == source_node
+    assert header["spike"]["electrode"] == electrode
+    assert header["spike"]["sample_num"] == sample_num
+    assert header["spike"]["num_channels"] == 1
+    assert header["spike"]["num_samples"] == num_samples
+    assert header["spike"]["sorted_id"] == sorted_id
+    assert header["spike"]["threshold"] == threshold
+    assert header["timestamp"] == timestamp
+    assert waveform_2.shape == (1, num_samples)
     assert np.array_equal(waveform_2, waveform.reshape([1, num_samples]))
 
 
@@ -118,14 +202,31 @@ def test_spike_format_multiple_channels():
     sample_num = 123
     sorted_id = 7
     threshold = [20, 21]
-    parts = format_spike(waveform, stream_name, source_node, electrode, sample_num, sorted_id, threshold)
-    (header, waveform_2) = parse_spike(parts)
-    assert header["stream"] == stream_name
-    assert header["source_node"] == source_node
-    assert header["electrode"] == electrode
-    assert header["sample_num"] == sample_num
-    assert header["num_channels"] == num_channels
-    assert header["num_samples"] == num_samples
-    assert header["sorted_id"] == sorted_id
-    assert header["threshold"] == threshold
+    message_num = 42
+    timestamp = 424242
+    parts = format_spike(
+        waveform,
+        stream_name,
+        source_node,
+        electrode,
+        sample_num,
+        sorted_id,
+        threshold,
+        message_num,
+        timestamp
+    )
+    (envelope, header, waveform_2) = parse_spike(parts)
+    assert envelope == "EVENT"
+    assert header["message_num"] == message_num
+    assert header["type"] == "spike"
+    assert header["spike"]["stream"] == stream_name
+    assert header["spike"]["source_node"] == source_node
+    assert header["spike"]["electrode"] == electrode
+    assert header["spike"]["sample_num"] == sample_num
+    assert header["spike"]["num_channels"] == num_channels
+    assert header["spike"]["num_samples"] == num_samples
+    assert header["spike"]["sorted_id"] == sorted_id
+    assert header["spike"]["threshold"] == threshold
+    assert header["timestamp"] == timestamp
+    assert waveform_2.shape == (num_channels, num_samples)
     assert np.array_equal(waveform_2, waveform)

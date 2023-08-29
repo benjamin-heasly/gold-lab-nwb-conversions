@@ -7,9 +7,13 @@ import numpy as np
 import zmq
 
 
-# TODO: revisit after reviewing source code (seems nice and clear) rather than docs (seems incomplete):
-# https://open-ephys.github.io/gui-docs/User-Manual/Plugins/ZMQ-Interface.html
-# https://github.com/open-ephys-plugins/zmq-interface/blob/main/Source/ZmqInterface.cpp#L359
+# Where did all these message formats come from?
+# Nice but incomplete/informal docs here:
+#   https://open-ephys.github.io/gui-docs/User-Manual/Plugins/ZMQ-Interface.html
+# Messy sample client code here:
+#   https://github.com/open-ephys-plugins/zmq-interface/blob/main/Resources/python_client/plot_process_zmq.py
+# Actual concrete, legible server source code here:
+#   https://github.com/open-ephys-plugins/zmq-interface/blob/main/Source/ZmqInterface.cpp#L359
 
 
 def format_heartbeat(
@@ -34,65 +38,111 @@ def parse_heartbeat(
 
 
 def format_continuous_data(
-        data: np.ndarray,
-        stream_name: str,
-        channel_num: int,
-        sample_num: int,
-        sample_rate: float,
-        encoding: str = 'utf-8'
+    data: np.ndarray,
+    stream_name: str,
+    channel_num: int,
+    sample_num: int,
+    sample_rate: float,
+    message_num: int = 0,
+    timestamp: int = 0,
+    encoding: str = 'utf-8',
 ) -> list[bytes]:
-    header_info = {
+    content_info = {
         "stream": stream_name,
         "channel_num": channel_num,
         "num_samples": data.size,
         "sample_num": sample_num,
         "sample_rate": sample_rate
     }
+
+    header_info = {
+        "message_num": message_num,
+        "type": "data",
+        "content": content_info,
+        "data_size": data.size * data.itemsize,
+        "timestamp": timestamp
+    }
+
+    envelope_bytes = "DATA".encode(encoding=encoding)
     header_bytes = json.dumps(header_info).encode(encoding=encoding)
-    return [header_bytes, data.tobytes()]
+    return [envelope_bytes, header_bytes, data.tobytes()]
 
 
 def parse_continuous_data(
     parts: list[bytes],
+    dtype=np.float32,
     encoding: str = 'utf-8',
-    dtype = np.float32
-) -> tuple[dict, np.ndarray]:
-    header_info = json.loads(parts[0].decode(encoding=encoding))
-    data = np.frombuffer(parts[1], dtype=dtype)
-    return (header_info, data)
+) -> tuple[str, dict, np.ndarray]:
+    envelope = parts[0].decode(encoding=encoding)
+    header_info = json.loads(parts[1].decode(encoding=encoding))
+    data = np.frombuffer(parts[2], dtype=dtype)
+    return (envelope, header_info, data)
+
+
+def event_data_to_bytes(
+    event_line: int,
+    event_state: int,
+    ttl_word: int,
+) -> bytes:
+    return bytes([event_line, event_state]) + ttl_word.to_bytes(length=8)
+
+
+def event_data_from_bytes(
+    data: bytes
+) -> tuple[int, int, int]:
+    event_line = int(data[0])
+    event_state = int(data[1])
+    ttl_word = int.from_bytes(data[2:10])
+    return (event_line, event_state, ttl_word)
 
 
 def format_event(
+    data: bytes,
     stream_name: str,
     source_node: int,
     type: int,
     sample_num: int,
-    event_line: int,
-    event_state: int,
-    ttl_word: int,
-    encoding: str = 'utf-8'
+    message_num: int = 0,
+    timestamp: int = 0,
+    encoding: str = 'utf-8',
 ) -> list[bytes]:
-    header_info = {
+    content_info = {
         "stream": stream_name,
         "source_node": source_node,
         "type": type,
         "sample_num": sample_num
     }
+
+    if data is not None:
+        data_size = len(data)
+    else:
+        data_size = 0
+    header_info = {
+        "message_num": message_num,
+        "type": "event",
+        "content": content_info,
+        "data_size": data_size,
+        "timestamp": timestamp
+    }
+
+    envelope_bytes = "EVENT".encode(encoding=encoding)
     header_bytes = json.dumps(header_info).encode(encoding=encoding)
-    data = bytes([event_line, event_state]) + ttl_word.to_bytes(length=8)
-    return [header_bytes, data]
+    if data is not None:
+        return [envelope_bytes, header_bytes, data]
+    else:
+        return [envelope_bytes, header_bytes]
 
 
 def parse_event(
     parts: list[bytes],
     encoding: str = 'utf-8'
-) -> tuple[dict, int, int, int]:
-    header_info = json.loads(parts[0].decode(encoding=encoding))
-    data = parts[1]
-    event_line = int(data[0])
-    event_state = int(data[1])
-    ttl_word = int.from_bytes(data[2:10])
-    return (header_info, event_line, event_state, ttl_word)
+) -> tuple[str, dict, bytes]:
+    envelope = parts[0].decode(encoding=encoding)
+    header_info = json.loads(parts[1].decode(encoding=encoding))
+    if len(parts) > 2:
+        return (envelope, header_info, parts[2])
+    else:
+        return (envelope, header_info, None)
 
 
 def format_spike(
@@ -103,7 +153,9 @@ def format_spike(
     sample_num: int,
     sorted_id: int,
     threshold: list[float],
-    encoding: str = 'utf-8'
+    message_num: int = 0,
+    timestamp: int = 0,
+    encoding: str = 'utf-8',
 ) -> list[bytes]:
     if len(waveform.shape) == 2:
         num_channels = waveform.shape[0]
@@ -111,7 +163,7 @@ def format_spike(
     else:
         num_channels = 1
         num_samples = waveform.size
-    header_info = {
+    spike_info = {
         "stream": stream_name,
         "source_node": source_node,
         "electrode": electrode,
@@ -121,20 +173,34 @@ def format_spike(
         "sorted_id": sorted_id,
         "threshold": threshold
     }
+
+    # For some reason, spike content is called "spike" instead of "content" (condinuous data and events are both "content").
+    # For some reason, spike headers don't include a data_size.
+    header_info = {
+        "message_num": message_num,
+        "type": "spike",
+        "spike": spike_info,
+        "timestamp": timestamp
+    }
+
+    # For some reason, spike envelope is "EVENT" -- why not "SPIKE"?
+    envelope_bytes = "EVENT".encode(encoding=encoding)
     header_bytes = json.dumps(header_info).encode(encoding=encoding)
-    return [header_bytes, waveform.tobytes()]
+    return [envelope_bytes, header_bytes, waveform.tobytes()]
 
 
 def parse_spike(
     parts: list[bytes],
+    dtype=np.float32,
     encoding: str = 'utf-8',
-    dtype = np.float32
-) -> tuple[dict, np.ndarray]:
-    header_info = json.loads(parts[0].decode(encoding=encoding))
-    num_channels = header_info.get("num_channels", 1)
-    num_samples = header_info.get("num_samples", -1)
-    waveform = np.frombuffer(parts[1], dtype=dtype).reshape([num_channels, num_samples])
-    return (header_info, waveform)
+) -> tuple[str, dict, np.ndarray]:
+    envelope = parts[0].decode(encoding=encoding)
+    header_info = json.loads(parts[1].decode(encoding=encoding))
+    spike_info = header_info.get("spike", {})
+    num_channels = spike_info.get("num_channels", 1)
+    num_samples = spike_info.get("num_samples", -1)
+    waveform = np.frombuffer(parts[2], dtype=dtype).reshape([num_channels, num_samples])
+    return (envelope, header_info, waveform)
 
 
 class Client(ContextManager):
