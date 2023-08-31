@@ -1,20 +1,24 @@
 import uuid
+import time
 
 import numpy as np
 
+from pyramid.model.events import NumericEventList
+from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.readers.open_ephys_zmq import (
     format_heartbeat,
     parse_heartbeat,
     format_continuous_data,
     parse_continuous_data,
-    event_data_to_bytes,
-    event_data_from_bytes,
+    ttl_data_to_bytes,
+    ttl_data_from_bytes,
     format_event,
     parse_event,
     format_spike,
     parse_spike,
     OpenEphysZmqClient,
     OpenEphysZmqServer,
+    OpenEphysZmqReader
 )
 
 
@@ -64,7 +68,7 @@ def test_event_format_with_data():
     event_line = 7
     event_state = 1
     ttl_word = 65535
-    data = event_data_to_bytes(event_line, event_state, ttl_word)
+    data = ttl_data_to_bytes(event_line, event_state, ttl_word)
 
     stream_name = "Test"
     source_node = 42
@@ -93,7 +97,7 @@ def test_event_format_with_data():
     assert header["timestamp"] == timestamp
     assert data_2 == data
 
-    (event_line_2, event_state_2, ttl_word_2) = event_data_from_bytes(data_2)
+    (event_line_2, event_state_2, ttl_word_2) = ttl_data_from_bytes(data_2)
     assert event_line_2 == event_line
     assert event_state_2 == event_state
     assert ttl_word_2 == ttl_word
@@ -456,3 +460,72 @@ def test_open_ephys_zmq_mixed_data():
                 # Let the client receive the initial heartbeat, out of order, which should not matter.
                 assert client.poll_and_receive_heartbeat() == server.heartbeat_reply
                 assert client.poll_and_receive_heartbeat() is None
+
+
+def test_open_ephys_zmq_reader_heartbeat():
+    host = "127.0.0.1"
+    data_port = 10001
+    heartbeat_interval = 0.1
+    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=100) as server:
+        with OpenEphysZmqReader(
+            host=host,
+            data_port=data_port,
+            heartbeat_interval=heartbeat_interval
+        ) as reader:
+            for index in range(10):
+                # During read_next() the reader will check and send heartbeats quietly, as needed.
+                reader.read_next()
+                server.poll_heartbeat_and_reply()
+                assert reader.client.heartbeat_reply_count == index
+                time.sleep(heartbeat_interval)
+
+
+def test_open_ephys_zmq_reader_all_spikes():
+    host = "127.0.0.1"
+    data_port = 10001
+    stream_sample_rate = 1000
+    continuous_data = {0: "zero", 42: "forty_two"}
+    events = "events"
+    spikes = "spikes"
+    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=100) as server:
+        with OpenEphysZmqReader(
+            host=host,
+            data_port=data_port,
+            stream_sample_rate=stream_sample_rate,
+            continuous_data=continuous_data,
+            events=events,
+            spikes=spikes,
+        ) as reader:
+            initial = reader.get_initial()
+            assert isinstance(initial["zero"], SignalChunk)
+            assert isinstance(initial["forty_two"], SignalChunk)
+            assert isinstance(initial["events"], NumericEventList)
+            assert isinstance(initial["spikes"], NumericEventList)
+
+            # TODO: send some data from the server and see it through the reader.
+
+
+def test_open_ephys_zmq_reader_selected_spike_electrodes():
+    host = "127.0.0.1"
+    data_port = 10001
+    stream_sample_rate = 1000
+    continuous_data = {0: "zero", 42: "forty_two"}
+    events = "events"
+    spikes = {"probe_0": "cortex", "probe_1": "deep_brain"}
+    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=100) as server:
+        with OpenEphysZmqReader(
+            host=host,
+            data_port=data_port,
+            stream_sample_rate=stream_sample_rate,
+            continuous_data=continuous_data,
+            events=events,
+            spikes=spikes,
+        ) as reader:
+            initial = reader.get_initial()
+            assert isinstance(initial["zero"], SignalChunk)
+            assert isinstance(initial["forty_two"], SignalChunk)
+            assert isinstance(initial["events"], NumericEventList)
+            assert isinstance(initial["cortex"], NumericEventList)
+            assert isinstance(initial["deep_brain"], NumericEventList)
+
+            # TODO: send some data from the server and see it through the reader.

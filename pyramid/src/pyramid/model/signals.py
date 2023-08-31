@@ -85,6 +85,12 @@ class SignalChunk(BufferData):
         """Implementing BufferData superclass."""
         self.sample_data = np.concatenate([self.sample_data, other.sample_data])
 
+        if self.sample_frequency is None:
+            self.sample_frequency = other.sample_frequency
+
+        if self.first_sample_time is None:
+            self.first_sample_time = other.first_sample_time
+
     def discard_before(self, start_time: float) -> None:
         """Implementing BufferData superclass."""
         sample_times = self.get_times()

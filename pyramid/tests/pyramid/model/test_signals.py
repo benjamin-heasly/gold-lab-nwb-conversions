@@ -54,6 +54,32 @@ def test_signal_chunk_append():
     assert np.array_equal(signal_chunk_a.get_channel_values("c"), np.array(range(sample_count)) * 10)
 
 
+def test_signal_chunk_append_fill_in_missing_fields():
+    # An empty placeholder signal chunk, as if we haven't read any data yet.
+    signal_chunk_a = SignalChunk(
+        sample_data=np.empty([0, 1]),
+        sample_frequency=None,
+        first_sample_time=None,
+        channel_ids=["0"]
+    )
+
+    # A full signal chunk, perhaps the first data we read in.
+    signal_chunk_b = SignalChunk(
+        sample_data=np.arange(100).reshape([-1, 1]),
+        sample_frequency=10,
+        first_sample_time=7.7,
+        channel_ids=["0"]
+    )
+
+    assert signal_chunk_a.sample_frequency is None
+    assert signal_chunk_a.first_sample_time is None
+
+    # The append operation should fill in sample_frequency if missing.
+    signal_chunk_a.append(signal_chunk_b)
+    assert signal_chunk_a.sample_frequency == signal_chunk_b.sample_frequency
+    assert signal_chunk_a.first_sample_time == signal_chunk_b.first_sample_time
+
+
 def test_signal_chunk_discard_before():
     sample_count = 100
     raw_data = [[v, 10 + v, 10 * v] for v in range(sample_count)]
