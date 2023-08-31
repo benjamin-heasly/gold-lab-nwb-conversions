@@ -251,7 +251,7 @@ def test_open_ephys_zmq_continuous_data():
     host = "127.0.0.1"
     data_port = 10001
     with OpenEphysZmqServer(host=host, data_port=data_port) as server:
-        assert server.message_number is 0
+        assert server.message_number == 0
 
         with OpenEphysZmqClient(host=host, data_port=data_port) as client:
             assert client.poll_and_receive_data() == {}
@@ -273,8 +273,8 @@ def test_open_ephys_zmq_continuous_data():
                 assert message_num == index
 
                 # Receive the same data at the client.
-                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
-                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                # Normally we'd use the default timeout_ms and let Pyramid interleave short polls with other tasks.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket scheduling etc.
                 results = client.poll_and_receive_data(timeout_ms=100)
 
                 assert results["envelope"] == "DATA"
@@ -298,7 +298,7 @@ def test_open_ephys_zmq_ttl_event():
     host = "127.0.0.1"
     data_port = 10001
     with OpenEphysZmqServer(host=host, data_port=data_port) as server:
-        assert server.message_number is 0
+        assert server.message_number == 0
 
         with OpenEphysZmqClient(host=host, data_port=data_port) as client:
             assert client.poll_and_receive_data() == {}
@@ -322,8 +322,8 @@ def test_open_ephys_zmq_ttl_event():
                 assert message_num == index
 
                 # Receive the same data at the client.
-                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
-                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                # Normally we'd use the default timeout_ms and let Pyramid interleave short polls with other tasks.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket scheduling etc.
                 results = client.poll_and_receive_data(timeout_ms=100)
 
                 assert results["envelope"] == "EVENT"
@@ -347,7 +347,7 @@ def test_open_ephys_zmq_spike():
     host = "127.0.0.1"
     data_port = 10001
     with OpenEphysZmqServer(host=host, data_port=data_port) as server:
-        assert server.message_number is 0
+        assert server.message_number == 0
 
         with OpenEphysZmqClient(host=host, data_port=data_port) as client:
             assert client.poll_and_receive_data() == {}
@@ -375,8 +375,8 @@ def test_open_ephys_zmq_spike():
                 assert message_num == index
 
                 # Receive the same data at the client.
-                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
-                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                # Normally we'd use the default timeout_ms and let Pyramid interleave short polls with other tasks.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket scheduling etc.
                 results = client.poll_and_receive_data(timeout_ms=100)
 
                 assert results["envelope"] == "EVENT"
@@ -440,8 +440,8 @@ def test_open_ephys_zmq_mixed_data():
                 )
 
                 # Let the client receive various data in the order sent.
-                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
-                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                # Normally we'd use the default timeout_ms and let Pyramid interleave short polls with other tasks.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket scheduling etc.
                 results = client.poll_and_receive_data(timeout_ms=100)
                 assert results["type"] == "data"
 

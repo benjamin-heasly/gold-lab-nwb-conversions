@@ -243,7 +243,7 @@ class OpenEphysZmqServer(ContextManager):
         self.context = None
         self.data_socket = None
         self.heartbeat_socket = None
-        self.poller = None
+        self.heartbeat_poller = None
 
     def __enter__(self) -> Self:
         self.context = zmq.Context()
@@ -253,9 +253,8 @@ class OpenEphysZmqServer(ContextManager):
 
         self.heartbeat_socket = self.context.socket(zmq.REP)
         self.heartbeat_socket.bind(self.heartbeat_address)
-
-        self.poller = zmq.Poller()
-        self.poller.register(self.heartbeat_socket, zmq.POLLIN)
+        self.heartbeat_poller = zmq.Poller()
+        self.heartbeat_poller.register(self.heartbeat_socket, zmq.POLLIN)
 
         self.message_number = 0
         self.last_heartbeat = None
@@ -273,15 +272,15 @@ class OpenEphysZmqServer(ContextManager):
             self.context.destroy()
 
         self.context = None
-        self.poller = None
         self.data_socket = None
         self.heartbeat_socket = None
+        self.heartbeat_poller = None
 
     def poll_heartbeat_and_reply(self, timeout_ms: int = None) -> bool:
         if timeout_ms is None:
             timeout_ms = self.timeout_ms
 
-        ready = dict(self.poller.poll(timeout_ms))
+        ready = dict(self.heartbeat_poller.poll(timeout_ms))
         if self.heartbeat_socket in ready:
             bytes = self.heartbeat_socket.recv(zmq.NOBLOCK)
             if bytes:
@@ -409,7 +408,8 @@ class OpenEphysZmqClient(ContextManager):
         self.context = None
         self.data_socket = None
         self.heartbeat_socket = None
-        self.poller = None
+        self.data_poller = None
+        self.heartbeat_poller = None
 
     def __enter__(self) -> Self:
         self.context = zmq.Context()
@@ -417,15 +417,17 @@ class OpenEphysZmqClient(ContextManager):
         # Initially the SUB socket filters out / ignores all messages.
         # Setting an empty filter pattern allows all messages through.
         self.data_socket = self.context.socket(zmq.SUB)
-        self.data_socket.connect(self.data_address)
         self.data_socket.setsockopt(zmq.SUBSCRIBE, b'')
+        self.data_socket.connect(self.data_address)
+        self.data_poller = zmq.Poller()
+        self.data_poller.register(self.data_socket, zmq.POLLIN)
 
+        # Using a separate poller for data vs heartbeat allows them to wait/timeout independently.
+        # Otherwise eg a heartbeat message could make it look like data was available, and we'd never wait for data.
         self.heartbeat_socket = self.context.socket(zmq.REQ)
         self.heartbeat_socket.connect(self.heartbeat_address)
-
-        self.poller = zmq.Poller()
-        self.poller.register(self.data_socket, zmq.POLLIN)
-        self.poller.register(self.heartbeat_socket, zmq.POLLIN)
+        self.heartbeat_poller = zmq.Poller()
+        self.heartbeat_poller.register(self.heartbeat_socket, zmq.POLLIN)
 
         self.heartbeat_send_count = 0
         self.heartbeat_reply_count = 0
@@ -442,9 +444,10 @@ class OpenEphysZmqClient(ContextManager):
             self.context.destroy()
 
         self.context = None
-        self.poller = None
         self.data_socket = None
+        self.data_poller = None
         self.heartbeat_socket = None
+        self.heartbeat_poller = None
 
     def send_heartbeat(self) -> bool:
         if self.heartbeat_send_count > self.heartbeat_reply_count:
@@ -459,7 +462,7 @@ class OpenEphysZmqClient(ContextManager):
         if timeout_ms is None:
             timeout_ms = self.timeout_ms
 
-        ready = dict(self.poller.poll(timeout_ms))
+        ready = dict(self.heartbeat_poller.poll(timeout_ms))
         if self.heartbeat_socket in ready:
             heartbeat_reply_bytes = self.heartbeat_socket.recv(zmq.NOBLOCK)
             if heartbeat_reply_bytes:
@@ -472,11 +475,12 @@ class OpenEphysZmqClient(ContextManager):
             timeout_ms = self.timeout_ms
 
         results = {}
-        ready = dict(self.poller.poll(timeout_ms))
+        ready = dict(self.data_poller.poll(timeout_ms))
         if self.data_socket in ready:
             parts = self.data_socket.recv_multipart(zmq.NOBLOCK)
             if parts:
                 header_info = json.loads(parts[1].decode(self.encoding))
+
                 data_type = header_info["type"]
                 if data_type == "data":
                     (envelope, header_info, data) = parse_continuous_data(parts, encoding=self.encoding)
