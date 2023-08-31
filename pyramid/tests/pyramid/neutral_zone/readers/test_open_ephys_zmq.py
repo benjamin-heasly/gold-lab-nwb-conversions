@@ -273,9 +273,10 @@ def test_open_ephys_zmq_continuous_data():
                 assert message_num == index
 
                 # Receive the same data at the client.
-                results = client.poll_and_receive_data()
-                while not results:
-                    results = client.poll_and_receive_data()
+                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                results = client.poll_and_receive_data(timeout_ms=100)
+
                 assert results["envelope"] == "DATA"
                 assert results["message_num"] == message_num
                 assert results["type"] == "data"
@@ -321,9 +322,10 @@ def test_open_ephys_zmq_ttl_event():
                 assert message_num == index
 
                 # Receive the same data at the client.
-                results = client.poll_and_receive_data()
-                while not results:
-                    results = client.poll_and_receive_data()
+                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                results = client.poll_and_receive_data(timeout_ms=100)
+
                 assert results["envelope"] == "EVENT"
                 assert results["message_num"] == message_num
                 assert results["type"] == "event"
@@ -373,9 +375,10 @@ def test_open_ephys_zmq_spike():
                 assert message_num == index
 
                 # Receive the same data at the client.
-                results = client.poll_and_receive_data()
-                while not results:
-                    results = client.poll_and_receive_data()
+                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                results = client.poll_and_receive_data(timeout_ms=100)
+
                 assert results["envelope"] == "EVENT"
                 assert results["message_num"] == message_num
                 assert results["type"] == "spike"
@@ -437,19 +440,15 @@ def test_open_ephys_zmq_mixed_data():
                 )
 
                 # Let the client receive various data in the order sent.
-                results = client.poll_and_receive_data()
-                while not results:
-                    results = client.poll_and_receive_data()
+                # Normally we'd use the default, short timeout_ms and repeat as needed until data arrives.
+                # This longer timeout_ms lets us get the data in one call regardless of system socket timing details.
+                results = client.poll_and_receive_data(timeout_ms=100)
                 assert results["type"] == "data"
 
-                results = client.poll_and_receive_data()
-                while not results:
-                    results = client.poll_and_receive_data()
+                results = client.poll_and_receive_data(timeout_ms=100)
                 assert results["type"] == "event"
 
-                results = client.poll_and_receive_data()
-                while not results:
-                    results = client.poll_and_receive_data()
+                results = client.poll_and_receive_data(timeout_ms=100)
                 assert results["type"] == "spike"
 
                 assert client.poll_and_receive_data() == {}

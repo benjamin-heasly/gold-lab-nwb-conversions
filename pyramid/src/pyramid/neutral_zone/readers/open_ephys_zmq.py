@@ -277,8 +277,11 @@ class OpenEphysZmqServer(ContextManager):
         self.data_socket = None
         self.heartbeat_socket = None
 
-    def poll_heartbeat_and_reply(self) -> bool:
-        ready = dict(self.poller.poll(self.timeout_ms))
+    def poll_heartbeat_and_reply(self, timeout_ms: int = None) -> bool:
+        if timeout_ms is None:
+            timeout_ms = self.timeout_ms
+
+        ready = dict(self.poller.poll(timeout_ms))
         if self.heartbeat_socket in ready:
             bytes = self.heartbeat_socket.recv(zmq.NOBLOCK)
             if bytes:
@@ -452,8 +455,11 @@ class OpenEphysZmqClient(ContextManager):
         self.heartbeat_send_count += 1
         return True
 
-    def poll_and_receive_heartbeat(self) -> str:
-        ready = dict(self.poller.poll(self.timeout_ms))
+    def poll_and_receive_heartbeat(self, timeout_ms: int = None) -> str:
+        if timeout_ms is None:
+            timeout_ms = self.timeout_ms
+
+        ready = dict(self.poller.poll(timeout_ms))
         if self.heartbeat_socket in ready:
             heartbeat_reply_bytes = self.heartbeat_socket.recv(zmq.NOBLOCK)
             if heartbeat_reply_bytes:
@@ -461,9 +467,12 @@ class OpenEphysZmqClient(ContextManager):
                 return heartbeat_reply_bytes.decode(self.encoding)
         return None
 
-    def poll_and_receive_data(self) -> dict[str, Any]:
+    def poll_and_receive_data(self, timeout_ms: int = None) -> dict[str, Any]:
+        if timeout_ms is None:
+            timeout_ms = self.timeout_ms
+
         results = {}
-        ready = dict(self.poller.poll(self.timeout_ms))
+        ready = dict(self.poller.poll(timeout_ms))
         if self.data_socket in ready:
             parts = self.data_socket.recv_multipart(zmq.NOBLOCK)
             if parts:
