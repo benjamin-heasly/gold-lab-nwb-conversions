@@ -457,6 +457,7 @@ class OpenEphysZmqClient(ContextManager):
     def send_heartbeat(self) -> bool:
         if self.heartbeat_send_count > self.heartbeat_reply_count:
             # Zmq only allows one outstanding REQ message at a time.
+            logging.warning(f"OpenEphysZmqClient heartbeats out of sync: sent {self.heartbeat_send_count} heartbeats but reveived {self.heartbeat_reply_count} replies.")
             return False
 
         self.heartbeat_socket.send(self.heartbeat_bytes)
@@ -577,11 +578,11 @@ class OpenEphysZmqReader(Reader):
         self.spikes = spikes
 
         self.heartbeat_interval = heartbeat_interval
-        self.last_heartbeat_time = None
+        self.last_heartbeat_attempt = None
 
     def __enter__(self) -> Self:
         self.client.__enter__()
-        self.last_heartbeat_time = 0
+        self.last_heartbeat_attempt = 0
         return self
 
     def __exit__(
@@ -621,17 +622,13 @@ class OpenEphysZmqReader(Reader):
 
     def read_next(self) -> dict[str, BufferData]:
         now_time = time.time()
-        if self.last_heartbeat_time + self.heartbeat_interval < now_time:
+        heartbeat_elapsed = now_time - self.last_heartbeat_attempt
+        if heartbeat_elapsed > self.heartbeat_interval:
             heartbeat_reply = self.client.poll_and_receive_heartbeat()
-            if self.client.heartbeat_send_count > 0 and not heartbeat_reply:
-                heartbeat_latency = now_time - self.last_heartbeat_time
-                logging.warning(f"Open Ephys ZMQ Interface at {self.client.data_address} has not replied to heartbeat for {heartbeat_latency} seconds.")
-
-            heartbeat_sent = self.client.send_heartbeat()
-            if heartbeat_sent:
-                self.last_heartbeat_time = now_time
-            else:
-                logging.warning(f"OpenEphysZmqReader heartbeats out of sync: sent {self.client.heartbeat_send_count} heartbeats but reveived {self.client.heartbeat_reply_count} replies.")
+            if self.last_heartbeat_attempt > 0 and not heartbeat_reply:
+                logging.warning(f"Open Ephys ZMQ Interface at {self.client.data_address} has not replied to heartbeat for  at least {heartbeat_elapsed} seconds.")
+            self.client.send_heartbeat()
+            self.last_heartbeat_attempt = now_time
 
         client_results = self.client.poll_and_receive_data()
         if not client_results:
