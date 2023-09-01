@@ -479,30 +479,86 @@ def test_open_ephys_zmq_reader_heartbeat():
                 assert reader.client.heartbeat_reply_count == index
                 time.sleep(heartbeat_interval)
 
+            # It should be safe to try reading even if the server stops replying to heartbeats.
+            reader.read_next()
+            time.sleep(heartbeat_interval)
+            reader.read_next()
+            time.sleep(heartbeat_interval)
+            reader.read_next()
 
-def test_open_ephys_zmq_reader_all_spikes():
+
+def test_open_ephys_zmq_reader_default_events_and_spikes():
     host = "127.0.0.1"
     data_port = 10001
     stream_sample_rate = 1000
-    continuous_data = {0: "zero", 42: "forty_two"}
-    events = "events"
-    spikes = "spikes"
-    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=100) as server:
+    timeout_ms = 100
+    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=timeout_ms) as server:
         with OpenEphysZmqReader(
             host=host,
             data_port=data_port,
             stream_sample_rate=stream_sample_rate,
-            continuous_data=continuous_data,
-            events=events,
-            spikes=spikes,
+            timeout_ms=timeout_ms
         ) as reader:
             initial = reader.get_initial()
-            assert isinstance(initial["zero"], SignalChunk)
-            assert isinstance(initial["forty_two"], SignalChunk)
+            assert initial.keys() == {"events", "spikes"}
             assert isinstance(initial["events"], NumericEventList)
             assert isinstance(initial["spikes"], NumericEventList)
 
-            # TODO: send some data from the server and see it through the reader.
+            # It should be safe to read when there's no data available yet.
+            assert not reader.read_next()
+
+            # See some ttl events end up as reader "events".
+            print(f"It's a bif {server.data_socket.closed}")
+            server.send_ttl_event(
+                event_line=123,
+                event_state=1,
+                ttl_word=123456789,
+                stream_name="test_stream",
+                source_node=42,
+                sample_num=0
+            )
+            server.send_ttl_event(
+                event_line=123,
+                event_state=0,
+                ttl_word=987654321,
+                stream_name="test_stream",
+                source_node=42,
+                sample_num=1
+            )
+            # [timestamp, ttl_word, event_line, event_state, source_node]
+            assert reader.read_next() == {
+                "events": NumericEventList(np.array([[0 / stream_sample_rate, 123456789, 123, 1, 42]]))
+            }
+            assert reader.read_next() == {
+                "events": NumericEventList(np.array([[1 / stream_sample_rate, 987654321, 123, 0, 42]]))
+            }
+
+            # See some spikes on different electrodes end up as reader "spikes".
+            server.send_spike(
+                waveform=np.random.rand(2, 100).astype(np.float32),
+                stream_name="test_stream",
+                source_node=42,
+                electrode="electrode_1",
+                sample_num=0,
+                sorted_id=7,
+                threshold=[1, 1]
+            )
+            server.send_spike(
+                waveform=np.random.rand(2, 100).astype(np.float32),
+                stream_name="test_stream",
+                source_node=42,
+                electrode="electrode_2",
+                sample_num=100,
+                sorted_id=8,
+                threshold=[1, 1]
+            )
+            # [timestamp, source_node, sorted_id]
+            assert reader.read_next() == {
+                "spikes": NumericEventList(np.array([[0 / stream_sample_rate, 42, 7]]))
+            }
+            assert reader.read_next() == {
+                "spikes": NumericEventList(np.array([[100 / stream_sample_rate, 42, 8]]))
+            }
 
 
 def test_open_ephys_zmq_reader_selected_spike_electrodes():

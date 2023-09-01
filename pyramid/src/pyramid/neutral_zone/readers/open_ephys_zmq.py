@@ -633,19 +633,19 @@ class OpenEphysZmqReader(Reader):
             else:
                 logging.warning(f"OpenEphysZmqReader heartbeats out of sync: sent {self.client.heartbeat_send_count} heartbeats but reveived {self.client.heartbeat_reply_count} replies.")
 
-        zmq_results = self.client.poll_and_receive_data()
-        if not zmq_results:
+        client_results = self.client.poll_and_receive_data()
+        if not client_results:
             return None
 
         results = {}
-        data_type = zmq_results.get("type", None)
+        data_type = client_results.get("type", None)
         if data_type == "data":
-            channel_num = zmq_results["channel_num"]
+            channel_num = client_results["channel_num"]
             name = self.continuous_data.get(channel_num, None)
             if name is not None:
-                sample_num = zmq_results["sample_num"]
-                sample_rate = zmq_results["sample_rate"]
-                sample_data = zmq_results["data"]
+                sample_num = client_results["sample_num"]
+                sample_rate = client_results["sample_rate"]
+                sample_data = client_results["data"]
                 results[name] = SignalChunk(
                     sample_data=sample_data.reshape([-1, 1]),
                     sample_frequency=sample_rate,
@@ -656,31 +656,31 @@ class OpenEphysZmqReader(Reader):
         elif data_type == "event":
             if self.events:
                 # [timestamp, ttl_word, event_line, event_state, source_node]
-                sample_num = zmq_results["content"]["sample_num"]
+                sample_num = client_results["content"]["sample_num"]
                 timestamp = sample_num / self.event_sample_frequency
-                ttl_word = zmq_results["ttl_word"]
-                event_line = zmq_results["event_line"]
-                event_state = zmq_results["event_state"]
-                source_node = zmq_results["content"]["source_node"]
+                ttl_word = client_results["ttl_word"]
+                event_line = client_results["event_line"]
+                event_state = client_results["event_state"]
+                source_node = client_results["content"]["source_node"]
                 event_data = [timestamp, ttl_word, event_line, event_state, source_node]
-                results[self.events] = NumericEventList(np.array([event_data]), dtype='float64')
+                results[self.events] = NumericEventList(np.array([event_data], dtype='float64'))
 
         elif data_type == "spike":
             if self.spikes:
                 # Does Open Ephys give us anything like probe contact location or index or "channel" in the Plexon sense?
                 # [timestamp, source_node, sorted_id]
-                sample_num = zmq_results["spike"]["sample_num"]
+                sample_num = client_results["spike"]["sample_num"]
                 timestamp = sample_num / self.event_sample_frequency
-                source_node = zmq_results["spike"]["source_node"]
-                sorted_id = zmq_results["spike"]["sorted_id"]
+                source_node = client_results["spike"]["source_node"]
+                sorted_id = client_results["spike"]["sorted_id"]
                 event_data = [timestamp, source_node, sorted_id]
 
                 if isinstance(self.spikes, str):
-                    results[self.spikes] = NumericEventList(np.array([event_data]), dtype='float64')
+                    results[self.spikes] = NumericEventList(np.array([event_data], dtype='float64'))
                 elif isinstance(self.spikes, dict):
-                    electrode = zmq_results["spike"]["electrode"]
+                    electrode = client_results["spike"]["electrode"]
                     name = self.spikes.get(electrode, None)
                     if name is not None:
-                        results[name] = NumericEventList(np.array([event_data]), dtype='float64')
+                        results[name] = NumericEventList(np.array([event_data], dtype='float64'))
 
         return results
