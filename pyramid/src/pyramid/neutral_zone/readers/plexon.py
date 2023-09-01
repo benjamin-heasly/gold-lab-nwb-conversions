@@ -546,7 +546,7 @@ class PlexonPlxReader(Reader):
                 self.spikes_prefix
             )
             for name in spike_channel_names.values():
-                initial[name] = NumericEventList(np.empty([0, 3], dtype='float64'))
+                initial[name] = NumericEventList(np.empty([0, 3], dtype=np.float64))
 
             # Other event channels have numeric events like [timestamp, value]
             event_channel_names = self.choose_channel_names(
@@ -555,7 +555,7 @@ class PlexonPlxReader(Reader):
                 self.events_prefix
             )
             for name in event_channel_names.values():
-                initial[name] = NumericEventList(np.empty([0, 2], dtype='float64'))
+                initial[name] = NumericEventList(np.empty([0, 2], dtype=np.float64))
 
             # Slow ad channels have Signal chunks.
             signal_channel_names = self.choose_channel_names(
@@ -565,7 +565,7 @@ class PlexonPlxReader(Reader):
             )
             for channel_id, name in signal_channel_names.items():
                 initial[name] = SignalChunk(
-                    sample_data=np.empty([0, 1], dtype='float64'),
+                    sample_data=np.empty([0, 1], dtype=np.float64),
                     sample_frequency=float(peek_reader.frequency_per_slow_channel[channel_id]),
                     first_sample_time=float(0.0),
                     channel_ids=[int(channel_id)]

@@ -526,7 +526,7 @@ class OpenEphysZmqReader(Reader):
         host: str = "127.0.0.1",
         data_port: int = 5556,
         heartbeat_port: int = None,
-        stream_sample_rate: float = 1.0,
+        event_sample_frequency: float = 1.0,
         continuous_data: dict[int, str] = {},
         events: str = "events",
         spikes: str | dict[str, str] = "spikes",
@@ -544,22 +544,22 @@ class OpenEphysZmqReader(Reader):
         is for selecting continuous data channels and/or electrodes, and giving them Pyramid buffer names.
 
         Args:
-            host:               Open Ephys GUI IP address or host name to connect to
-            data_port:          Open Ephys ZMQ Interface data port to connect to
-            heartbeat_port:     Open Ephys ZMQ Interface heartbeat port to connect to (defaults to data_port + 1)
-            stream_sample_rate: acquisition stream clock or sample rate, to convert sample numbers to timestamps
-            continuous_data:    dictionary of {channel_num: buffer_name} to select which continuous data channels
-                                to keep, and the Pyramid buffer name for each one (default is keep none)
-            events:             name of the buffer to receive ttl events, or None to ignore ttl events
-                                (default is keep all as "events")
-            spikes:             name of the buffer to receive all spike events, or dictionary of
-                                {electrode name: buffer_name} pairs to select which electrodes to keep and the buffer
-                                name for each one (default is keep all as "spikes")
-            heartbeat_interval: interval in seconds between hearbeat messages sent to the Open Ephys ZMQ Interface
-            client_uuid:        unique id that this reader uses to identifiy itself ot the Open Ephys ZMQ Interface
-            scheme:             URL transport scheme to use when connecting to the Open Ephys ZMQ Interface
-            timeout_ms:         how long to wait when polling for messages from the Open Ephys ZMQ Interface
-            encoding:           binary encoding to use for string data
+            host:                   Open Ephys GUI IP address or host name to connect to
+            data_port:              Open Ephys ZMQ Interface data port to connect to
+            heartbeat_port:         Open Ephys ZMQ Interface heartbeat port to connect to (defaults to data_port + 1)
+            event_sample_frequency: acquisition stream clock or sample rate, to convert sample numbers to timestamps
+            continuous_data:        dictionary of {channel_num: buffer_name} to select which continuous data channels
+                                    to keep, and the Pyramid buffer name for each one (default is keep none)
+            events:                 name of the buffer to receive ttl events, or None to ignore ttl events
+                                    (default is keep all as "events")
+            spikes:                 name of the buffer to receive all spike events, or dictionary of
+                                    {electrode name: buffer_name} pairs to select which electrodes to keep and the buffer
+                                    name for each one (default is keep all as "spikes")
+            heartbeat_interval:     interval in seconds between hearbeat messages sent to the Open Ephys ZMQ Interface
+            client_uuid:            unique id that this reader uses to identifiy itself ot the Open Ephys ZMQ Interface
+            scheme:                 URL transport scheme to use when connecting to the Open Ephys ZMQ Interface
+            timeout_ms:             how long to wait when polling for messages from the Open Ephys ZMQ Interface
+            encoding:               binary encoding to use for string data
         """
         self.client = OpenEphysZmqClient(
             host,
@@ -571,7 +571,7 @@ class OpenEphysZmqReader(Reader):
             client_uuid
         )
 
-        self.event_sample_frequency = stream_sample_rate
+        self.event_sample_frequency = event_sample_frequency
         self.continuous_data = continuous_data
         self.events = events
         self.spikes = spikes
@@ -606,16 +606,16 @@ class OpenEphysZmqReader(Reader):
 
         if self.events:
             # [timestamp, ttl_word, event_line, event_state, source_node]
-            initial[self.events] = NumericEventList(np.empty([0, 5], dtype='float64'))
+            initial[self.events] = NumericEventList(np.empty([0, 5], dtype=np.float64))
 
         if self.spikes:
             if isinstance(self.spikes, str):
                 # [timestamp, source_node, sorted_id]
-                initial[self.spikes] = NumericEventList(np.empty([0, 3], dtype='float64'))
+                initial[self.spikes] = NumericEventList(np.empty([0, 3], dtype=np.float64))
             elif isinstance(self.spikes, dict):
                 for name in self.spikes.values():
                     # [timestamp, source_node, sorted_id]
-                    initial[name] = NumericEventList(np.empty([0, 3], dtype='float64'))
+                    initial[name] = NumericEventList(np.empty([0, 3], dtype=np.float64))
 
         return initial
 
@@ -640,16 +640,16 @@ class OpenEphysZmqReader(Reader):
         results = {}
         data_type = client_results.get("type", None)
         if data_type == "data":
-            channel_num = client_results["channel_num"]
+            channel_num = client_results["content"]["channel_num"]
             name = self.continuous_data.get(channel_num, None)
             if name is not None:
-                sample_num = client_results["sample_num"]
-                sample_rate = client_results["sample_rate"]
+                sample_num = client_results["content"]["sample_num"]
+                sample_rate = client_results["content"]["sample_rate"]
                 sample_data = client_results["data"]
                 results[name] = SignalChunk(
                     sample_data=sample_data.reshape([-1, 1]),
                     sample_frequency=sample_rate,
-                    first_sample_time=sample_num * sample_rate,
+                    first_sample_time=sample_num / sample_rate,
                     channel_ids=[int(channel_num)]
                 )
 
@@ -663,7 +663,7 @@ class OpenEphysZmqReader(Reader):
                 event_state = client_results["event_state"]
                 source_node = client_results["content"]["source_node"]
                 event_data = [timestamp, ttl_word, event_line, event_state, source_node]
-                results[self.events] = NumericEventList(np.array([event_data], dtype='float64'))
+                results[self.events] = NumericEventList(np.array([event_data], dtype=np.float64))
 
         elif data_type == "spike":
             if self.spikes:
@@ -676,11 +676,11 @@ class OpenEphysZmqReader(Reader):
                 event_data = [timestamp, source_node, sorted_id]
 
                 if isinstance(self.spikes, str):
-                    results[self.spikes] = NumericEventList(np.array([event_data], dtype='float64'))
+                    results[self.spikes] = NumericEventList(np.array([event_data], dtype=np.float64))
                 elif isinstance(self.spikes, dict):
                     electrode = client_results["spike"]["electrode"]
                     name = self.spikes.get(electrode, None)
                     if name is not None:
-                        results[name] = NumericEventList(np.array([event_data], dtype='float64'))
+                        results[name] = NumericEventList(np.array([event_data], dtype=np.float64))
 
         return results

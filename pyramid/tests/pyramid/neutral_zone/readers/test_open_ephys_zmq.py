@@ -490,13 +490,13 @@ def test_open_ephys_zmq_reader_heartbeat():
 def test_open_ephys_zmq_reader_default_events_and_spikes():
     host = "127.0.0.1"
     data_port = 10001
-    stream_sample_rate = 1000
+    event_sample_frequency = 1000
     timeout_ms = 100
     with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=timeout_ms) as server:
         with OpenEphysZmqReader(
             host=host,
             data_port=data_port,
-            stream_sample_rate=stream_sample_rate,
+            event_sample_frequency=event_sample_frequency,
             timeout_ms=timeout_ms
         ) as reader:
             initial = reader.get_initial()
@@ -508,7 +508,6 @@ def test_open_ephys_zmq_reader_default_events_and_spikes():
             assert not reader.read_next()
 
             # See some ttl events end up as reader "events".
-            print(f"It's a bif {server.data_socket.closed}")
             server.send_ttl_event(
                 event_line=123,
                 event_state=1,
@@ -527,10 +526,10 @@ def test_open_ephys_zmq_reader_default_events_and_spikes():
             )
             # [timestamp, ttl_word, event_line, event_state, source_node]
             assert reader.read_next() == {
-                "events": NumericEventList(np.array([[0 / stream_sample_rate, 123456789, 123, 1, 42]]))
+                "events": NumericEventList(np.array([[0 / event_sample_frequency, 123456789, 123, 1, 42]]))
             }
             assert reader.read_next() == {
-                "events": NumericEventList(np.array([[1 / stream_sample_rate, 987654321, 123, 0, 42]]))
+                "events": NumericEventList(np.array([[1 / event_sample_frequency, 987654321, 123, 0, 42]]))
             }
 
             # See some spikes on different electrodes end up as reader "spikes".
@@ -554,34 +553,136 @@ def test_open_ephys_zmq_reader_default_events_and_spikes():
             )
             # [timestamp, source_node, sorted_id]
             assert reader.read_next() == {
-                "spikes": NumericEventList(np.array([[0 / stream_sample_rate, 42, 7]]))
+                "spikes": NumericEventList(np.array([[0 / event_sample_frequency, 42, 7]]))
             }
             assert reader.read_next() == {
-                "spikes": NumericEventList(np.array([[100 / stream_sample_rate, 42, 8]]))
+                "spikes": NumericEventList(np.array([[100 / event_sample_frequency, 42, 8]]))
             }
 
 
-def test_open_ephys_zmq_reader_selected_spike_electrodes():
+def test_open_ephys_zmq_reader_selected_data_and_spikes():
     host = "127.0.0.1"
     data_port = 10001
-    stream_sample_rate = 1000
+    event_sample_frequency = 1000
     continuous_data = {0: "zero", 42: "forty_two"}
-    events = "events"
+    events = None
     spikes = {"probe_0": "cortex", "probe_1": "deep_brain"}
-    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=100) as server:
+    timeout_ms = 100
+    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=timeout_ms) as server:
         with OpenEphysZmqReader(
             host=host,
             data_port=data_port,
-            stream_sample_rate=stream_sample_rate,
+            event_sample_frequency=event_sample_frequency,
             continuous_data=continuous_data,
             events=events,
             spikes=spikes,
+            timeout_ms=timeout_ms
         ) as reader:
+            # Expect reader to set up for explicitly named buffers, and no "events".
             initial = reader.get_initial()
+            assert initial.keys() == {"zero", "forty_two", "cortex", "deep_brain"}
             assert isinstance(initial["zero"], SignalChunk)
             assert isinstance(initial["forty_two"], SignalChunk)
-            assert isinstance(initial["events"], NumericEventList)
             assert isinstance(initial["cortex"], NumericEventList)
             assert isinstance(initial["deep_brain"], NumericEventList)
 
-            # TODO: send some data from the server and see it through the reader.
+            # It should be safe to read when there's no data available yet.
+            assert not reader.read_next()
+
+            # Reader should quietly ignore ttl events from the server.
+            server.send_ttl_event(
+                event_line=123,
+                event_state=1,
+                ttl_word=123456789,
+                stream_name="ignore me!",
+                source_node=42,
+                sample_num=0
+            )
+            assert not reader.read_next()
+
+            # See some continuous data end up as
+            #  - channel 0 -> buffer "zero"
+            #  - channel 42 -> buffer "forty_two"
+            #  - channel 7 -> ignored
+            zero_data = np.random.rand(100).astype(np.float32)
+            server.send_continuous_data(
+                data=zero_data,
+                stream_name="test_stream",
+                channel_num=0,
+                sample_num=0,
+                sample_rate=1000
+            )
+            forty_two_data = np.random.rand(100).astype(np.float32)
+            server.send_continuous_data(
+                data=forty_two_data,
+                stream_name="test_stream",
+                channel_num=42,
+                sample_num=42,
+                sample_rate=1000
+            )
+            server.send_continuous_data(
+                data=np.random.rand(100).astype(np.float32),
+                stream_name="test_stream",
+                channel_num=7,
+                sample_num=7,
+                sample_rate=1000
+            )
+            assert reader.read_next() == {
+                "zero": SignalChunk(
+                    sample_data=zero_data.reshape([-1, 1]),
+                    sample_frequency=1000,
+                    first_sample_time=0,
+                    channel_ids=[0]
+                )
+            }
+            assert reader.read_next() == {
+                "forty_two": SignalChunk(
+                    sample_data=forty_two_data.reshape([-1, 1]),
+                    sample_frequency=1000,
+                    first_sample_time=42 / 1000,
+                    channel_ids=[42]
+                )
+            }
+            assert not reader.read_next()
+
+            # See some spikes show up as:
+            #  - electrode "probe_0" -> buffer "cortex"
+            #  - electrode "probe_1" -> buffer "deep_brain"
+            #  - electrode "probe_2" -> ignored
+            probe_0_waveform = np.random.rand(2, 100).astype(np.float32)
+            server.send_spike(
+                waveform=probe_0_waveform,
+                stream_name="test_stream",
+                source_node=42,
+                electrode="probe_0",
+                sample_num=0,
+                sorted_id=7,
+                threshold=[1, 1]
+            )
+            probe_1_waveform = np.random.rand(2, 100).astype(np.float32)
+            server.send_spike(
+                waveform=probe_1_waveform,
+                stream_name="test_stream",
+                source_node=42,
+                electrode="probe_1",
+                sample_num=100,
+                sorted_id=8,
+                threshold=[1, 1]
+            )
+            server.send_spike(
+                waveform=np.random.rand(2, 100).astype(np.float32),
+                stream_name="test_stream",
+                source_node=42,
+                electrode="probe_2",
+                sample_num=200,
+                sorted_id=8,
+                threshold=[1, 1]
+            )
+            # [timestamp, source_node, sorted_id]
+            assert reader.read_next() == {
+                "cortex": NumericEventList(np.array([[0 / event_sample_frequency, 42, 7]]))
+            }
+            assert reader.read_next() == {
+                "deep_brain": NumericEventList(np.array([[100 / event_sample_frequency, 42, 8]]))
+            }
+            assert not reader.read_next()
