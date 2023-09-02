@@ -192,27 +192,32 @@ plotters:
           x_start: y_start
           x_end: y_end
 ```
-
+#### BasicInfoPlotter
 The [BasicInfoPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L35) shows Pyramid's overall progress through the Plexon file along with static metadata about the experiment and subject.  It also has a `Quit` button -- _wow!_
 
 ![Pyramid BasicInfoPlotter with static and progress info and Quit button.](BasicInfoPlotter.png "Pyramid BasicInfoPlotter")
 
+#### SignalChunksPlotter
 The [SignalChunksPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L188) shows gaze signal traces over time, aligned to the zero-time for each trial.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
 ![Pyramid SignalChunksPlotter with gaze signal data.](SignalChunksPlotter.png "Pyramid SignalChunksPlotter")
 
+#### NumericEventsPlotter
 The [NumericEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L100) shows event times and raw numeric values for the `ecodes` buffer which came from the original Plexon `Strobed` channel.  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
 ![Pyramid NumericEventsPlotter for ecode event times and raw numeric values.](NumericEventsPlotter_ecodes.png "Pyramid NumericEventsPlotter for ecodes")
 
+#### SpikeEventsPlotter
 The [SpikeEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L483) shows spike event times from all Plexon spike channels.  Spikes are grouped and color-coded by integer channel number and fractionally offset by unit number.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
 ![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
 
+#### EnhancementTimesPlotter
 The [EnhancementTimesPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L278) shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [ecode-rules.csv](ecode-rules.csv) and custom enhancements created from [custom_enhancers.py](custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
 ![Pyramid EnhancementTimesPlotter for named events of interest within each trial.](EnhancementTimesPlotter.png "Pyramid EnhancementTimesPlotter")
 
+#### EnhancementXYPlotter
 The [EnhancementXYPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L367) shows 2D/XY values of interest from each trial.  Specific values to plot are declared by name:
 
  - `fp_x`/`fp_y`, `t1_x`/`t1_y`, and `t2_x`/`t2_y` are plotted as individual points
