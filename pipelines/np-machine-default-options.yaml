@@ -19,3 +19,5 @@ args:
 
   # licence file to use for Matlab steps
   matlab_license: /mnt/d/matlabLicense/license.lic
+
+  initial_kilosort_ops: struct('whiteningRange', 3, 'fshigh', 250, 'Th',[16,5], 'AUCsplit',0.75)
