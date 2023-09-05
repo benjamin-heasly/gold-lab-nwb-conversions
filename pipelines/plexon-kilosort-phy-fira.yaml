@@ -76,3 +76,6 @@ steps:
     match_done: [Converted/$plx_name/$results_name/$plx_name.mat]
     match_in: [Kilosort/$plx_name/$results_name/phy/*]
     match_out: [Converted/$plx_name/$results_name/$plx_name.mat]
+  - name: remove-tempwh2
+    image: alpine
+    command: [/bin/sh, -c, rm /data/Kilosort/$plx_name/temp_wh2.dat || echo 'Looks like tmp_wh2.dat is already gone.']
