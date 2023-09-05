@@ -214,21 +214,32 @@ class Hdf5TrialFile(TrialFile):
             dataset = signals_group.create_dataset(name, data=signal_chunk.sample_data, compression="gzip")
         else:
             dataset = signals_group.create_dataset(name, data=signal_chunk.sample_data)
-        dataset.attrs["sample_frequency"] = signal_chunk.sample_frequency
+
+        if signal_chunk.sample_frequency is None:
+            dataset.attrs["sample_frequency"] = np.empty([0,0])
+        else:
+            dataset.attrs["sample_frequency"] = signal_chunk.sample_frequency
+
         if signal_chunk.first_sample_time is None:
             dataset.attrs["first_sample_time"] = np.empty([0,0])
         else:
             dataset.attrs["first_sample_time"] = signal_chunk.first_sample_time
+
         dataset.attrs["channel_ids"] = signal_chunk.channel_ids
 
     def load_signal_chunk(self, dataset: h5py.Dataset) -> SignalChunk:
+        if dataset.attrs["sample_frequency"].size < 1:
+            sample_frequency = None
+        else:
+            sample_frequency = dataset.attrs["sample_frequency"]
+
         if dataset.attrs["first_sample_time"].size < 1:
             first_sample_time = None
         else:
             first_sample_time = dataset.attrs["first_sample_time"]
         return SignalChunk(
             sample_data=np.array(dataset[()]),
-            sample_frequency=dataset.attrs["sample_frequency"],
+            sample_frequency=sample_frequency,
             first_sample_time=first_sample_time,
             channel_ids=dataset.attrs["channel_ids"].tolist()
         )

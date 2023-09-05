@@ -10,7 +10,13 @@ experiment:
     - fictional
     - test
 readers:
-  # How to get data, from where, and how to get it into buffers that trials can pick from.
+  # Where to read data from, and how to map/transform it into buffers that trials can pick from.
+  delimiter_reader:
+    class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
+    args:
+      csv_file: delimiter.csv # override on cli with --readers delimiter_reader.csv_file=real.csv
+      results_key: delimiter # readers can expose results under various keys, but CSV just has one.
+    simulate_delay: True # wait between events, gui demonstration
   oezmq_ecodes:
     class: pyramid.neutral_zone.readers.open_ephys_zmq.OpenEphysZmqReader
     args:
@@ -19,10 +25,6 @@ readers:
       events: "ecodes"
       spikes: {}
       continuous_data: {}
-    buffers:
-      # make a copy of ecodes to use for delimiting trials, called "delimiter"
-      delimiter:
-        results_key: ecodes
   oezmq_spikes:
     class: pyramid.neutral_zone.readers.open_ephys_zmq.OpenEphysZmqReader
     args:
@@ -46,9 +48,9 @@ readers:
         2: "pupil"
 trials:
   start_buffer: delimiter
-  start_value: 1005
+  start_value: 1010
   wrt_buffer: delimiter
-  wrt_value: 1010
+  wrt_value: 42
 plotters:
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
   - class: pyramid.plotters.standard_plotters.SignalChunksPlotter
