@@ -179,7 +179,8 @@ class NumericEventsPlotter(Plotter):
             )
 
         self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
-        self.ax.legend()
+        if new:
+            self.ax.legend()
 
     def clean_up(self, fig: Figure) -> None:
         self.history = []
@@ -269,7 +270,8 @@ class SignalChunksPlotter(Plotter):
                     label=full_name)
 
         self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
-        self.ax.legend()
+        if new:
+            self.ax.legend()
 
     def clean_up(self, fig: Figure) -> None:
         self.history = []
@@ -474,7 +476,8 @@ class EnhancementXYPlotter(Plotter):
 
         self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
         self.ax.set_ylim(ymin=self.ymin, ymax=self.ymax)
-        self.ax.legend()
+        if new:
+            self.ax.legend()
 
     def clean_up(self, fig: Figure) -> None:
         self.history = []
