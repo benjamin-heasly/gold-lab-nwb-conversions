@@ -6,18 +6,18 @@ from pyramid.trials.trials import Trial, TrialEnhancer
 
 
 class SignalSmoother(TrialEnhancer):
-    """Adjust a named trial signal in place, to smooth it out."""
+    """Adjust a signal in place for each trial, to smooth it out."""
 
     def __init__(
         self,
         buffer_name: str,
-        channel_id: str|int = None,
+        channel_id: str | int = None,
         kernel_size: int = 10
     ) -> None:
         self.buffer_name = buffer_name
         self.channel_id = channel_id
 
-        # Make a simple, uniform kernel to smoothe the data.
+        # Make a simple, uniform kernel to smooth the data.
         self.kernel = np.ones(kernel_size) / kernel_size
 
     def enhance(
