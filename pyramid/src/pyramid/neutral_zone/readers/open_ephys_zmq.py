@@ -684,4 +684,8 @@ class OpenEphysZmqReader(Reader):
                     if name is not None:
                         results[name] = NumericEventList(np.array([event_data], dtype=np.float64))
 
+        # TODO: this is for debugging and should be removed to prevent log spam!
+        if client_results and not results:  # pragma: no cover
+            logging.warning(f"OpenEphysZmqReader ignoring unmapped data: {client_results}")
+
         return results
