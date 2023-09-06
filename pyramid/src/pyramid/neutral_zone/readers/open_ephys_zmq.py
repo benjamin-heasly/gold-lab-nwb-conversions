@@ -254,9 +254,11 @@ class OpenEphysZmqServer(ContextManager):
         self.context = zmq.Context()
 
         self.data_socket = self.context.socket(zmq.PUB)
+        self.data_socket.setsockopt(zmq.LINGER, self.timeout_ms)
         self.data_socket.bind(self.data_address)
 
         self.heartbeat_socket = self.context.socket(zmq.REP)
+        self.heartbeat_socket.setsockopt(zmq.LINGER, self.timeout_ms)
         self.heartbeat_socket.bind(self.heartbeat_address)
         self.heartbeat_poller = zmq.Poller()
         self.heartbeat_poller.register(self.heartbeat_socket, zmq.POLLIN)
@@ -423,6 +425,7 @@ class OpenEphysZmqClient(ContextManager):
         # Setting an empty filter pattern allows all messages through.
         self.data_socket = self.context.socket(zmq.SUB)
         self.data_socket.setsockopt(zmq.SUBSCRIBE, b'')
+        self.data_socket.setsockopt(zmq.LINGER, self.timeout_ms)
         self.data_socket.connect(self.data_address)
         self.data_poller = zmq.Poller()
         self.data_poller.register(self.data_socket, zmq.POLLIN)
@@ -430,6 +433,7 @@ class OpenEphysZmqClient(ContextManager):
         # Using a separate poller for data vs heartbeat allows them to wait/timeout independently.
         # Otherwise eg a heartbeat message could make it look like data was available, and we'd never wait for data.
         self.heartbeat_socket = self.context.socket(zmq.REQ)
+        self.heartbeat_socket.setsockopt(zmq.LINGER, self.timeout_ms)
         self.heartbeat_socket.connect(self.heartbeat_address)
         self.heartbeat_poller = zmq.Poller()
         self.heartbeat_poller.register(self.heartbeat_socket, zmq.POLLIN)

@@ -686,3 +686,17 @@ def test_open_ephys_zmq_reader_selected_data_and_spikes():
                 "deep_brain": NumericEventList(np.array([[100 / event_sample_frequency, 42, 8]]))
             }
             assert not reader.read_next()
+
+
+def test_open_ephys_zmq_no_linger_for_unsent_messages():
+    host = "127.0.0.1"
+    data_port = 10001
+    with OpenEphysZmqReader(
+        host=host,
+        data_port=data_port
+    ) as reader:
+        # Send a message, which the underlying ZMQ system will quietly never send,
+        # beacuse there's not server to connect to.
+        reader.client.send_heartbeat()
+
+        # This test should exit, and not "zmq.LINGER", waiting for the send.

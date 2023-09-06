@@ -23,4 +23,4 @@ Here's how to run Pyramid in `gui` mode, which should plot the data from Open Ep
 pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --plot-positions plot_positions.yaml
 ```
 
-The plots should update whenever we get trial-delimiting ecodes.
+The plots should update every 5 seconds or so with whatever data we've received, if any.
