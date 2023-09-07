@@ -83,16 +83,16 @@ readers:
     buffers:
       # Use ecodes as the delimiter for trials in time.
       delimiter:
-        results_key: ecodes
+        reader_key: ecodes
       # Scale up the gaze signals by a known gain.
       gaze_x:
-        results_key: gaze_x
+        reader_key: gaze_x
         transformers:
           - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
             args:
               gain: 10
       gaze_y:
-        results_key: gaze_y
+        reader_key: gaze_y
         transformers:
           - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
             args:

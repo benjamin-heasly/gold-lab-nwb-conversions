@@ -45,7 +45,7 @@ experiment_config = {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
             "args": {"results_key": "start"},
             "buffers": {
-                "wrt": {"results_key": "start"},
+                "wrt": {"reader_key": "start"},
             }
         },
         "foo_reader": {
@@ -57,7 +57,7 @@ experiment_config = {
             "args": {"results_key": "bar"},
             "buffers": {
                 "bar_2": {
-                    "results_key": "bar",
+                    "reader_key": "bar",
                     "transformers": [
                         {
                             "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",

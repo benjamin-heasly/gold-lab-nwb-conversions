@@ -25,7 +25,7 @@ readers:
       results_key: original
     buffers:
       smoothed:
-        results_key: original
+        reader_key: original
 trials:
   # How to delimit Trials in time, and how to align data within each trial.
   start_buffer: delimiter

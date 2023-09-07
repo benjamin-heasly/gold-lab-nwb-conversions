@@ -48,7 +48,7 @@ def test_configure_readers():
             "args": {"results_key": "bar"},
             "buffers": {
                "bar_2": {
-                    "results_key": "bar",
+                    "reader_key": "bar",
                     "transformers": [
                         {
                             "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",

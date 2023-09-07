@@ -256,10 +256,10 @@ class PyramidContext():
                     route_label = "|".join(labels)
                 else:
                     route_label = "as is"
-                dot.node(name=route_name, label=route_label, shape="record", **results_styles[route.results_key])
+                dot.node(name=route_name, label=route_label, shape="record", **results_styles[route.reader_key])
 
-                dot.edge(f"{reader_name}:{route.results_key}:e", f"{route_name}:w", **results_styles[route.results_key])
-                dot.edge(f"{route_name}:e", f"{route.buffer_name}:w", **results_styles[route.results_key])
+                dot.edge(f"{reader_name}:{route.reader_key}:e", f"{route_name}:w", **results_styles[route.reader_key])
+                dot.edge(f"{route_name}:e", f"{route.buffer_name}:w", **results_styles[route.reader_key])
 
         dot.node(
             name="trial_delimiter",
@@ -342,14 +342,14 @@ def configure_readers(
                 )
                 transformers.append(transformer)
 
-            results_key = buffer_config.get("results_key", buffer_name)
-            route = ReaderRoute(results_key, buffer_name, transformers)
+            reader_key = buffer_config.get("reader_key", buffer_name)
+            route = ReaderRoute(reader_key, buffer_name, transformers)
             named_routes[buffer_name] = route
 
         # Create a buffer to receive data from each route.
         reader_buffers = {}
         for route in named_routes.values():
-            initial_data = initial_results[route.results_key]
+            initial_data = initial_results[route.reader_key]
             if initial_data is not None:
                 data_copy = initial_data.copy()
                 for transformer in route.transformers:

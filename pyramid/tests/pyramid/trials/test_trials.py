@@ -40,8 +40,8 @@ def router_for_reader_and_routes(reader: Reader, routes: list[ReaderRoute]):
     initial_results = reader.get_initial()
     named_buffers = {}
     for route in routes:
-        if route.results_key in initial_results:
-            named_buffers[route.buffer_name] = Buffer(initial_results[route.results_key].copy())
+        if route.reader_key in initial_results:
+            named_buffers[route.buffer_name] = Buffer(initial_results[route.reader_key].copy())
     return ReaderRouter(reader, routes, named_buffers)
 
 
