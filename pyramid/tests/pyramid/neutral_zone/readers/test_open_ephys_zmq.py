@@ -517,7 +517,7 @@ def test_open_ephys_zmq_reader_heartbeat():
             reader.read_next()
 
 
-def test_open_ephys_zmq_reader_default_events_and_spikes():
+def test_open_ephys_zmq_reader_all_events_and_spikes():
     host = "127.0.0.1"
     data_port = 10001
     event_sample_frequency = 1000
@@ -526,6 +526,8 @@ def test_open_ephys_zmq_reader_default_events_and_spikes():
         with OpenEphysZmqReader(
             host=host,
             data_port=data_port,
+            events="events",
+            spikes="spikes",
             event_sample_frequency=event_sample_frequency,
             timeout_ms=timeout_ms
         ) as reader:
@@ -595,7 +597,6 @@ def test_open_ephys_zmq_reader_selected_data_and_spikes():
     data_port = 10001
     event_sample_frequency = 1000
     continuous_data = {0: "zero", 42: "forty_two"}
-    events = None
     spikes = {"probe_0": "cortex", "probe_1": "deep_brain"}
     timeout_ms = 100
     with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=timeout_ms) as server:
@@ -604,7 +605,6 @@ def test_open_ephys_zmq_reader_selected_data_and_spikes():
             data_port=data_port,
             event_sample_frequency=event_sample_frequency,
             continuous_data=continuous_data,
-            events=events,
             spikes=spikes,
             timeout_ms=timeout_ms
         ) as reader:
@@ -726,7 +726,8 @@ def test_open_ephys_zmq_no_linger_for_unsent_messages():
         data_port=data_port
     ) as reader:
         # Send a message, which the underlying ZMQ system will quietly never send,
-        # beacuse there's not server to connect to.
+        # beacuse there's no server to connect to.
         reader.client.send_heartbeat()
 
-        # This test should exit, and not "zmq.LINGER", waiting for the send.
+        # This test should exit immediately after a short timeout
+        # It should not "zmq.LINGER", waiting indefinitely for the send to complete.

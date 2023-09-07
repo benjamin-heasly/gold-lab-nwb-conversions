@@ -540,9 +540,9 @@ class OpenEphysZmqReader(Reader):
         data_port: int = 5556,
         heartbeat_port: int = 5557,
         event_sample_frequency: float = 1.0,
-        continuous_data: dict[int, str] = {},
-        events: str = "events",
-        spikes: str | dict[str, str] = "spikes",
+        continuous_data: dict[int, str] = None,
+        events: str = None,
+        spikes: str | dict[str, str] = None,
         heartbeat_interval: float = 1.0,
         client_uuid: str = None,
         scheme: str = "tcp",
@@ -552,22 +552,22 @@ class OpenEphysZmqReader(Reader):
         """Create a new OpenEphysZmqReader.
 
         In the Open Ephys GUI, it looks like each instance of the ZMQ Interface is bound to a particular
-        Open Ephys data "stream" and data port number.  From here, each OpenEphysZmqReader connects to that same
-        data port, effectively selecting a data stream at the same time.  Other configuration for this reader
-        is for selecting continuous data channels and/or electrodes, and giving them Pyramid buffer names.
+        Open Ephys data "stream" and data port number.  From Pyramid, each OpenEphysZmqReader connects to that
+        same data port, effectively selecting a data stream at the same time.  Each Pyramid reader can also
+        configure which continuous data channels to keep, which spike electrodes or units to keep, whether
+        to keep ttl events.
 
         Args:
             host:                   Open Ephys GUI IP address or host name to connect to
             data_port:              Open Ephys ZMQ Interface data port to connect to
-            heartbeat_port:         Open Ephys ZMQ Interface heartbeat port to connect to (may be None if heartbeats not needed)
+            heartbeat_port:         Open Ephys ZMQ Interface heartbeat port to connect to (may be None to disable)
             event_sample_frequency: acquisition stream clock or sample rate, to convert sample numbers to timestamps
             continuous_data:        dictionary of {channel_num: buffer_name} to select which continuous data channels
-                                    to keep, and the Pyramid buffer name for each one (default is keep none)
-            events:                 name of the buffer to receive ttl events, or None to ignore ttl events
-                                    (default is keep all as "events")
-            spikes:                 name of the buffer to receive all spike events, or dictionary of
-                                    {electrode name: buffer_name} pairs to select which electrodes to keep and the buffer
-                                    name for each one (default is keep all as "spikes")
+                                    to keep and the buffer name for each one (default is None to not keep any)
+            events:                 name of the buffer to receive ttl events (default is None to not keep ttl events)
+            spikes:                 name of the buffer to receive all spike events, or a dictionary of
+                                    {electrode_name: buffer_name} to select which spike electrodes to keep and the buffer
+                                    name for each one (default is None to not keep any spikes)
             heartbeat_interval:     interval in seconds between hearbeat messages sent to the Open Ephys ZMQ Interface
             client_uuid:            unique id that this reader uses to identifiy itself ot the Open Ephys ZMQ Interface
             scheme:                 URL transport scheme to use when connecting to the Open Ephys ZMQ Interface
@@ -608,14 +608,15 @@ class OpenEphysZmqReader(Reader):
     def get_initial(self) -> dict[str, BufferData]:
         initial = {}
 
-        for channel_num, name in self.continuous_data.items():
-            # An empty, incomplete placeholder, to be filled and amended when the first data arrive.
-            initial[name] = SignalChunk(
-                sample_data=np.empty([0, 1], dtype='float32'),
-                sample_frequency=None,
-                first_sample_time=None,
-                channel_ids=[int(channel_num)]
-            )
+        if self.continuous_data:
+            for channel_num, name in self.continuous_data.items():
+                # An incomplete placeholder to be amended when the first data arrive.
+                initial[name] = SignalChunk(
+                    sample_data=np.empty([0, 1], dtype='float32'),
+                    sample_frequency=None,
+                    first_sample_time=None,
+                    channel_ids=[int(channel_num)]
+                )
 
         if self.events:
             # [timestamp, ttl_word, event_line, event_state]
@@ -650,18 +651,19 @@ class OpenEphysZmqReader(Reader):
         results = {}
         data_type = client_results.get("type", None)
         if data_type == "data":
-            channel_num = client_results["content"]["channel_num"]
-            name = self.continuous_data.get(channel_num, None)
-            if name is not None:
-                sample_num = client_results["content"]["sample_num"]
-                sample_rate = client_results["content"]["sample_rate"]
-                sample_data = client_results["data"]
-                results[name] = SignalChunk(
-                    sample_data=sample_data.reshape([-1, 1]),
-                    sample_frequency=sample_rate,
-                    first_sample_time=sample_num / sample_rate,
-                    channel_ids=[int(channel_num)]
-                )
+            if self.continuous_data:
+                channel_num = client_results["content"]["channel_num"]
+                name = self.continuous_data.get(channel_num, None)
+                if name is not None:
+                    sample_num = client_results["content"]["sample_num"]
+                    sample_rate = client_results["content"]["sample_rate"]
+                    sample_data = client_results["data"]
+                    results[name] = SignalChunk(
+                        sample_data=sample_data.reshape([-1, 1]),
+                        sample_frequency=sample_rate,
+                        first_sample_time=sample_num / sample_rate,
+                        channel_ids=[int(channel_num)]
+                    )
 
         elif data_type == "event":
             if self.events:

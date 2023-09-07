@@ -25,7 +25,6 @@ readers:
       heartbeat_port: 5557
       event_sample_frequency: 40000
       events: "ecodes"
-      spikes: {}
       continuous_data:
         0: "gaze_x"
         1: "gaze_y"
@@ -37,7 +36,6 @@ readers:
       data_port: 5558
       heartbeat_port: null
       event_sample_frequency: 40000
-      events: null
       spikes: "spikes"
       continuous_data:
         0: "electrode_1"
