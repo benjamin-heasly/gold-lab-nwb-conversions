@@ -610,17 +610,17 @@ class OpenEphysZmqReader(Reader):
             )
 
         if self.events:
-            # [timestamp, ttl_word, event_line, event_state, source_node]
-            initial[self.events] = NumericEventList(np.empty([0, 5], dtype=np.float64))
+            # [timestamp, ttl_word, event_line, event_state]
+            initial[self.events] = NumericEventList(np.empty([0, 4], dtype=np.float64))
 
         if self.spikes:
             if isinstance(self.spikes, str):
-                # [timestamp, source_node, sorted_id]
-                initial[self.spikes] = NumericEventList(np.empty([0, 3], dtype=np.float64))
+                # [timestamp, sorted_id]
+                initial[self.spikes] = NumericEventList(np.empty([0, 2], dtype=np.float64))
             elif isinstance(self.spikes, dict):
                 for name in self.spikes.values():
-                    # [timestamp, source_node, sorted_id]
-                    initial[name] = NumericEventList(np.empty([0, 3], dtype=np.float64))
+                    # [timestamp, sorted_id]
+                    initial[name] = NumericEventList(np.empty([0, 2], dtype=np.float64))
 
         return initial
 
@@ -656,25 +656,23 @@ class OpenEphysZmqReader(Reader):
 
         elif data_type == "event":
             if self.events:
-                # [timestamp, ttl_word, event_line, event_state, source_node]
+                # [timestamp, ttl_word, event_line, event_state]
                 sample_num = client_results["content"]["sample_num"]
                 timestamp = sample_num / self.event_sample_frequency
                 ttl_word = client_results["ttl_word"]
                 event_line = client_results["event_line"]
                 event_state = client_results["event_state"]
-                source_node = client_results["content"]["source_node"]
-                event_data = [timestamp, ttl_word, event_line, event_state, source_node]
+                event_data = [timestamp, ttl_word, event_line, event_state]
                 results[self.events] = NumericEventList(np.array([event_data], dtype=np.float64))
 
         elif data_type == "spike":
             if self.spikes:
                 # Does Open Ephys give us anything like probe contact location or index or "channel" in the Plexon sense?
-                # [timestamp, source_node, sorted_id]
+                # [timestamp, sorted_id]
                 sample_num = client_results["spike"]["sample_num"]
                 timestamp = sample_num / self.event_sample_frequency
-                source_node = client_results["spike"]["source_node"]
                 sorted_id = client_results["spike"]["sorted_id"]
-                event_data = [timestamp, source_node, sorted_id]
+                event_data = [timestamp, sorted_id]
 
                 if isinstance(self.spikes, str):
                     results[self.spikes] = NumericEventList(np.array([event_data], dtype=np.float64))

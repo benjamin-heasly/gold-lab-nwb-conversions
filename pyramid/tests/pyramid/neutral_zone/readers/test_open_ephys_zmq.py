@@ -524,12 +524,12 @@ def test_open_ephys_zmq_reader_default_events_and_spikes():
                 source_node=42,
                 sample_num=1
             )
-            # [timestamp, ttl_word, event_line, event_state, source_node]
+            # [timestamp, ttl_word, event_line, event_state]
             assert reader.read_next() == {
-                "events": NumericEventList(np.array([[0 / event_sample_frequency, 123456789, 123, 1, 42]]))
+                "events": NumericEventList(np.array([[0 / event_sample_frequency, 123456789, 123, 1]]))
             }
             assert reader.read_next() == {
-                "events": NumericEventList(np.array([[1 / event_sample_frequency, 987654321, 123, 0, 42]]))
+                "events": NumericEventList(np.array([[1 / event_sample_frequency, 987654321, 123, 0]]))
             }
 
             # See some spikes on different electrodes end up as reader "spikes".
@@ -551,12 +551,12 @@ def test_open_ephys_zmq_reader_default_events_and_spikes():
                 sorted_id=8,
                 threshold=[1, 1]
             )
-            # [timestamp, source_node, sorted_id]
+            # [timestamp, sorted_id]
             assert reader.read_next() == {
-                "spikes": NumericEventList(np.array([[0 / event_sample_frequency, 42, 7]]))
+                "spikes": NumericEventList(np.array([[0 / event_sample_frequency, 7]]))
             }
             assert reader.read_next() == {
-                "spikes": NumericEventList(np.array([[100 / event_sample_frequency, 42, 8]]))
+                "spikes": NumericEventList(np.array([[100 / event_sample_frequency, 8]]))
             }
 
 
@@ -678,12 +678,12 @@ def test_open_ephys_zmq_reader_selected_data_and_spikes():
                 sorted_id=8,
                 threshold=[1, 1]
             )
-            # [timestamp, source_node, sorted_id]
+            # [timestamp, sorted_id]
             assert reader.read_next() == {
-                "cortex": NumericEventList(np.array([[0 / event_sample_frequency, 42, 7]]))
+                "cortex": NumericEventList(np.array([[0 / event_sample_frequency, 7]]))
             }
             assert reader.read_next() == {
-                "deep_brain": NumericEventList(np.array([[100 / event_sample_frequency, 42, 8]]))
+                "deep_brain": NumericEventList(np.array([[100 / event_sample_frequency, 8]]))
             }
             assert not reader.read_next()
 
