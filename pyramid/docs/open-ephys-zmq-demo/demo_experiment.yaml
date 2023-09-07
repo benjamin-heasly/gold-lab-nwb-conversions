@@ -15,37 +15,30 @@ readers:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
       csv_file: delimiter.csv # override on cli with --readers delimiter_reader.csv_file=real.csv
-      results_key: delimiter # readers can expose results under various keys, but CSV just has one.
-    simulate_delay: True # wait between events, gui demonstration
+      results_key: delimiter
+    simulate_delay: True
   oezmq_ecodes:
     class: pyramid.neutral_zone.readers.open_ephys_zmq.OpenEphysZmqReader
     args:
       host: 127.0.0.1
       data_port: 5556
+      event_sample_frequency: 40000
       events: "ecodes"
-      spikes: {}
-      continuous_data: {}
-  oezmq_spikes:
-    class: pyramid.neutral_zone.readers.open_ephys_zmq.OpenEphysZmqReader
-    args:
-      host: 127.0.0.1
-      data_port: 5558
-      events: null
-      spikes:
-        electrode_0: "0"
-        electrode_1: "1"
-      continuous_data: {}
-  oezmq_signals:
-    class: pyramid.neutral_zone.readers.open_ephys_zmq.OpenEphysZmqReader
-    args:
-      host: 127.0.0.1
-      data_port: 5560
-      events: null
       spikes: {}
       continuous_data:
         0: "gaze_x"
         1: "gaze_y"
         2: "pupil"
+  oezmq_spikes:
+    class: pyramid.neutral_zone.readers.open_ephys_zmq.OpenEphysZmqReader
+    args:
+      host: 127.0.0.1
+      data_port: 5558
+      event_sample_frequency: 40000
+      events: null
+      spikes: "spikes"
+      continuous_data:
+        0: "electrode_1"
 trials:
   start_buffer: delimiter
   start_value: 1010
@@ -55,19 +48,18 @@ plotters:
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
   - class: pyramid.plotters.standard_plotters.SignalChunksPlotter
     args:
-      xmin: -5.0
-      xmax: 65.0
+      xmin: -2.0
+      xmax: 4.0
       ylabel: V?
-    # Plot raw, numeric ecode data.
   - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
     args:
-      xmin: -5.0
-      xmax: 65.0
+      xmin: -2.0
+      xmax: 4.0
       match_pattern: ecodes
   - class: pyramid.plotters.standard_plotters.SpikeEventsPlotter
     args:
-      xmin: -5.0
-      xmax: 65.0
+      xmin: -2.0
+      xmax: 4.0
       match_pattern: spikes
       channel_value_index: 0
       unit_value_index: 1
