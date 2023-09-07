@@ -33,7 +33,7 @@ def test_signal_smoother_in_place():
     expected_samples[49:52, 0] = 1 / 3
 
     # The signal smoother should modify the signal sample data in place.
-    signal_smoother.enhance(trial, trial_count=0, experiment_info={}, subject_info={})
+    signal_smoother.enhance(trial, trial_number=0, experiment_info={}, subject_info={})
     assert np.array_equal(signal.sample_data, expected_samples)
 
 
@@ -41,7 +41,7 @@ def test_signal_smoother_missing():
     # It should be a safe no-op to try smoothing a signal that's not present in the trial.
     trial = Trial(start_time=0.0, end_time=10.0)
     signal_smoother = SignalSmoother(buffer_name="missing_buffer")
-    signal_smoother.enhance(trial, trial_count=0, experiment_info={}, subject_info={})
+    signal_smoother.enhance(trial, trial_number=0, experiment_info={}, subject_info={})
 
 
 def test_signal_smoother_two_channels():
@@ -68,5 +68,5 @@ def test_signal_smoother_two_channels():
     expected_samples[50, 0] = 1
     expected_samples[49:52, 1] = 1 / 3
     expected_samples[50, 2] = 1
-    signal_smoother.enhance(trial, trial_count=0, experiment_info={}, subject_info={})
+    signal_smoother.enhance(trial, trial_number=0, experiment_info={}, subject_info={})
     assert np.array_equal(signal.sample_data, expected_samples)

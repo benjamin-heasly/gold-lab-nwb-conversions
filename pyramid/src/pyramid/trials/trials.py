@@ -126,17 +126,18 @@ class TrialDelimiter():
         else:  # pragma: no cover
             return False
 
-    def next(self) -> list[Trial]:
+    def next(self) -> dict[int, Trial]:
         """Check the start buffer for start events, produce new trials as new start events arrive.
 
         This has the side-effects of incrementing trial_start_time and trial_count.
         """
-        trials = []
+        trials = {}
         next_start_times = self.start_buffer.data.get_times_of(self.start_value, self.start_value_index)
         for next_start_time in next_start_times:
             if next_start_time > self.trial_start_time:
                 trial = Trial(start_time=self.trial_start_time, end_time=next_start_time)
-                trials.append(trial)
+                trials[self.trial_count] = trial
+
                 self.trial_start_time = next_start_time
                 self.trial_count += 1
                 if self.trial_count % self.trial_log_mod == 0:
@@ -144,15 +145,16 @@ class TrialDelimiter():
 
         return trials
 
-    def last(self) -> Trial:
+    def last(self) -> tuple[int, Trial]:
         """Make a best effort to make a trial with whatever's left on the start buffer.
 
         This has the side effect of incrementing trial_count.
         """
         trial = Trial(start_time=self.trial_start_time, end_time=None)
+        last_trial = (self.trial_count, trial)
         self.trial_count += 1
         logging.info(f"Delimited {self.trial_count} trials (last one).")
-        return trial
+        return last_trial
 
     def discard_before(self, time: float):
         """Let event buffer discard data no longer needed."""
@@ -165,7 +167,7 @@ class TrialEnhancer(DynamicImport):
     def enhance(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -214,7 +216,7 @@ class TrialExtractor():
     def populate_trial(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ):
@@ -237,9 +239,9 @@ class TrialExtractor():
 
         for enhancer in self.enhancers:
             try:
-                enhancer.enhance(trial, trial_count, experiment_info, subject_info)
+                enhancer.enhance(trial, trial_number, experiment_info, subject_info)
             except:
-                logging.error(f"Error applying enhancer {enhancer.__class__.__name__} to trial {trial_count}.", exc_info=True)
+                logging.error(f"Error applying enhancer {enhancer.__class__.__name__} to trial {trial_number}.", exc_info=True)
                 continue
 
     def discard_before(self, time: float):

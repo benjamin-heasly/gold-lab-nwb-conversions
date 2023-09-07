@@ -27,7 +27,7 @@ class CustomEnhancer(TrialEnhancer):
     def enhance(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -196,7 +196,7 @@ class SaccadesEnhancer(TrialEnhancer):
         self.broken_fixation_name = broken_fixation_name
         self.broken_fixation_category = broken_fixation_category
 
-    def enhance(self, trial: Trial, trial_count: int, experiment_info: dict, subject_info: dict) -> None:
+    def enhance(self, trial: Trial, trial_number: int, experiment_info: dict, subject_info: dict) -> None:
         # This is only a placeholder to show how to access trial data and a way to represent saccade data.
 
         # We could have lots of *actual* saccade analysis code here!

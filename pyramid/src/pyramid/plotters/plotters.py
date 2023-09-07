@@ -38,7 +38,7 @@ class Plotter(DynamicImport):
         self,
         fig: Figure,
         current_trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -124,11 +124,11 @@ class PlotFigureController(ContextManager):
 
         return self
 
-    def plot_next(self, current_trial: Trial, trial_count: int) -> None:
+    def plot_next(self, current_trial: Trial, trial_number: int) -> None:
         """Let each plotter update for the current trial."""
         for plotter, fig in self.figures.items():
             if plt.fignum_exists(fig.number):
-                plotter.update(fig, current_trial, trial_count, self.experiment_info, self.subject_info)
+                plotter.update(fig, current_trial, trial_number, self.experiment_info, self.subject_info)
                 fig.canvas.draw_idle()
 
     def update(self) -> None:

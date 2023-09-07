@@ -119,15 +119,10 @@ class PyramidContext():
                 got_start_data = self.start_router.route_next()
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
-                    for new_trial in new_trials:
+                    for trial_number, new_trial in new_trials.items():
                         for router in self.routers:
                             router.route_until(new_trial.end_time)
-                        self.trial_extractor.populate_trial(
-                            new_trial,
-                            self.trial_delimiter.trial_count,
-                            self.experiment,
-                            self.subject
-                        )
+                        self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
                         self.trial_delimiter.discard_before(new_trial.start_time)
                         self.trial_extractor.discard_before(new_trial.start_time)
@@ -135,14 +130,9 @@ class PyramidContext():
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers:
                 router.route_next()
-            last_trial = self.trial_delimiter.last()
+            (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
-                self.trial_extractor.populate_trial(
-                    last_trial,
-                    self.trial_delimiter.trial_count,
-                    self.experiment,
-                    self.subject
-                )
+                self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)
                 writer.append_trial(last_trial)
 
     def run_with_plots(self, trial_file: str, plot_update_period: float = 0.025) -> None:
@@ -170,33 +160,23 @@ class PyramidContext():
 
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
-                    for new_trial in new_trials:
+                    for trial_number, new_trial in new_trials.items():
                         for router in self.routers:
                             router.route_until(new_trial.end_time)
-                        self.trial_extractor.populate_trial(
-                            new_trial,
-                            self.trial_delimiter.trial_count,
-                            self.experiment,
-                            self.subject
-                        )
+                        self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
-                        self.plot_figure_controller.plot_next(new_trial, self.trial_delimiter.trial_count)
+                        self.plot_figure_controller.plot_next(new_trial, trial_number)
                         self.trial_delimiter.discard_before(new_trial.start_time)
                         self.trial_extractor.discard_before(new_trial.start_time)
 
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers:
                 router.route_next()
-            last_trial = self.trial_delimiter.last()
+            (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
-                self.trial_extractor.populate_trial(
-                    last_trial,
-                    self.trial_delimiter.trial_count,
-                    self.experiment,
-                    self.subject
-                )
+                self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)
                 writer.append_trial(last_trial)
-                self.plot_figure_controller.plot_next(last_trial, self.trial_delimiter.trial_count)
+                self.plot_figure_controller.plot_next(last_trial, last_trial_number)
 
     def to_graphviz(self, graph_name: str, out_file: str):
         """Do introspection of loaded config and write out a graphviz "dot" file and overview image for viewing."""

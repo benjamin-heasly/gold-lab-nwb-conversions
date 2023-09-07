@@ -63,17 +63,18 @@ def test_delimit_trials_from_pivate_buffer():
     assert start_router.route_next() == True
     trial_one = delimiter.next()
     assert len(trial_one) == 1
-    assert trial_one[0] == Trial(1.0, 2.0)
+    assert trial_one[1] == Trial(1.0, 2.0)
 
     assert start_router.route_next() == True
     trial_two = delimiter.next()
     assert len(trial_two) == 1
-    assert trial_two[0] == Trial(2.0, 3.0)
+    assert trial_two[2] == Trial(2.0, 3.0)
 
     # trial 3 will be made from whatever is left after the last start event
     assert start_router.route_next() == False
     assert not delimiter.next()
-    trial_three = delimiter.last()
+    (trial_number, trial_three) = delimiter.last()
+    assert trial_number == 3
     assert trial_three == Trial(3.0, None)
 
 
@@ -108,19 +109,20 @@ def test_delimit_trials_from_shared_buffer():
     assert start_router.route_next() == True
     trial_one = delimiter.next()
     assert len(trial_one) == 1
-    assert trial_one[0] == Trial(1.0, 2.0)
+    assert trial_one[1] == Trial(1.0, 2.0)
 
     assert start_router.route_next() == True
     assert start_router.route_next() == True
     trial_two = delimiter.next()
     assert len(trial_two) == 1
-    assert trial_two[0] == Trial(2.0, 3.0)
+    assert trial_two[2] == Trial(2.0, 3.0)
 
     # trial 3 will be made from whatever is left after the last start event
     assert start_router.route_next() == True
     assert start_router.route_next() == False
     assert not delimiter.next()
-    trial_three = delimiter.last()
+    (trial_number, trial_three) = delimiter.last()
+    assert trial_number == 3
     assert trial_three == Trial(3.0, None)
 
 
@@ -148,13 +150,14 @@ def test_delimit_multiple_trials_per_read():
     assert start_router.route_next() == True
     trials_one_and_two = delimiter.next()
     assert len(trials_one_and_two) == 2
-    assert trials_one_and_two[0] == Trial(1.0, 2.0)
-    assert trials_one_and_two[1] == Trial(2.0, 3.0)
+    assert trials_one_and_two[1] == Trial(1.0, 2.0)
+    assert trials_one_and_two[2] == Trial(2.0, 3.0)
 
     # trial 3 will be made from whatever is left after the last start event
     assert start_router.route_next() == False
     assert not delimiter.next()
-    trial_three = delimiter.last()
+    (trial_number, trial_three) = delimiter.last()
+    assert trial_number == 3
     assert trial_three == Trial(3.0, None)
 
 
@@ -203,7 +206,7 @@ def test_populate_trials_from_private_buffers():
     assert bar_router.route_until(1.0) == 3.1
 
     # Now that all the readers are caught up to the trial end time, extract the trial data.
-    extractor.populate_trial(trial_zero[0], delimiter.trial_count, {}, {})
+    extractor.populate_trial(trial_zero[0], 0, {}, {})
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
@@ -218,14 +221,14 @@ def test_populate_trials_from_private_buffers():
     assert start_router.route_next() == True
     trial_one = delimiter.next()
     assert len(trial_one) == 1
-    assert trial_one[0] == Trial(1.0, 2.0)
+    assert trial_one[1] == Trial(1.0, 2.0)
 
     # Bar reader has already read past trial 1, which is fine, this can be a safe no-op.
     assert wrt_router.route_until(2.0) == 2.6
     assert foo_router.route_until(2.0) == 2.3
     assert bar_router.route_until(2.0) == 3.1
-    extractor.populate_trial(trial_one[0], delimiter.trial_count, {}, {})
-    assert trial_one[0] == Trial(
+    extractor.populate_trial(trial_one[1], 1, {}, {})
+    assert trial_one[1] == Trial(
         start_time=1.0,
         end_time=2.0,
         wrt_time=1.5,
@@ -238,14 +241,14 @@ def test_populate_trials_from_private_buffers():
     assert start_router.route_next() == True
     trial_two = delimiter.next()
     assert len(trial_two) == 1
-    assert trial_two[0] == Trial(2.0, 3.0)
+    assert trial_two[2] == Trial(2.0, 3.0)
 
     # Bar reader has already read past trial 2, which is still fine, this can be a safe no-op.
     assert wrt_router.route_until(3.0) == 3.5
     assert foo_router.route_until(3.0) == 2.3
     assert bar_router.route_until(3.0) == 3.1
-    extractor.populate_trial(trial_two[0], delimiter.trial_count, {}, {})
-    assert trial_two[0] == Trial(
+    extractor.populate_trial(trial_two[2], 2, {}, {})
+    assert trial_two[2] == Trial(
         start_time=2.0,
         end_time=3.0,
         wrt_time=2.5,
@@ -259,12 +262,13 @@ def test_populate_trials_from_private_buffers():
     assert start_router.route_next() == False
 
     # Now we make the last trial with whatever's left on all the readers.
-    trial_three = delimiter.last()
+    (trial_number, trial_three) = delimiter.last()
+    assert trial_number == 3
     assert trial_three == Trial(3.0, None)
     assert wrt_router.route_next() == False
     assert foo_router.route_next() == False
     assert bar_router.route_next() == False
-    extractor.populate_trial(trial_three, delimiter.trial_count, {}, {})
+    extractor.populate_trial(trial_three, 3, {}, {})
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,
@@ -327,7 +331,7 @@ def test_populate_trials_from_shared_buffers():
     assert bar_router.route_until(1.0) == 3.1
 
     # Now that all the readers are caught up to the trial end time, extract the trial data.
-    extractor.populate_trial(trial_zero[0], delimiter.trial_count, {}, {})
+    extractor.populate_trial(trial_zero[0], 0, {}, {})
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
@@ -343,14 +347,14 @@ def test_populate_trials_from_shared_buffers():
     assert start_router.route_next() == True
     trial_one = delimiter.next()
     assert len(trial_one) == 1
-    assert trial_one[0] == Trial(1.0, 2.0)
+    assert trial_one[1] == Trial(1.0, 2.0)
 
     # Bar reader has already read past trial 1, which is fine, this can be a safe no-op.
     assert start_router.route_until(2.0) == 2.0
     assert foo_router.route_until(2.0) == 2.3
     assert bar_router.route_until(2.0) == 3.1
-    extractor.populate_trial(trial_one[0], delimiter.trial_count, {}, {})
-    assert trial_one[0] == Trial(
+    extractor.populate_trial(trial_one[1], 2, {}, {})
+    assert trial_one[1] == Trial(
         start_time=1.0,
         end_time=2.0,
         wrt_time=1.5,
@@ -364,14 +368,14 @@ def test_populate_trials_from_shared_buffers():
     assert start_router.route_next() == True
     trial_two = delimiter.next()
     assert len(trial_two) == 1
-    assert trial_two[0] == Trial(2.0, 3.0)
+    assert trial_two[2] == Trial(2.0, 3.0)
 
     # Bar reader has already read past trial 2, which is still fine, this can be a safe no-op.
     assert start_router.route_until(3.0) == 3.0
     assert foo_router.route_until(3.0) == 2.3
     assert bar_router.route_until(3.0) == 3.1
-    extractor.populate_trial(trial_two[0], delimiter.trial_count, {}, {})
-    assert trial_two[0] == Trial(
+    extractor.populate_trial(trial_two[2], 3, {}, {})
+    assert trial_two[2] == Trial(
         start_time=2.0,
         end_time=3.0,
         wrt_time=2.5,
@@ -386,12 +390,13 @@ def test_populate_trials_from_shared_buffers():
     assert start_router.route_next() == False
 
     # Now we make the last trial with whatever's left on all the readers.
-    trial_three = delimiter.last()
+    (trial_number, trial_three) = delimiter.last()
+    assert trial_number == 3
     assert trial_three == Trial(3.0, None)
     assert start_router.route_next() == False
     assert foo_router.route_next() == False
     assert bar_router.route_next() == False
-    extractor.populate_trial(trial_three, delimiter.trial_count, {}, {})
+    extractor.populate_trial(trial_three, 3, {}, {})
     assert trial_three == Trial(
         start_time=3.0,
         end_time=None,
@@ -403,22 +408,22 @@ def test_populate_trials_from_shared_buffers():
     )
 
 
-class DurationPlusTrialCount(TrialEnhancer):
+class DurationPlusTrialNumber(TrialEnhancer):
     """Nonsense calculation just to test enhancement ordering and passed-in data."""
 
     def enhance(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> dict[str, Any]:
         duration = trial.get_enhancement("duration")
         if duration is None:
-            duration_plus_trial_count = None
+            duration_plus_trial_number = None
         else:
-            duration_plus_trial_count = duration + trial_count
-        trial.add_enhancement("duration_plus_trial_count", duration_plus_trial_count, "value")
+            duration_plus_trial_number = duration + trial_number
+        trial.add_enhancement("duration_plus_trial_number", duration_plus_trial_number, "value")
 
 
 class BadEnhancer(TrialEnhancer):
@@ -427,7 +432,7 @@ class BadEnhancer(TrialEnhancer):
     def enhance(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -449,7 +454,7 @@ def test_enhance_trials():
 
     # Enhance trials with a sequence of enhancers.
     # The middle one always errors -- which should not blow up the overall process.
-    enhancers = [TrialDurationEnhancer(), BadEnhancer(), DurationPlusTrialCount()]
+    enhancers = [TrialDurationEnhancer(), BadEnhancer(), DurationPlusTrialNumber()]
 
     extractor = TrialExtractor(
         wrt_router.named_buffers["wrt"],
@@ -465,17 +470,17 @@ def test_enhance_trials():
     assert trial_zero[0] == Trial(0.0, 1.0)
 
     assert wrt_router.route_until(1.0) == 1.5
-    extractor.populate_trial(trial_zero[0], delimiter.trial_count, {}, {})
+    extractor.populate_trial(trial_zero[0], 0, {}, {})
     assert trial_zero[0] == Trial(
         start_time=0,
         end_time=1.0,
         wrt_time=0.0,
         enhancements={
             "duration": 1.0,
-            "duration_plus_trial_count": 2.0
+            "duration_plus_trial_number": 1.0
         },
         enhancement_categories={
-            "value": ["duration", "duration_plus_trial_count"]
+            "value": ["duration", "duration_plus_trial_number"]
         }
     )
 
@@ -483,59 +488,60 @@ def test_enhance_trials():
     assert start_router.route_next() == True
     trial_one = delimiter.next()
     assert len(trial_one) == 1
-    assert trial_one[0] == Trial(1.0, 2.1)
+    assert trial_one[1] == Trial(1.0, 2.1)
 
     assert wrt_router.route_until(2.1) == 2.6
-    extractor.populate_trial(trial_one[0], delimiter.trial_count, {}, {})
-    assert trial_one[0] == Trial(
+    extractor.populate_trial(trial_one[1], 1, {}, {})
+    assert trial_one[1] == Trial(
         start_time=1.0,
         end_time=2.1,
         wrt_time=1.5,
         enhancements={
             "duration": 1.1,
-            "duration_plus_trial_count": 3.1
+            "duration_plus_trial_number": 2.1
         },
         enhancement_categories={
-            "value": ["duration", "duration_plus_trial_count"]
+            "value": ["duration", "duration_plus_trial_number"]
         }
     )
 
     assert start_router.route_next() == True
     trial_two = delimiter.next()
     assert len(trial_two) == 1
-    assert trial_two[0] == Trial(2.1, 3.3)
+    assert trial_two[2] == Trial(2.1, 3.3)
 
     assert wrt_router.route_until(3.3) == 3.5
-    extractor.populate_trial(trial_two[0], delimiter.trial_count, {}, {})
-    assert trial_two[0] == Trial(
+    extractor.populate_trial(trial_two[2], 2, {}, {})
+    assert trial_two[2] == Trial(
         start_time=2.1,
         end_time=3.3,
         wrt_time=2.5,
         enhancements={
             "duration": 3.3 - 2.1,
-            "duration_plus_trial_count": 3 + 3.3 - 2.1
+            "duration_plus_trial_number": 2 + 3.3 - 2.1
         },
         enhancement_categories={
-            "value": ["duration", "duration_plus_trial_count"]
+            "value": ["duration", "duration_plus_trial_number"]
         }
     )
 
     # We should now run out of "start" events
     assert start_router.route_next() == False
-    trial_three = delimiter.last()
+    (trial_number, trial_three) = delimiter.last()
+    assert trial_number == 3
     assert trial_three == Trial(3.3, None)
     assert wrt_router.route_next() == False
-    extractor.populate_trial(trial_three, delimiter.trial_count, {}, {})
+    extractor.populate_trial(trial_three, 3, {}, {})
     assert trial_three == Trial(
         start_time=3.3,
         end_time=None,
         wrt_time=3.5,
         enhancements={
             "duration": None,
-            "duration_plus_trial_count": None
+            "duration_plus_trial_number": None
         },
         enhancement_categories={
-            "value": ["duration", "duration_plus_trial_count"]
+            "value": ["duration", "duration_plus_trial_number"]
         }
     )
 

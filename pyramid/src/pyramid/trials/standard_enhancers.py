@@ -14,7 +14,7 @@ class TrialDurationEnhancer(TrialEnhancer):
     def enhance(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -89,7 +89,7 @@ class PairedCodesEnhancer(TrialEnhancer):
     def enhance(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -164,7 +164,7 @@ class EventTimesEnhancer(TrialEnhancer):
     def enhance(
         self,
         trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:

@@ -63,10 +63,10 @@ class BasicInfoPlotter(Plotter):
         self.trials_table = axes[1].table(
             cellText=[
                 ["pyramid elapsed:", 0],
-                ["trial count:", 0],
-                ["last trial start:", 0],
-                ["last trial wrt:", 0],
-                ["last trial end:", 0],
+                ["trial number:", 0],
+                ["trial start:", 0],
+                ["trial wrt:", 0],
+                ["trial end:", 0],
             ],
             cellLoc="left",
             loc="center"
@@ -82,13 +82,13 @@ class BasicInfoPlotter(Plotter):
         self,
         fig: Figure,
         current_trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
         elapsed = time.time() - self.start_time
         self.trials_table.get_celld()[(0, 1)].get_text().set_text(format_number(elapsed))
-        self.trials_table.get_celld()[(1, 1)].get_text().set_text(trial_count)
+        self.trials_table.get_celld()[(1, 1)].get_text().set_text(trial_number)
         self.trials_table.get_celld()[(2, 1)].get_text().set_text(format_number(current_trial.start_time))
         self.trials_table.get_celld()[(3, 1)].get_text().set_text(format_number(current_trial.wrt_time))
         self.trials_table.get_celld()[(4, 1)].get_text().set_text(format_number(current_trial.end_time))
@@ -135,7 +135,7 @@ class NumericEventsPlotter(Plotter):
         self,
         fig: Figure,
         current_trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -220,7 +220,7 @@ class SignalChunksPlotter(Plotter):
         self,
         fig: Figure,
         current_trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -315,7 +315,7 @@ class EnhancementTimesPlotter(Plotter):
         self,
         fig: Figure,
         current_trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -410,7 +410,7 @@ class EnhancementXYPlotter(Plotter):
         self,
         fig: Figure,
         current_trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
@@ -484,32 +484,23 @@ class EnhancementXYPlotter(Plotter):
 
 
 class SpikeEventsPlotter(Plotter):
-    """Plot spike channel and unit event data from buffers with names that match a pattern."""
+    """Plot spike events per trial, from buffers with names that match a pattern."""
 
     def __init__(
         self,
-        history_size: int = 10,
         xmin: float = -2.0,
         xmax: float = 2.0,
         match_pattern: str = None,
-        channel_value_index: int = 0,
-        unit_value_index: int = None,
-        unit_scale: float = 0.1,
-        marker: str = "|",
-        old_marker: str = '.'
+        value_selection: int = None,
+        value_index: int = 0,
+        marker: str = "|"
     ) -> None:
-        self.history_size = history_size
-        self.history = []
-        self.highest_channel = 0
-
         self.xmin = xmin
         self.xmax = xmax
         self.match_pattern = match_pattern
-        self.channel_value_index = channel_value_index
-        self.unit_value_index = unit_value_index
-        self.unit_scale = unit_scale
+        self.value_selection = value_selection
+        self.value_index = value_index
         self.marker = marker
-        self.old_marker = old_marker
 
     def set_up(
         self,
@@ -520,53 +511,38 @@ class SpikeEventsPlotter(Plotter):
         self.ax = fig.subplots()
         self.ax.set_axisbelow(True)
 
+        title = "Spike Events"
+        if self.match_pattern:
+            title += f" {self.match_pattern}"
+        if self.value_selection is not None:
+            title += f" {self.value_selection}"
+        self.ax.set_title(title)
+
+        self.ax.grid(which="major", axis="both")
+        self.ax.set_xlabel("trial time (s)")
+        self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
+        self.ax.set_ylabel("trial number")
+        self.ax.yaxis.get_major_locator().set_params(integer=True)
+
     def update(
         self,
         fig: Figure,
         current_trial: Trial,
-        trial_count: int,
+        trial_number: int,
         experiment_info: dict[str: Any],
         subject_info: dict[str: Any]
     ) -> None:
-        self.ax.clear()
-        self.ax.grid(which="major", axis="both")
-        self.ax.set_xlabel("trial time (s)")
-        self.ax.set_ylabel("channel + unit * scale")
-
-        if self.match_pattern:
-            self.ax.set_title(f"Spike Events: {self.match_pattern}")
-        else:
-            self.ax.set_title("Spike Events")
-
-        # Show old events faded out.
-        for old in self.history:
-            for name, spikes in old.items():
-                self.ax.scatter(spikes[0], spikes[1], color=name_to_color(name, 0.125), marker=self.old_marker)
-
-        # Update finite, rolling history.
-        new = {}
+        # Add a row for this trial.
         for name, event_list in current_trial.numeric_events.items():
             if (self.match_pattern is None or re.fullmatch(self.match_pattern, name)) and event_list.event_count() > 0:
                 times = event_list.get_times()
-                channels = event_list.get_values(value_index=self.channel_value_index)
-                self.highest_channel = max(self.highest_channel, channels.max())
+                trials = trial_number * np.ones(times.shape)
+                if self.value_selection is not None:
+                    values = event_list.get_values(value_index=self.value_index)
+                    selector = values == self.value_selection
+                    times = times[selector]
+                    trials = trials[selector]
+                self.ax.scatter(times, trials, color=name_to_color(name, alpha=0.5), marker=self.marker, label=name)
 
-                if self.unit_value_index is None:
-                    new[name] = (times, channels)
-                else:
-                    units = event_list.get_values(value_index=self.unit_value_index)
-                    channels_plus_units = channels + units * self.unit_scale
-                    new[name] = (times, channels_plus_units)
-
-        self.history.append(new)
-        self.history = self.history[-self.history_size:]
-
-        # Show new events on top in full color.
-        for name, spikes in new.items():
-            self.ax.scatter(spikes[0], spikes[1], color=name_to_color(name), marker=self.marker, label=name)
-
-        self.ax.set_yticks(np.arange(0, self.highest_channel + 1))
-        self.ax.set_xlim(xmin=self.xmin, xmax=self.xmax)
-
-    def clean_up(self, fig: Figure) -> None:
-        self.history = []
+        ymax = np.ceil((trial_number + 1) / 10) * 10
+        self.ax.set_ylim(ymin=0, ymax=ymax)
