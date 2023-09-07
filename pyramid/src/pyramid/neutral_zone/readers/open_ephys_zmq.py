@@ -398,8 +398,9 @@ class OpenEphysZmqClient(ContextManager):
         self.data_address = f"{scheme}://{host}:{data_port}"
 
         if heartbeat_port is None:
-            heartbeat_port = data_port + 1
-        self.heartbeat_address = f"{scheme}://{host}:{heartbeat_port}"
+            self.heartbeat_address = None
+        else:
+            self.heartbeat_address = f"{scheme}://{host}:{heartbeat_port}"
 
         self.timeout_ms = timeout_ms
         self.encoding = encoding
@@ -432,11 +433,12 @@ class OpenEphysZmqClient(ContextManager):
 
         # Using a separate poller for data vs heartbeat allows them to wait/timeout independently.
         # Otherwise eg a heartbeat message could make it look like data was available, and we'd never wait for data.
-        self.heartbeat_socket = self.context.socket(zmq.REQ)
-        self.heartbeat_socket.setsockopt(zmq.LINGER, self.timeout_ms)
-        self.heartbeat_socket.connect(self.heartbeat_address)
-        self.heartbeat_poller = zmq.Poller()
-        self.heartbeat_poller.register(self.heartbeat_socket, zmq.POLLIN)
+        if self.heartbeat_address is not None:
+            self.heartbeat_socket = self.context.socket(zmq.REQ)
+            self.heartbeat_socket.setsockopt(zmq.LINGER, self.timeout_ms)
+            self.heartbeat_socket.connect(self.heartbeat_address)
+            self.heartbeat_poller = zmq.Poller()
+            self.heartbeat_poller.register(self.heartbeat_socket, zmq.POLLIN)
 
         self.heartbeat_send_count = 0
         self.heartbeat_reply_count = 0
@@ -459,6 +461,9 @@ class OpenEphysZmqClient(ContextManager):
         self.heartbeat_poller = None
 
     def send_heartbeat(self) -> bool:
+        if self.heartbeat_socket is None:
+            return False
+
         if self.heartbeat_send_count > self.heartbeat_reply_count:
             # Zmq only allows one outstanding REQ message at a time.
             logging.warning(f"OpenEphysZmqClient heartbeats out of sync: sent {self.heartbeat_send_count} heartbeats but reveived {self.heartbeat_reply_count} replies.")
@@ -469,6 +474,9 @@ class OpenEphysZmqClient(ContextManager):
         return True
 
     def poll_and_receive_heartbeat(self, timeout_ms: int = None) -> str:
+        if self.heartbeat_socket is None:
+            return None
+
         if timeout_ms is None:
             timeout_ms = self.timeout_ms
 
@@ -530,7 +538,7 @@ class OpenEphysZmqReader(Reader):
         self,
         host: str = "127.0.0.1",
         data_port: int = 5556,
-        heartbeat_port: int = None,
+        heartbeat_port: int = 5557,
         event_sample_frequency: float = 1.0,
         continuous_data: dict[int, str] = {},
         events: str = "events",
@@ -551,7 +559,7 @@ class OpenEphysZmqReader(Reader):
         Args:
             host:                   Open Ephys GUI IP address or host name to connect to
             data_port:              Open Ephys ZMQ Interface data port to connect to
-            heartbeat_port:         Open Ephys ZMQ Interface heartbeat port to connect to (defaults to data_port + 1)
+            heartbeat_port:         Open Ephys ZMQ Interface heartbeat port to connect to (may be None if heartbeats not needed)
             event_sample_frequency: acquisition stream clock or sample rate, to convert sample numbers to timestamps
             continuous_data:        dictionary of {channel_num: buffer_name} to select which continuous data channels
                                     to keep, and the Pyramid buffer name for each one (default is keep none)
@@ -625,14 +633,15 @@ class OpenEphysZmqReader(Reader):
         return initial
 
     def read_next(self) -> dict[str, BufferData]:
-        now_time = time.time()
-        heartbeat_elapsed = now_time - self.last_heartbeat_attempt
-        if heartbeat_elapsed > self.heartbeat_interval:
-            heartbeat_reply = self.client.poll_and_receive_heartbeat()
-            if self.last_heartbeat_attempt > 0 and not heartbeat_reply:
-                logging.warning(f"Open Ephys ZMQ Interface at {self.client.data_address} has not replied to heartbeat for  at least {heartbeat_elapsed} seconds.")
-            self.client.send_heartbeat()
-            self.last_heartbeat_attempt = now_time
+        if self.client.heartbeat_socket is not None:
+            now_time = time.time()
+            heartbeat_elapsed = now_time - self.last_heartbeat_attempt
+            if heartbeat_elapsed > self.heartbeat_interval:
+                heartbeat_reply = self.client.poll_and_receive_heartbeat()
+                if self.last_heartbeat_attempt > 0 and not heartbeat_reply:
+                    logging.warning(f"Open Ephys ZMQ Interface at {self.client.data_address} has not replied to heartbeat for  at least {heartbeat_elapsed} seconds.")
+                self.client.send_heartbeat()
+                self.last_heartbeat_attempt = now_time
 
         client_results = self.client.poll_and_receive_data()
         if not client_results:

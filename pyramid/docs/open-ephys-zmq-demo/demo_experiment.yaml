@@ -22,6 +22,7 @@ readers:
     args:
       host: 127.0.0.1
       data_port: 5556
+      heartbeat_port: 5557
       event_sample_frequency: 40000
       events: "ecodes"
       spikes: {}
@@ -34,6 +35,7 @@ readers:
     args:
       host: 127.0.0.1
       data_port: 5558
+      heartbeat_port: null
       event_sample_frequency: 40000
       events: null
       spikes: "spikes"

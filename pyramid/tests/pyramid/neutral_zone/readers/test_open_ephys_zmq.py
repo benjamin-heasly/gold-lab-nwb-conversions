@@ -214,12 +214,13 @@ def test_spike_format_multiple_channels():
 def test_open_ephys_zmq_heartbeats():
     host = "127.0.0.1"
     data_port = 10001
-    with OpenEphysZmqServer(host=host, data_port=data_port) as server:
+    heartbeat_port = data_port + 1
+    with OpenEphysZmqServer(host=host, data_port=data_port, heartbeat_port=heartbeat_port) as server:
         assert server.last_heartbeat is None
         assert server.heartbeat_count == 0
         assert server.poll_heartbeat_and_reply() is False
 
-        with OpenEphysZmqClient(host=host, data_port=data_port) as client:
+        with OpenEphysZmqClient(host=host, data_port=data_port, heartbeat_port=heartbeat_port) as client:
             assert client.heartbeat_send_count == 0
             assert client.heartbeat_reply_count == 0
             assert client.poll_and_receive_heartbeat() == None
@@ -249,6 +250,32 @@ def test_open_ephys_zmq_heartbeats():
                 # Receiving a reply should be a safe no-op, once the outstanding reply has been handled.
                 assert client.poll_and_receive_heartbeat() == None
                 assert client.heartbeat_reply_count == index
+
+
+def test_open_ephys_zmq_no_heartbeats():
+    host = "127.0.0.1"
+    data_port = 10001
+    with OpenEphysZmqServer(host=host, data_port=data_port) as server:
+        assert server.last_heartbeat is None
+        assert server.heartbeat_count == 0
+        assert server.poll_heartbeat_and_reply() is False
+
+        with OpenEphysZmqClient(host=host, data_port=data_port, heartbeat_port=None) as client:
+            assert client.heartbeat_send_count == 0
+            assert client.heartbeat_reply_count == 0
+            assert client.poll_and_receive_heartbeat() == None
+
+            assert client.send_heartbeat() is False
+            assert client.heartbeat_send_count == 0
+            assert client.heartbeat_reply_count == 0
+
+            assert server.poll_heartbeat_and_reply() is False
+            assert server.last_heartbeat is None
+            assert server.heartbeat_count == 0
+
+            assert client.poll_and_receive_heartbeat() == None
+            assert client.heartbeat_send_count == 0
+            assert client.heartbeat_reply_count == 0
 
 
 def test_open_ephys_zmq_continuous_data():
@@ -404,8 +431,9 @@ def test_open_ephys_zmq_spike():
 def test_open_ephys_zmq_mixed_data():
     host = "127.0.0.1"
     data_port = 10001
-    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=100) as server:
-        with OpenEphysZmqClient(host=host, data_port=data_port) as client:
+    hearbeat_port = data_port + 1
+    with OpenEphysZmqServer(host=host, data_port=data_port, heartbeat_port=hearbeat_port, timeout_ms=100) as server:
+        with OpenEphysZmqClient(host=host, data_port=data_port, heartbeat_port=hearbeat_port) as client:
 
             # Send mixed bunches of data for the client to handle.
             for index in range(0, 100):
@@ -465,11 +493,13 @@ def test_open_ephys_zmq_mixed_data():
 def test_open_ephys_zmq_reader_heartbeat():
     host = "127.0.0.1"
     data_port = 10001
+    hearbeat_port = data_port + 1
     heartbeat_interval = 0.1
-    with OpenEphysZmqServer(host=host, data_port=data_port, timeout_ms=100) as server:
+    with OpenEphysZmqServer(host=host, data_port=data_port, heartbeat_port=hearbeat_port, timeout_ms=100) as server:
         with OpenEphysZmqReader(
             host=host,
             data_port=data_port,
+            heartbeat_port=hearbeat_port,
             heartbeat_interval=heartbeat_interval
         ) as reader:
             for index in range(10):
