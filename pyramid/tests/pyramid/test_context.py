@@ -31,24 +31,24 @@ def test_configure_readers():
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
             "args": {
                 "csv_file": "default.csv",
-                "results_key": "start"
+                "result_name": "start"
             },
             "simulate_delay": True
         },
         "wrt_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "args": {"results_key": "wrt"}
+            "args": {"result_name": "wrt"}
         },
         "foo_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "args": {"results_key": "foo"}
+            "args": {"result_name": "foo"}
         },
         "bar_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "args": {"results_key": "bar"},
-            "buffers": {
+            "args": {"result_name": "bar"},
+            "extra_buffers": {
                "bar_2": {
-                    "reader_key": "bar",
+                    "reader_result_name": "bar",
                     "transformers": [
                         {
                             "class": "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain",
@@ -67,9 +67,9 @@ def test_configure_readers():
 
     expected_readers = {
         "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", "start")),
-        "wrt_reader": CsvNumericEventReader(results_key="wrt"),
-        "foo_reader": CsvNumericEventReader(results_key="foo"),
-        "bar_reader": CsvNumericEventReader(results_key="bar"),
+        "wrt_reader": CsvNumericEventReader(result_name="wrt"),
+        "foo_reader": CsvNumericEventReader(result_name="foo"),
+        "bar_reader": CsvNumericEventReader(result_name="bar"),
     }
     assert readers == expected_readers
 
@@ -188,9 +188,9 @@ def test_from_yaml_and_reader_overrides(fixture_path):
 
     expected_readers = {
         "start_reader": DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, "start")),
-        "wrt_reader": CsvNumericEventReader(results_key="wrt"),
-        "foo_reader": CsvNumericEventReader(results_key="foo"),
-        "bar_reader": CsvNumericEventReader(results_key="bar"),
+        "wrt_reader": CsvNumericEventReader(result_name="wrt"),
+        "foo_reader": CsvNumericEventReader(result_name="foo"),
+        "bar_reader": CsvNumericEventReader(result_name="bar"),
     }
 
     expected_named_buffers = {

@@ -15,7 +15,7 @@ readers:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
       csv_file: delimiter.csv # override on cli with --readers delimiter_reader.csv_file=real.csv
-      results_key: delimiter
+      result_name: delimiter
     simulate_delay: True
   oezmq_ecodes:
     class: pyramid.neutral_zone.readers.open_ephys_zmq.OpenEphysZmqReader

@@ -19,12 +19,12 @@ class CsvNumericEventReader(Reader):
     def __init__(
         self,
         csv_file: str = None,
-        results_key: str = "events",
+        result_name: str = "events",
         dialect: str = 'excel',
         **fmtparams
     ) -> None:
         self.csv_file = csv_file
-        self.results_key = results_key
+        self.result_name = result_name
         self.dialect = dialect
         self.fmtparams = fmtparams
 
@@ -36,7 +36,7 @@ class CsvNumericEventReader(Reader):
         if isinstance(other, self.__class__):
             return (
                 self.csv_file == other.csv_file
-                and self.results_key == other.results_key
+                and self.result_name == other.result_name
                 and self.dialect == other.dialect
                 and self.fmtparams == other.fmtparams
             )
@@ -66,7 +66,7 @@ class CsvNumericEventReader(Reader):
         try:
             numeric_row = [float(element) for element in next_row]
             return {
-                self.results_key: NumericEventList(np.array([numeric_row]))
+                self.result_name: NumericEventList(np.array([numeric_row]))
             }
         except ValueError as error:
             logging.info(f"Skipping CSV '{self.csv_file}' line {line_num} {next_row} because {error.args}")
@@ -81,7 +81,7 @@ class CsvNumericEventReader(Reader):
             logging.warning("Using default column count for CSV events: {column_count}")
 
         return {
-            self.results_key: NumericEventList(np.empty([0, column_count]))
+            self.result_name: NumericEventList(np.empty([0, column_count]))
         }
 
 
@@ -109,7 +109,7 @@ class CsvSignalReader(Reader):
         sample_frequency: float = 1.0,
         next_sample_time: float = 0.0,
         lines_per_chunk: int = 10,
-        results_key: str = "samples",
+        result_name: str = "samples",
         dialect: str = 'excel',
         **fmtparams
     ) -> None:
@@ -117,7 +117,7 @@ class CsvSignalReader(Reader):
         self.sample_frequency = sample_frequency
         self.next_sample_time = next_sample_time
         self.lines_per_chunk = lines_per_chunk
-        self.results_key = results_key
+        self.result_name = result_name
         self.dialect = dialect
         self.fmtparams = fmtparams
 
@@ -168,7 +168,7 @@ class CsvSignalReader(Reader):
                 self.channel_ids
             )
             self.next_sample_time += len(chunk) / self.sample_frequency
-            return {self.results_key: signal_chunk}
+            return {self.result_name: signal_chunk}
         else:
             # We're really at the end, past the last chunk, signal stop to the caller.
             raise StopIteration
@@ -181,4 +181,4 @@ class CsvSignalReader(Reader):
             self.next_sample_time,
             self.channel_ids
         )
-        return {self.results_key: initial}
+        return {self.result_name: initial}

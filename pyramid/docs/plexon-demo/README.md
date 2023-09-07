@@ -80,19 +80,19 @@ readers:
         Y51: gaze_y
     # For gui demo, wait between trial delimiting events.
     simulate_delay: True
-    buffers:
+    extra_buffers:
       # Use ecodes as the delimiter for trials in time.
       delimiter:
-        reader_key: ecodes
+        reader_result_name: ecodes
       # Scale up the gaze signals by a known gain.
       gaze_x:
-        reader_key: gaze_x
+        reader_result_name: gaze_x
         transformers:
           - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
             args:
               gain: 10
       gaze_y:
-        reader_key: gaze_y
+        reader_result_name: gaze_y
         transformers:
           - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
             args:

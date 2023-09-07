@@ -33,7 +33,7 @@ def test_numeric_events_empty_file(fixture_path):
             reader.read_next()
 
     expected_initial = {
-        reader.results_key: NumericEventList(np.empty([0, 2]))
+        reader.result_name: NumericEventList(np.empty([0, 2]))
     }
     assert initial == expected_initial
     assert exception_info.errisinstance(StopIteration)
@@ -45,7 +45,7 @@ def test_numeric_events_with_header_line(fixture_path):
     with CsvNumericEventReader(csv_file) as reader:
         initial = reader.get_initial()
         expected_initial = {
-            reader.results_key: NumericEventList(np.empty([0, 3]))
+            reader.result_name: NumericEventList(np.empty([0, 3]))
         }
         assert initial == expected_initial
 
@@ -55,7 +55,7 @@ def test_numeric_events_with_header_line(fixture_path):
         # Read 32 lines...
         for t in range(32):
             result = reader.read_next()
-            event_list = result[reader.results_key]
+            event_list = result[reader.result_name]
             expected_event_list = NumericEventList(np.array([[t, t + 100, t + 1000]]))
             assert event_list == expected_event_list
 
@@ -72,14 +72,14 @@ def test_numeric_events_with_no_header_line(fixture_path):
     with CsvNumericEventReader(csv_file) as reader:
         initial = reader.get_initial()
         expected_initial = {
-            reader.results_key: NumericEventList(np.empty([0, 3]))
+            reader.result_name: NumericEventList(np.empty([0, 3]))
         }
         assert initial == expected_initial
 
         # Read 32 lines...
         for t in range(32):
             result = reader.read_next()
-            event_list = result[reader.results_key]
+            event_list = result[reader.result_name]
             expected_event_list = NumericEventList(np.array([[t, t + 100, t + 1000]]))
             assert event_list == expected_event_list
 
@@ -97,7 +97,7 @@ def test_numeric_events_skip_nonnumeric_lines(fixture_path):
     with CsvNumericEventReader(csv_file) as reader:
         initial = reader.get_initial()
         expected_initial = {
-            reader.results_key: NumericEventList(np.empty([0, 3]))
+            reader.result_name: NumericEventList(np.empty([0, 3]))
         }
         assert initial == expected_initial
 
@@ -107,7 +107,7 @@ def test_numeric_events_skip_nonnumeric_lines(fixture_path):
             if t in nonnumeric_lines:
                 assert result is None
             else:
-                event_list = result[reader.results_key]
+                event_list = result[reader.result_name]
                 expected_event_list = NumericEventList(np.array([[t, t + 100, t + 1000]]))
                 assert event_list == expected_event_list
 
@@ -137,7 +137,7 @@ def test_signals_empty_file(fixture_path):
         with raises(StopIteration) as exception_info:
             reader.read_next()
 
-    expected_initial = {reader.results_key: SignalChunk(
+    expected_initial = {reader.result_name: SignalChunk(
         np.empty([0, 0]), reader.sample_frequency, first_sample_time=0.0, channel_ids=[])}
     assert initial == expected_initial
     assert exception_info.errisinstance(StopIteration)
@@ -149,7 +149,7 @@ def test_signals_only_complete_chunks(fixture_path):
     with CsvSignalReader(csv_file, lines_per_chunk=10) as reader:
         initial = reader.get_initial()
         expected_initial = {
-            reader.results_key: SignalChunk(
+            reader.result_name: SignalChunk(
                 np.empty([0, 3]),
                 reader.sample_frequency,
                 first_sample_time=0.0,
@@ -164,7 +164,7 @@ def test_signals_only_complete_chunks(fixture_path):
             assert reader.next_sample_time == chunk_time
 
             result = reader.read_next()
-            signal_chunk = result[reader.results_key]
+            signal_chunk = result[reader.result_name]
             assert signal_chunk.sample_count() == 10
 
             sample_times = signal_chunk.get_times()
@@ -186,7 +186,7 @@ def test_signals_last_partial_chunk(fixture_path):
     with CsvSignalReader(csv_file, lines_per_chunk=11) as reader:
         initial = reader.get_initial()
         expected_initial = {
-            reader.results_key: SignalChunk(
+            reader.result_name: SignalChunk(
                 np.empty([0, 3]),
                 reader.sample_frequency,
                 first_sample_time=0.0,
@@ -201,7 +201,7 @@ def test_signals_last_partial_chunk(fixture_path):
             assert reader.next_sample_time == chunk_time
 
             result = reader.read_next()
-            signal_chunk = result[reader.results_key]
+            signal_chunk = result[reader.result_name]
             assert signal_chunk.sample_count() == 11
 
             sample_times = signal_chunk.get_times()
@@ -215,7 +215,7 @@ def test_signals_last_partial_chunk(fixture_path):
         assert reader.next_sample_time == chunk_time
 
         result = reader.read_next()
-        signal_chunk = result[reader.results_key]
+        signal_chunk = result[reader.result_name]
         assert signal_chunk.sample_count() == 7
 
         sample_times = signal_chunk.get_times()
@@ -237,7 +237,7 @@ def test_signals_skip_nonnumeric_lines(fixture_path):
     with CsvSignalReader(csv_file, lines_per_chunk=10) as reader:
         initial = reader.get_initial()
         expected_initial = {
-            reader.results_key: SignalChunk(
+            reader.result_name: SignalChunk(
                 np.empty([0, 3]),
                 reader.sample_frequency,
                 first_sample_time=0.0,
@@ -252,7 +252,7 @@ def test_signals_skip_nonnumeric_lines(fixture_path):
             assert reader.next_sample_time == chunk_time
 
             result = reader.read_next()
-            signal_chunk = result[reader.results_key]
+            signal_chunk = result[reader.result_name]
             assert signal_chunk.sample_count() == 10
 
             sample_times = signal_chunk.get_times()

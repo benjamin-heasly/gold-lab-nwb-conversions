@@ -77,7 +77,7 @@ class Reader(DynamicImport, ContextManager):
 class ReaderRoute():
     """Specify the mapping from a reader get_initial() or read_next() diciontary entry to a named buffer."""
 
-    reader_key: str
+    reader_result_name: str
     """How the reader named a result, like "spikes", "events", etc."""
 
     buffer_name: str
@@ -98,12 +98,12 @@ class ReaderRouter():
         self,
         reader: Reader,
         routes: list[ReaderRoute],
-        buffers: dict[str, Buffer],
+        named_buffers: dict[str, Buffer],
         empty_reads_allowed: int = 3
     ) -> None:
         self.reader = reader
         self.routes = routes
-        self.buffers = buffers
+        self.named_buffers = named_buffers
         self.empty_reads_allowed = empty_reads_allowed
 
         self.reader_exception = None
@@ -114,7 +114,7 @@ class ReaderRouter():
         if isinstance(other, self.__class__):
             return (
                 self.reader == other.reader
-                and self.buffers == other.buffers
+                and self.named_buffers == other.named_buffers
                 and self.routes == other.routes
                 and self.empty_reads_allowed == other.empty_reads_allowed
             )
@@ -144,11 +144,11 @@ class ReaderRouter():
             return False
 
         for route in self.routes:
-            buffer = self.buffers.get(route.buffer_name, None)
+            buffer = self.named_buffers.get(route.buffer_name, None)
             if not buffer:
                 continue
 
-            data = result.get(route.reader_key, None)
+            data = result.get(route.reader_result_name, None)
             if not data:
                 continue
 
@@ -159,7 +159,7 @@ class ReaderRouter():
                         data_copy = transformer.transform(data_copy)
                 except Exception as exception:
                     logging.error(
-                        f"Route transformer had an exception, skipping data for {route.reader_key} -> {route.buffer_name}:",
+                        f"Route transformer had an exception, skipping data for {route.reader_result_name} -> {route.buffer_name}:",
                         exc_info=True
                     )
                     continue
@@ -168,13 +168,13 @@ class ReaderRouter():
                 buffer.data.append(data_copy)
             except Exception as exception:
                 logging.error(
-                    "Route buffer had exception appending data, skipping data for {route.reader_key} -> {route.buffer_name}:",
+                    "Route buffer had exception appending data, skipping data for {route.reader_result_name} -> {route.buffer_name}:",
                     exc_info=True
                 )
                 continue
 
         # Update the high water mark for the reader -- the latest timestamp seen so far.
-        for buffer in self.buffers.values():
+        for buffer in self.named_buffers.values():
             buffer_end_time = buffer.data.get_end_time()
             if buffer_end_time and buffer_end_time > self.max_buffer_time:
                 self.max_buffer_time = buffer_end_time

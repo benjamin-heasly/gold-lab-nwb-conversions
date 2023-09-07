@@ -76,7 +76,7 @@ class PyramidContext():
         # Rummage around in the configured reader routers for the one associated with the trial "start" delimiter.
         start_router = None
         for router in reader_routers:
-            for buffer_name in router.buffers.keys():
+            for buffer_name in router.named_buffers.keys():
                 if buffer_name == start_buffer_name:
                     start_router = router
 
@@ -222,15 +222,15 @@ class PyramidContext():
 
         for reader_index, (name, reader) in enumerate(self.readers.items()):
             label = f"{name}|{reader.__class__.__name__}"
-            for result_index, results_key in enumerate(reader.get_initial().keys()):
-                label += f"|<{results_key}>{results_key}"
+            for result_index, result_name in enumerate(reader.get_initial().keys()):
+                label += f"|<{result_name}>{result_name}"
                 style_index = (reader_index + result_index) % 3
                 if style_index == 2:
-                    results_styles[results_key] = {"color": '#648FFF'}
+                    results_styles[result_name] = {"color": '#648FFF'}
                 elif style_index == 1:
-                    results_styles[results_key] = {"color": '#DC267F'}
+                    results_styles[result_name] = {"color": '#DC267F'}
                 else:
-                    results_styles[results_key] = {"color": '#FFB000'}
+                    results_styles[result_name] = {"color": '#FFB000'}
 
             dot.node(name=name, label=label, shape="record")
             for router in self.routers:
@@ -256,10 +256,10 @@ class PyramidContext():
                     route_label = "|".join(labels)
                 else:
                     route_label = "as is"
-                dot.node(name=route_name, label=route_label, shape="record", **results_styles[route.reader_key])
+                dot.node(name=route_name, label=route_label, shape="record", **results_styles[route.reader_result_name])
 
-                dot.edge(f"{reader_name}:{route.reader_key}:e", f"{route_name}:w", **results_styles[route.reader_key])
-                dot.edge(f"{route_name}:e", f"{route.buffer_name}:w", **results_styles[route.reader_key])
+                dot.edge(f"{reader_name}:{route.reader_result_name}:e", f"{route_name}:w", **results_styles[route.reader_result_name])
+                dot.edge(f"{route_name}:e", f"{route.buffer_name}:w", **results_styles[route.reader_result_name])
 
         dot.node(
             name="trial_delimiter",
@@ -323,7 +323,7 @@ def configure_readers(
         named_routes = {buffer_name: ReaderRoute(buffer_name, buffer_name) for buffer_name in initial_results.keys()}
 
         # Update default routes with explicitly configured aliases and transformations.
-        buffers_config = reader_config.get("buffers", {})
+        buffers_config = reader_config.get("extra_buffers", {})
         for buffer_name, buffer_config in buffers_config.items():
 
             # Instantiate transformers by dynamic import.
@@ -342,14 +342,14 @@ def configure_readers(
                 )
                 transformers.append(transformer)
 
-            reader_key = buffer_config.get("reader_key", buffer_name)
-            route = ReaderRoute(reader_key, buffer_name, transformers)
+            reader_result_name = buffer_config.get("reader_result_name", buffer_name)
+            route = ReaderRoute(reader_result_name, buffer_name, transformers)
             named_routes[buffer_name] = route
 
         # Create a buffer to receive data from each route.
         reader_buffers = {}
         for route in named_routes.values():
-            initial_data = initial_results[route.reader_key]
+            initial_data = initial_results[route.reader_result_name]
             if initial_data is not None:
                 data_copy = initial_data.copy()
                 for transformer in route.transformers:
@@ -361,11 +361,11 @@ def configure_readers(
         router = ReaderRouter(
             reader=reader,
             routes=list(named_routes.values()),
-            buffers=reader_buffers,
+            named_buffers=reader_buffers,
             empty_reads_allowed=empty_reads_allowed
         )
         routers.append(router)
-        named_buffers.update(router.buffers)
+        named_buffers.update(router.named_buffers)
 
     logging.info(f"Using {len(named_buffers)} named buffers.")
     for name in named_buffers.keys():

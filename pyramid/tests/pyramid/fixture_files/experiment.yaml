@@ -13,23 +13,23 @@ readers:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
       csv_file: default.csv # override on cli with --readers start_reader.csv_file=real.csv
-      results_key: start
+      result_name: start
     simulate_delay: True
   wrt_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
-      results_key: wrt
+      result_name: wrt
   foo_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
-      results_key: foo
+      result_name: foo
   bar_reader:
     class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
     args:
-      results_key: bar
-    buffers:
+      result_name: bar
+    extra_buffers:
       bar_2:
-        reader_key: bar
+        reader_result_name: bar
         transformers:
           - class: pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain
             args:

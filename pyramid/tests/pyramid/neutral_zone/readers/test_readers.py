@@ -8,10 +8,10 @@ from pyramid.neutral_zone.transformers.standard_transformers import FilterRange,
 
 class FakeNumericEventReader(Reader):
 
-    def __init__(self, script=[], results_key="events") -> None:
+    def __init__(self, script=[], result_name="events") -> None:
         self.index = -1
         self.script = script
-        self.results_key = results_key
+        self.result_name = result_name
 
     def read_next(self) -> dict[str, NumericEventList]:
         # Incrementing this index is like consuming a system or library resource:
@@ -27,7 +27,7 @@ class FakeNumericEventReader(Reader):
                 raise ValueError("Numeric Event Reader needs a list of numbers!")
 
             return {
-                self.results_key: NumericEventList(np.array(next))
+                self.result_name: NumericEventList(np.array(next))
             }
         else:
             return None
@@ -42,8 +42,8 @@ def buffers_for_reader_and_routes(reader: Reader, routes: list[ReaderRoute]):
     initial_results = reader.get_initial()
     named_buffers = {}
     for route in routes:
-        if route.reader_key in initial_results:
-            named_buffers[route.buffer_name] = Buffer(initial_results[route.reader_key].copy())
+        if route.reader_result_name in initial_results:
+            named_buffers[route.buffer_name] = Buffer(initial_results[route.reader_result_name].copy())
     return named_buffers
 
 
@@ -56,41 +56,41 @@ def test_router_copy_events_to_buffers():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes)
+        named_buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     assert router.max_buffer_time == 0
 
     # Copy events into both buffers, as they are read in.
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 1
-    assert router.buffers["two"].data.event_count() == 1
+    assert router.named_buffers["one"].data.event_count() == 1
+    assert router.named_buffers["two"].data.event_count() == 1
     assert router.max_buffer_time == 0
 
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 2
-    assert router.buffers["two"].data.event_count() == 2
+    assert router.named_buffers["one"].data.event_count() == 2
+    assert router.named_buffers["two"].data.event_count() == 2
     assert router.max_buffer_time == 1
 
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 3
-    assert router.buffers["two"].data.event_count() == 3
+    assert router.named_buffers["one"].data.event_count() == 3
+    assert router.named_buffers["two"].data.event_count() == 3
     assert router.max_buffer_time == 2
 
     # OK to try routing new events when there are none left.
     assert router.route_next() == False
-    assert router.buffers["one"].data.event_count() == 3
-    assert router.buffers["two"].data.event_count() == 3
+    assert router.named_buffers["one"].data.event_count() == 3
+    assert router.named_buffers["two"].data.event_count() == 3
     assert router.max_buffer_time == 2
 
     # Confirm expected data in the buffers.
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
-    assert router.buffers["two"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    assert router.named_buffers["two"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
 
     # Confirm buffers contain independent copies of the data
-    router.buffers["one"].data.apply_offset_then_gain(offset=10, gain=2)
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 20], [1, 40], [2, 60]]))
-    assert router.buffers["two"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    router.named_buffers["one"].data.apply_offset_then_gain(offset=10, gain=2)
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 20], [1, 40], [2, 60]]))
+    assert router.named_buffers["two"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
 
 
 def test_router_tolerates_missing_buffer_and_results():
@@ -105,7 +105,7 @@ def test_router_tolerates_missing_buffer_and_results():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes)
+        named_buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     assert router.route_next() == True
@@ -113,10 +113,10 @@ def test_router_tolerates_missing_buffer_and_results():
     assert router.route_next() == True
 
     # Imagine the reader returns an unexpected result key, just ignore it.
-    reader.results_key = "unexpected"
+    reader.result_name = "unexpected"
     assert router.route_next() == True
 
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
 
 
 def test_router_circuit_breaker_for_reader_errors():
@@ -125,24 +125,24 @@ def test_router_circuit_breaker_for_reader_errors():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes)
+        named_buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # First two reads should route data as normal.
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 1
+    assert router.named_buffers["one"].data.event_count() == 1
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 2
+    assert router.named_buffers["one"].data.event_count() == 2
 
     # Then the reader encounters an exception!
     # The router should circuit-break going forward, to prevent cascading errors.
     assert router.route_next() == False
     assert router.reader_exception is not None
-    assert router.buffers["one"].data.event_count() == 2
+    assert router.named_buffers["one"].data.event_count() == 2
     assert router.route_next() == False
-    assert router.buffers["one"].data.event_count() == 2
+    assert router.named_buffers["one"].data.event_count() == 2
     assert router.route_next() == False
-    assert router.buffers["one"].data.event_count() == 2
+    assert router.named_buffers["one"].data.event_count() == 2
 
 
 def test_router_skip_buffer_append_errors():
@@ -151,26 +151,26 @@ def test_router_skip_buffer_append_errors():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes)
+        named_buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # First two reads should route data as normal.
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 1
+    assert router.named_buffers["one"].data.event_count() == 1
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 2
+    assert router.named_buffers["one"].data.event_count() == 2
 
     # Third read has data of the wrong size, which will fail to append to the buffer.
     # The router should skip this and move on to prevent cascading errors.
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 2
+    assert router.named_buffers["one"].data.event_count() == 2
 
     # Fourth read should find well-formed data, again.
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 3
+    assert router.named_buffers["one"].data.event_count() == 3
 
     # Check all the well-formed data landed in the buffer.
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [3, 30]]))
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [3, 30]]))
 
 
 def test_router_routes_until_target_time():
@@ -179,7 +179,7 @@ def test_router_routes_until_target_time():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes)
+        named_buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # Router should read until an event arrives past the target time.
@@ -192,7 +192,7 @@ def test_router_routes_until_target_time():
 
     # Check expected events buffered up to and just past the target time.
     # But not way past the target time.
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
 
 
 def test_router_routes_until_target_time_with_retries():
@@ -202,7 +202,7 @@ def test_router_routes_until_target_time_with_retries():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes),
+        named_buffers=buffers_for_reader_and_routes(reader, routes),
         empty_reads_allowed=2
     )
 
@@ -219,7 +219,7 @@ def test_router_routes_until_target_time_with_retries():
 
     # Check expected events buffered up to and just past the target time.
     # But not way past the target time.
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
 
 
 def test_route_transforms_data():
@@ -233,29 +233,29 @@ def test_route_transforms_data():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes)
+        named_buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # Copy events into both buffers.
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 1
-    assert router.buffers["two"].data.event_count() == 0
+    assert router.named_buffers["one"].data.event_count() == 1
+    assert router.named_buffers["two"].data.event_count() == 0
 
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 2
-    assert router.buffers["two"].data.event_count() == 1
+    assert router.named_buffers["one"].data.event_count() == 2
+    assert router.named_buffers["two"].data.event_count() == 1
 
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 3
-    assert router.buffers["two"].data.event_count() == 1
+    assert router.named_buffers["one"].data.event_count() == 3
+    assert router.named_buffers["two"].data.event_count() == 1
 
     assert router.route_next() == False
 
     # Buffer one should get the original data.
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
 
     # Buffer two should get transformed data.
-    assert router.buffers["two"].data == NumericEventList(np.array([[1, -52]]))
+    assert router.named_buffers["two"].data == NumericEventList(np.array([[1, -52]]))
 
 
 def test_router_skip_transformer_errors():
@@ -268,26 +268,26 @@ def test_router_skip_transformer_errors():
     router = ReaderRouter(
         reader=reader,
         routes=routes,
-        buffers=buffers_for_reader_and_routes(reader, routes)
+        named_buffers=buffers_for_reader_and_routes(reader, routes)
     )
 
     # Copy events into both buffers.
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 1
-    assert router.buffers["two"].data.event_count() == 0
+    assert router.named_buffers["one"].data.event_count() == 1
+    assert router.named_buffers["two"].data.event_count() == 0
 
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 2
-    assert router.buffers["two"].data.event_count() == 0
+    assert router.named_buffers["one"].data.event_count() == 2
+    assert router.named_buffers["two"].data.event_count() == 0
 
     assert router.route_next() == True
-    assert router.buffers["one"].data.event_count() == 3
-    assert router.buffers["two"].data.event_count() == 0
+    assert router.named_buffers["one"].data.event_count() == 3
+    assert router.named_buffers["two"].data.event_count() == 0
 
     assert router.route_next() == False
 
     # Buffer one should get all the data.
-    assert router.buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
+    assert router.named_buffers["one"].data == NumericEventList(np.array([[0, 0], [1, 10], [2, 20]]))
 
     # Buffer two should have had errors that didn't affect buffer one.
-    assert router.buffers["two"].data.event_count() == 0
+    assert router.named_buffers["two"].data.event_count() == 0

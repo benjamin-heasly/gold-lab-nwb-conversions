@@ -40,8 +40,8 @@ def router_for_reader_and_routes(reader: Reader, routes: list[ReaderRoute]):
     initial_results = reader.get_initial()
     named_buffers = {}
     for route in routes:
-        if route.reader_key in initial_results:
-            named_buffers[route.buffer_name] = Buffer(initial_results[route.reader_key].copy())
+        if route.reader_result_name in initial_results:
+            named_buffers[route.buffer_name] = Buffer(initial_results[route.reader_result_name].copy())
     return ReaderRouter(reader, routes, named_buffers)
 
 
@@ -51,7 +51,7 @@ def test_delimit_trials_from_pivate_buffer():
     start_router = router_for_reader_and_routes(start_reader, [start_route])
 
     # Log every other trial, just to get code coverage on the logging conditional!
-    delimiter = TrialDelimiter(start_router.buffers["start"], 1010, trial_log_mod=2)
+    delimiter = TrialDelimiter(start_router.named_buffers["start"], 1010, trial_log_mod=2)
 
     # trial zero will be garbage, whatever happens before the first start event
     assert start_router.route_next() == True
@@ -93,7 +93,7 @@ def test_delimit_trials_from_shared_buffer():
     start_route = ReaderRoute("events", "start")
     start_router = router_for_reader_and_routes(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
+    delimiter = TrialDelimiter(start_router.named_buffers["start"], 1010)
 
     # trial zero will be garbage, whatever happens before the first start event
     assert start_router.route_next() == True
@@ -135,7 +135,7 @@ def test_delimit_multiple_trials_per_read():
     start_route = ReaderRoute("events", "start")
     start_router = router_for_reader_and_routes(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
+    delimiter = TrialDelimiter(start_router.named_buffers["start"], 1010)
 
     # trial zero will be garbage, whatever happens before the first start event
     assert start_router.route_next() == True
@@ -164,7 +164,7 @@ def test_populate_trials_from_private_buffers():
     start_route = ReaderRoute("events", "start")
     start_router = router_for_reader_and_routes(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
+    delimiter = TrialDelimiter(start_router.named_buffers["start"], 1010)
 
     # Expect wrt times half way through trials 1, 2, and 3.
     wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42], [2.6, 42]], [[3.5, 42]]])
@@ -182,11 +182,11 @@ def test_populate_trials_from_private_buffers():
     bar_router = router_for_reader_and_routes(bar_reader, [bar_route])
 
     extractor = TrialExtractor(
-        wrt_router.buffers["wrt"],
+        wrt_router.named_buffers["wrt"],
         wrt_value=42,
         named_buffers={
-            "foo": foo_router.buffers["foo"],
-            "bar": bar_router.buffers["bar"]
+            "foo": foo_router.named_buffers["foo"],
+            "bar": bar_router.named_buffers["bar"]
         }
     )
 
@@ -293,7 +293,7 @@ def test_populate_trials_from_shared_buffers():
     wrt_route = ReaderRoute("events", "wrt")
     start_router = router_for_reader_and_routes(start_reader, [start_route, wrt_route])
 
-    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
+    delimiter = TrialDelimiter(start_router.named_buffers["start"], 1010)
 
     # Expect "foo" events in trials 0, 1, and 2, before the wrt times.
     foo_reader = FakeNumericEventReader(script=[[[0.2, 0]], [[1.2, 0], [1.3, 1]], [[2.2, 0], [2.3, 1]]])
@@ -306,11 +306,11 @@ def test_populate_trials_from_shared_buffers():
     bar_router = router_for_reader_and_routes(bar_reader, [bar_route])
 
     extractor = TrialExtractor(
-        start_router.buffers["wrt"],
+        start_router.named_buffers["wrt"],
         wrt_value=42,
         named_buffers={
-            "foo": foo_router.buffers["foo"],
-            "bar": bar_router.buffers["bar"]
+            "foo": foo_router.named_buffers["foo"],
+            "bar": bar_router.named_buffers["bar"]
         }
     )
 
@@ -440,7 +440,7 @@ def test_enhance_trials():
     start_route = ReaderRoute("events", "start")
     start_router = router_for_reader_and_routes(start_reader, [start_route])
 
-    delimiter = TrialDelimiter(start_router.buffers["start"], 1010)
+    delimiter = TrialDelimiter(start_router.named_buffers["start"], 1010)
 
     # Expect wrt times half way through trials 1, 2, and 3.
     wrt_reader = FakeNumericEventReader(script=[[[1.5, 42]], [[2.5, 42], [2.6, 42]], [[3.5, 42]]])
@@ -452,7 +452,7 @@ def test_enhance_trials():
     enhancers = [TrialDurationEnhancer(), BadEnhancer(), DurationPlusTrialCount()]
 
     extractor = TrialExtractor(
-        wrt_router.buffers["wrt"],
+        wrt_router.named_buffers["wrt"],
         wrt_value=42,
         enhancers=enhancers
     )
