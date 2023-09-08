@@ -271,7 +271,7 @@ class TrialExpression():
     def evaluate(self, trial:Trial) -> Any:
         try:
             # Evaluate the expression with free variables bound to trial enhancements.
-            return eval(self.expression, None, trial.enhancements)
+            return eval(self.expression, {}, trial.enhancements)
         except:
             logging.error(f"Error evaluating TrialExpression {self.expression}", exc_info=True)
             return self.default_result
