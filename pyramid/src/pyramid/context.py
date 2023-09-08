@@ -380,6 +380,7 @@ def configure_trials(
     other_buffers = {name: buffer for name, buffer in named_buffers.items()
                      if name != start_buffer_name and name != wrt_buffer_name}
 
+    # TODO: let enhaners be a map of TrialEnhancer: TrialExpression
     enhancers = []
     enhancers_config = trials_config.get("enhancers", [])
     logging.info(f"Using {len(enhancers_config)} per-trial enhancers.")
@@ -387,6 +388,9 @@ def configure_trials(
         enhancer_class = enhancer_config["class"]
         logging.info(f"  {enhancer_class}")
         package_path = enhancer_config.get("package_path", None)
+        # TODO: look for optional "when" with a string expression
+        # TODO: parse the "when" string as a TrialExpression and store as enhancers value
+        # TODO: default to None, meaning "always execute".
         enhancer_args = enhancer_config.get("args", {})
         enhancer = TrialEnhancer.from_dynamic_import(
             enhancer_class,

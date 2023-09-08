@@ -5,7 +5,7 @@ from pyramid.model.model import Buffer, BufferData
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
-from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor, TrialEnhancer
+from pyramid.trials.trials import Trial, TrialDelimiter, TrialExtractor, TrialEnhancer, TrialExpression
 from pyramid.trials.standard_enhancers import TrialDurationEnhancer
 
 
@@ -633,3 +633,44 @@ def test_add_buffer_data_and_enhancements():
         }
     )
     assert trial == expected_trial
+
+
+def test_trial_constant_expression():
+    expression = TrialExpression(expression="True")
+    trial = Trial(start_time=0.0, end_time=1.0)
+    result = expression.evaluate(trial)
+    assert result == True
+
+
+def test_trial_string_expression():
+    expression = TrialExpression(expression="foo + bar")
+    trial = Trial(start_time=0.0, end_time=1.0)
+    assert trial.add_enhancement("foo", "f")
+    assert trial.add_enhancement("bar", "b")
+    result = expression.evaluate(trial)
+    assert result == "fb"
+
+
+def test_trial_numeric_expression():
+    expression = TrialExpression(expression="foo + bar")
+    trial = Trial(start_time=0.0, end_time=1.0)
+    assert trial.add_enhancement("foo", 2)
+    assert trial.add_enhancement("bar", 3)
+    result = expression.evaluate(trial)
+    assert result == 5
+
+
+def test_trial_boolean_expression():
+    expression = TrialExpression(expression="foo & bar")
+    trial = Trial(start_time=0.0, end_time=1.0)
+    assert trial.add_enhancement("foo", True)
+    assert trial.add_enhancement("bar", False)
+    result = expression.evaluate(trial)
+    assert result == False
+
+
+def test_trial_error_expression():
+    expression = TrialExpression(expression="4 / 0", default_result="No way!")
+    trial = Trial(start_time=0.0, end_time=1.0)
+    result = expression.evaluate(trial)
+    assert result == "No way!"

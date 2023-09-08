@@ -1,4 +1,4 @@
-from typing import Any, Self
+from typing import Any
 from dataclasses import dataclass, field
 import logging
 
@@ -192,6 +192,7 @@ class TrialExtractor():
         wrt_value: float,
         wrt_value_index: int = 0,
         named_buffers: dict[str, Buffer] = {},
+        # TODO: let enhaners be a map of TrialEnhancer: TrialExpression
         enhancers: list[TrialEnhancer] = []
     ) -> None:
         self.wrt_buffer = wrt_buffer
@@ -238,6 +239,8 @@ class TrialExtractor():
             trial.add_buffer_data(name, data)
 
         for enhancer in self.enhancers:
+            # TODO: evaluate the mapped TrialExpression for conditional execution
+            # Default None or missing expression means True / "always execute".
             try:
                 enhancer.enhance(trial, trial_number, experiment_info, subject_info)
             except:
@@ -249,3 +252,26 @@ class TrialExtractor():
         self.wrt_buffer.data.discard_before(time)
         for buffer in self.named_buffers.values():
             buffer.data.discard_before(time)
+
+
+class TrialExpression():
+    """Evaluate a string expression usung Python eval(), using trial enhancements for local variable values.
+
+    TODO: document once this feels settled.
+    """
+
+    def __init__(
+        self,
+        expression: str,
+        default_result: Any = False
+    ) -> None:
+        self.expression = expression
+        self.default_result = default_result
+
+    def evaluate(self, trial:Trial) -> Any:
+        try:
+            # Evaluate the expression with free variables bound to trial enhancements.
+            return eval(self.expression, None, trial.enhancements)
+        except:
+            logging.error(f"Error evaluating TrialExpression {self.expression}", exc_info=True)
+            return self.default_result

@@ -173,3 +173,6 @@ class EventTimesEnhancer(TrialEnhancer):
             # Did / when did this trial contain events of interest with the requested value?
             event_times = event_list.get_times_of(value, self.value_index)
             trial.add_enhancement(rule['name'], event_times.tolist(), rule['type'])
+
+
+# TODO: ExpressionEnhancer to evaluate a TrialExpression and save the result as a new enhancement.
