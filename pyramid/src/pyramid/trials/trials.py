@@ -204,6 +204,16 @@ class TrialExpression():
         self.expression = expression
         self.default_result = default_result
 
+    def __eq__(self, other: object) -> bool:
+        """Compare field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return (
+                self.expression == other.expression
+                and self.default_result == other.default_result
+            )
+        else:  # pragma: no cover
+            return False
+
     def evaluate(self, trial: Trial) -> Any:
         try:
             # Evaluate the expression with free variables bound to trial enhancements.
@@ -268,14 +278,18 @@ class TrialExtractor():
             data.shift_times(-trial.wrt_time)
             trial.add_buffer_data(name, data)
 
-        for enhancer in self.enhancers.keys():
-            # TODO: evaluate the mapped TrialExpression for conditional execution
-            # Default None or missing expression means True / "always execute".
+        for enhancer, when_expression in self.enhancers.items():
+            if when_expression is not None:
+                # This enhancer is conditional.
+                when_result = when_expression.evaluate(trial)
+                if not when_result:
+                    # This enhancer is not needed for this trial.
+                    continue
+
             try:
                 enhancer.enhance(trial, trial_number, experiment_info, subject_info)
             except:
                 logging.error(f"Error applying {enhancer.__class__.__name__} to trial {trial_number}.", exc_info=True)
-                continue
 
     def discard_before(self, time: float):
         """Let event wrt and named buffers discard data no longer needed."""

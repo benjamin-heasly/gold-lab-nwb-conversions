@@ -396,7 +396,7 @@ def configure_trials(
         when_string = enhancer_config.get("when", None)
         if when_string is not None:
             logging.info(f"  {enhancer_class} when {when_string}")
-            when_expression = TrialExpression(expression=when_string, default_result=None)
+            when_expression = TrialExpression(expression=when_string, default_result=False)
         else:
             logging.info(f"  {enhancer_class}")
             when_expression = None

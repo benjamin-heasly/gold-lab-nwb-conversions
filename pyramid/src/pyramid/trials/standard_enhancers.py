@@ -7,13 +7,19 @@ from pyramid.trials.trials import Trial, TrialEnhancer
 class TrialDurationEnhancer(TrialEnhancer):
     """A simple enhancer that computes trial duration, for demo and testing."""
 
+    def __init__(self, default_duration: float = None) -> None:
+        self.default_duration = default_duration
+
     def __eq__(self, other: object) -> bool:
-        """Compare enhancers just by type, to support use of this class in tests."""
-        return isinstance(other, self.__class__)
+        """Compare by attribute, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return self.default_duration == other.default_duration
+        else:  # pragma: no cover
+            return False
 
     def __hash__(self) -> int:
-        """Hash enhancers just by type, to support use of this class in tests."""
-        return hash(self.__class__)
+        """Hash by attribute, to support use of this class in tests."""
+        return self.default_duration.__hash__()
 
     def enhance(
         self,

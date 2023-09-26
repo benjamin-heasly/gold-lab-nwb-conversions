@@ -439,6 +439,19 @@ class BadEnhancer(TrialEnhancer):
         raise RuntimeError
 
 
+class ExtraEnhancer(TrialEnhancer):
+    """Test enhancer that always adds the same value."""
+
+    def enhance(
+        self,
+        trial: Trial,
+        trial_number: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
+        trial.add_enhancement("extra", True)
+
+
 def test_enhance_trials():
     # Expect trials with slightly increasing durations
     start_reader = FakeNumericEventReader(script=[[[1, 1010]], [[2.1, 1010]], [[3.3, 1010]]])
@@ -453,11 +466,13 @@ def test_enhance_trials():
     wrt_router = router_for_reader_and_routes(wrt_reader, [wrt_route])
 
     # Enhance trials with a sequence of enhancers.
-    # The middle one always errors -- which should not blow up the overall process.
+    # The second one always errors -- which should not blow up the overall process.
+    # The fourth one adds an "extra" enhancement, but only when the "duration" enhancement is greater than 1.
     enhancers = {
         TrialDurationEnhancer(): None,
         BadEnhancer(): None,
-        DurationPlusTrialNumber(): None
+        DurationPlusTrialNumber(): None,
+        ExtraEnhancer(): TrialExpression(expression="duration > 1.0")
     }
 
     extractor = TrialExtractor(
@@ -489,6 +504,7 @@ def test_enhance_trials():
     )
 
     # Trials 1 and 2 should be "normal" trials with task data.
+    # These get the "extra" enhancement because they have long durations.
     assert start_router.route_next() == True
     trial_one = delimiter.next()
     assert len(trial_one) == 1
@@ -502,10 +518,11 @@ def test_enhance_trials():
         wrt_time=1.5,
         enhancements={
             "duration": 1.1,
-            "duration_plus_trial_number": 2.1
+            "duration_plus_trial_number": 2.1,
+            "extra": True
         },
         enhancement_categories={
-            "value": ["duration", "duration_plus_trial_number"]
+            "value": ["duration", "duration_plus_trial_number", "extra"]
         }
     )
 
@@ -522,10 +539,11 @@ def test_enhance_trials():
         wrt_time=2.5,
         enhancements={
             "duration": 3.3 - 2.1,
-            "duration_plus_trial_number": 2 + 3.3 - 2.1
+            "duration_plus_trial_number": 2 + 3.3 - 2.1,
+            "extra": True
         },
         enhancement_categories={
-            "value": ["duration", "duration_plus_trial_number"]
+            "value": ["duration", "duration_plus_trial_number", "extra"]
         }
     )
 

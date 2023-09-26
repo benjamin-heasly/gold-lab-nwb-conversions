@@ -10,7 +10,7 @@ from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
 from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGain
 
-from pyramid.trials.trials import TrialDelimiter, TrialExtractor
+from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialExpression
 from pyramid.trials.standard_enhancers import TrialDurationEnhancer
 
 from pyramid.plotters.plotters import PlotFigureController
@@ -120,7 +120,14 @@ def test_configure_trials():
         "wrt_reader": "wrt",
         "wrt_value": 42,
         "enhancers": [
-            {"class": "pyramid.trials.standard_enhancers.TrialDurationEnhancer"}
+            {
+                "class": "pyramid.trials.standard_enhancers.TrialDurationEnhancer"
+            },
+            {
+                "class": "pyramid.trials.standard_enhancers.TrialDurationEnhancer",
+                "args": {"default_duration": 1.0},
+                "when": "1==2"
+            }
         ]
     }
     named_buffers = {
@@ -137,7 +144,10 @@ def test_configure_trials():
         for name, value in named_buffers.items()
         if name != "start" and name != "wrt"
     }
-    expected_enhancers = {TrialDurationEnhancer(): None}
+    expected_enhancers = {
+        TrialDurationEnhancer(): None,
+        TrialDurationEnhancer(default_duration=1.0): TrialExpression(expression="1==2", default_result=False)
+    }
     expected_trial_extractor = TrialExtractor(
         named_buffers["wrt"],
         wrt_value=42,
@@ -237,7 +247,10 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         for name, value in expected_named_buffers.items()
         if name != "start" and name != "wrt"
     }
-    expected_enhancers = {TrialDurationEnhancer(): None}
+    expected_enhancers = {
+        TrialDurationEnhancer(): None,
+        TrialDurationEnhancer(default_duration=1.0): TrialExpression(expression="1==2", default_result=False)
+    }
     expected_trial_extractor = TrialExtractor(
         expected_named_buffers["wrt"],
         wrt_value=42,
