@@ -1,7 +1,7 @@
 from typing import Any
 import csv
 
-from pyramid.trials.trials import Trial, TrialEnhancer
+from pyramid.trials.trials import Trial, TrialEnhancer, TrialExpression
 
 
 class TrialDurationEnhancer(TrialEnhancer):
@@ -185,4 +185,33 @@ class EventTimesEnhancer(TrialEnhancer):
             trial.add_enhancement(rule['name'], event_times.tolist(), rule['type'])
 
 
-# TODO: ExpressionEnhancer to evaluate a TrialExpression and save the result as a new enhancement.
+class ExpressionEnhancer(TrialEnhancer):
+    """Evaluate a TrialExpression for each trial and add the result as a named enhancement.
+
+    Args:
+        expression:     string Python expression to evaluate for each trial as a TrialExpression
+        value_name:     name of the enhancement to add to each trial, with the expression value
+        value_category: optional category to go with value_name (default is "value")
+        default_value:  default value to return in case of expression evaluation error (default is None)
+    """
+
+    def __init__(
+        self,
+        expression: str,
+        value_name: str,
+        value_category: str = "value",
+        default_value: Any = None,
+    ) -> None:
+        self.trial_expression = TrialExpression(expression=expression, default_value=default_value)
+        self.value_name = value_name
+        self.value_category = value_category
+
+    def enhance(
+        self,
+        trial: Trial,
+        trial_number: int,
+        experiment_info: dict[str: Any],
+        subject_info: dict[str: Any]
+    ) -> None:
+        value = self.trial_expression.evaluate(trial)
+        trial.add_enhancement(self.value_name, value, self.value_category)

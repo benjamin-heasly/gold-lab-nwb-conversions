@@ -3,7 +3,7 @@ import numpy as np
 
 from pyramid.model.events import NumericEventList
 from pyramid.trials.trials import Trial
-from pyramid.trials.standard_enhancers import PairedCodesEnhancer, EventTimesEnhancer
+from pyramid.trials.standard_enhancers import PairedCodesEnhancer, EventTimesEnhancer, ExpressionEnhancer
 
 
 def test_paired_codes_enhancer(tmp_path):
@@ -130,3 +130,55 @@ def test_event_times_enhancer(tmp_path):
         "time": ["foo", "bar", "baz"]
     }
     assert trial.enhancement_categories == expected_categories
+
+
+def test_expression_enhancer(tmp_path):
+    enhancer = ExpressionEnhancer(
+        expression="foo + bar > 42",
+        value_name="greater",
+        value_category="id",
+        default_value="No way!"
+    )
+
+    greater_trial = Trial(
+        start_time=0,
+        end_time=20,
+        wrt_time=0,
+        enhancements={
+            "foo": 41,
+            "bar": 41
+        }
+    )
+    enhancer.enhance(greater_trial, 0, {}, {})
+    assert greater_trial.enhancements == {
+        "foo": 41,
+        "bar": 41,
+        "greater": True
+    }
+
+    lesser_trial = Trial(
+        start_time=0,
+        end_time=20,
+        wrt_time=0,
+        enhancements={
+            "foo": 41,
+            "bar": 0
+        }
+    )
+    enhancer.enhance(lesser_trial, 0, {}, {})
+    assert lesser_trial.enhancements == {
+        "foo": 41,
+        "bar": 0,
+        "greater": False
+    }
+
+    # The expected enchancements "foo" and "bar" are missing, fall back to default value.
+    error_trial = Trial(
+        start_time=0,
+        end_time=20,
+        wrt_time=0
+    )
+    enhancer.enhance(error_trial, 0, {}, {})
+    assert error_trial.enhancements == {
+        "greater": "No way!"
+    }

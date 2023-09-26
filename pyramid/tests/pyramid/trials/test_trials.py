@@ -692,7 +692,7 @@ def test_trial_boolean_expression():
 
 
 def test_trial_error_expression():
-    expression = TrialExpression(expression="4 / 0", default_result="No way!")
+    expression = TrialExpression(expression="4 / 0", default_value="No way!")
     trial = Trial(start_time=0.0, end_time=1.0)
     result = expression.evaluate(trial)
     assert result == "No way!"

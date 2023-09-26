@@ -193,23 +193,23 @@ class TrialExpression():
 
     Args:
         expression:     A string Python expression with trial enhancements as local variables, like "foo > 41" or "foo + bar"
-        default_result: Default value to return in case of error evaluating the expression (default is None)
+        default_value: Default value to return in case of error evaluating the expression (default is None)
     """
 
     def __init__(
         self,
         expression: str,
-        default_result: Any = None
+        default_value: Any = None
     ) -> None:
         self.expression = expression
-        self.default_result = default_result
+        self.default_value = default_value
 
     def __eq__(self, other: object) -> bool:
         """Compare field-wise, to support use of this class in tests."""
         if isinstance(other, self.__class__):
             return (
                 self.expression == other.expression
-                and self.default_result == other.default_result
+                and self.default_value == other.default_value
             )
         else:  # pragma: no cover
             return False
@@ -220,8 +220,8 @@ class TrialExpression():
             return eval(self.expression, {}, trial.enhancements)
         except:
             logging.error(f"Error evaluating TrialExpression: {self.expression}", exc_info=True)
-            logging.warning(f"Returning TrialExpression default value: {self.default_result}")
-            return self.default_result
+            logging.warning(f"Returning TrialExpression default value: {self.default_value}")
+            return self.default_value
 
 
 class TrialExtractor():

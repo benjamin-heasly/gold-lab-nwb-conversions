@@ -146,7 +146,7 @@ def test_configure_trials():
     }
     expected_enhancers = {
         TrialDurationEnhancer(): None,
-        TrialDurationEnhancer(default_duration=1.0): TrialExpression(expression="1==2", default_result=False)
+        TrialDurationEnhancer(default_duration=1.0): TrialExpression(expression="1==2", default_value=False)
     }
     expected_trial_extractor = TrialExtractor(
         named_buffers["wrt"],
@@ -249,7 +249,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
     }
     expected_enhancers = {
         TrialDurationEnhancer(): None,
-        TrialDurationEnhancer(default_duration=1.0): TrialExpression(expression="1==2", default_result=False)
+        TrialDurationEnhancer(default_duration=1.0): TrialExpression(expression="1==2", default_value=False)
     }
     expected_trial_extractor = TrialExtractor(
         expected_named_buffers["wrt"],
