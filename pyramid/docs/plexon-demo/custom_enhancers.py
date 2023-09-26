@@ -36,8 +36,6 @@ class CustomEnhancer(TrialEnhancer):
         # via PairedCodesEnhancer and EventTimesEnhancer.
 
         task_id = trial.get_enhancement("task_id")
-        if task_id is None:
-            return
 
         # Use trial.add_enhancement() to set new values from custom computations.
         # You can set a category like "time", "id", or "value" (the default).
@@ -204,8 +202,6 @@ class SaccadesEnhancer(TrialEnhancer):
 
         # Use trial.get_one() to get the time of the first occurence of the named "time" event.
         fp_off_time = trial.get_one(self.fp_off_name)
-        if fp_off_time is None:
-            return
 
         # Use trial.signals for gaze signal chunks.
         x_signal = trial.signals[self.horiz_buffer_name]

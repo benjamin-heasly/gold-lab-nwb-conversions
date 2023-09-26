@@ -1,4 +1,5 @@
 from typing import Any
+from numpy import bool_
 import csv
 
 from pyramid.trials.trials import Trial, TrialEnhancer, TrialExpression
@@ -214,4 +215,9 @@ class ExpressionEnhancer(TrialEnhancer):
         subject_info: dict[str: Any]
     ) -> None:
         value = self.trial_expression.evaluate(trial)
+
+        # Many numpy types are json-serializable like standard Python float, int, etc. -- But not numpy.bool_ !
+        if isinstance(value, bool_):
+            value = bool(value)
+
         trial.add_enhancement(self.value_name, value, self.value_category)

@@ -182,3 +182,31 @@ def test_expression_enhancer(tmp_path):
     assert error_trial.enhancements == {
         "greater": "No way!"
     }
+
+
+def test_expression_enhancer_bool_conversion(tmp_path):
+    enhancer = ExpressionEnhancer(
+        expression="foo > 0",
+        value_name="nonzero"
+    )
+
+    trial = Trial(
+        start_time=0,
+        end_time=20,
+        wrt_time=0,
+        enhancements={
+            "foo": np.array(42),
+        }
+    )
+
+    # The expression "foo > 0" expands to "np.array(42) > 0".
+    # This produces a numpy.bool_ rather than a standard Python bool.
+    # Check that the enhancer converts the result to standard (ie json-serializable) types only.
+    enhancer.enhance(trial, 0, {}, {})
+    assert trial.enhancements == {
+        "foo": np.array(42),
+        "nonzero": True
+    }
+
+    nonzero = trial.get_enhancement("nonzero")
+    assert type(nonzero) == bool

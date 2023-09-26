@@ -58,12 +58,19 @@ trials:
       args:
         buffer_name: ecodes
         rules_csv: ecode-rules.csv
+      # Standard enchancers come along with the Pyramid code.
+    - class: pyramid.trials.standard_enhancers.ExpressionEnhancer
+      args:
+        expression: task_id > 0
+        value_name: actual_task
       # Custom enchancers can be located in any specified "package path", eg the current folder.
     - class: custom_enhancers.SaccadesEnhancer
       package_path: .
+      when: actual_task and len(fp_off) > 0
       # Custom enchancers can be located in any specified "package path", eg the current folder.
     - class: custom_enhancers.CustomEnhancer
       package_path: .
+      when: actual_task
 plotters:
     # Plot basic info about conversion process, plus a "Quit" button.
   - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
