@@ -11,6 +11,10 @@ class TrialDurationEnhancer(TrialEnhancer):
         """Compare enhancers just by type, to support use of this class in tests."""
         return isinstance(other, self.__class__)
 
+    def __hash__(self) -> int:
+        """Hash enhancers just by type, to support use of this class in tests."""
+        return hash(self.__class__)
+
     def enhance(
         self,
         trial: Trial,

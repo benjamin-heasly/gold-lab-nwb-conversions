@@ -454,7 +454,11 @@ def test_enhance_trials():
 
     # Enhance trials with a sequence of enhancers.
     # The middle one always errors -- which should not blow up the overall process.
-    enhancers = [TrialDurationEnhancer(), BadEnhancer(), DurationPlusTrialNumber()]
+    enhancers = {
+        TrialDurationEnhancer(): None,
+        BadEnhancer(): None,
+        DurationPlusTrialNumber(): None
+    }
 
     extractor = TrialExtractor(
         wrt_router.named_buffers["wrt"],

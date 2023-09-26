@@ -9,7 +9,7 @@ Since `.plx` files can be large, you'll have to bring your own!
 Note the path of the file you want to use, for example,
 
 ```
-~/Desktop/data/MrM/Raw/MM_2022_08_05_REC.plx
+~/data/MrM/Raw/MM_2022_08_05_REC.plx
 ```
 
 Pyramid will read several Plexon event, spike, and analog signal channels from the file.
@@ -27,7 +27,7 @@ To start with, we can generate an overview graph of the experiment configuration
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/plexon-demo
 
-pyramid graph --graph-file demo_experiment.png --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/Desktop/data/MrM/Raw/MM_2022_08_05_REC.plx
+pyramid graph --graph-file demo_experiment.png --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx
 ```
 
 `demo_experiment.png`
@@ -233,7 +233,7 @@ The most recent trial is in full color, on top of 10 recent trials which are sma
 Here's how to run Pyramid in `gui` mode, which is how the plots shown above were created.
 
 ```
-pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/Desktop/data/MrM/Raw/MM_2022_08_05_REC.plx
+pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx
 ```
 
 This should open up a few figure windows, similar to the images above.
@@ -248,7 +248,7 @@ To exit Pyramid, you can:
 If you're only interested in the trial file and not the gui, you can run Pyramid in `convert` mode.
 
 ```
-pyramid convert --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/Desktop/data/MrM/Raw/MM_2022_08_05_REC.plx
+pyramid convert --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx
 ```
 
 This won't plot anything, and will convert the Plexon file to a trial file as fast as it can.
@@ -258,7 +258,7 @@ This won't plot anything, and will convert the Plexon file to a trial file as fa
 In case you get tired of rearranging plot figure windows, you can pass a `plot-positions` YAML file to Pyramid.
 
 ```
-pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/Desktop/data/MrM/Raw/MM_2022_08_05_REC.plx --plot-positions plot_positions.yaml
+pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx --plot-positions plot_positions.yaml
 ```
 
 When a `plot-positions` YAML file is passed in, Pyramid will record and restore figure positions as follows:

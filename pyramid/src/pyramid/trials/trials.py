@@ -183,6 +183,37 @@ class TrialEnhancer(DynamicImport):
         raise NotImplementedError  # pragma: no cover
 
 
+class TrialExpression():
+    """Evaluate a string expression using Python eval(), with trial enhancements for local variable values.
+
+    Python eval() is generally unsafe!  This makes a best effort to remove global system variables from
+    the evaluation context, but malicious things are still possible.  Please take care to use simple expressions,
+    like arithmetic and logic, based on the values of trial enhancements.  Existing trial enchancements
+    can be used by name as variables in these expressions.
+
+    Args:
+        expression:     A string Python expression with trial enhancements as local variables, like "foo > 41" or "foo + bar"
+        default_result: Default value to return in case of error evaluating the expression (default is None)
+    """
+
+    def __init__(
+        self,
+        expression: str,
+        default_result: Any = None
+    ) -> None:
+        self.expression = expression
+        self.default_result = default_result
+
+    def evaluate(self, trial: Trial) -> Any:
+        try:
+            # Evaluate the expression with free variables bound to trial enhancements.
+            return eval(self.expression, {}, trial.enhancements)
+        except:
+            logging.error(f"Error evaluating TrialExpression: {self.expression}", exc_info=True)
+            logging.warning(f"Returning TrialExpression default value: {self.default_result}")
+            return self.default_result
+
+
 class TrialExtractor():
     """Populate trials with WRT-aligned data from named buffers."""
 
@@ -192,8 +223,7 @@ class TrialExtractor():
         wrt_value: float,
         wrt_value_index: int = 0,
         named_buffers: dict[str, Buffer] = {},
-        # TODO: let enhaners be a map of TrialEnhancer: TrialExpression
-        enhancers: list[TrialEnhancer] = []
+        enhancers: dict[TrialEnhancer, TrialExpression] = {}
     ) -> None:
         self.wrt_buffer = wrt_buffer
         self.wrt_value = wrt_value
@@ -238,13 +268,13 @@ class TrialExtractor():
             data.shift_times(-trial.wrt_time)
             trial.add_buffer_data(name, data)
 
-        for enhancer in self.enhancers:
+        for enhancer in self.enhancers.keys():
             # TODO: evaluate the mapped TrialExpression for conditional execution
             # Default None or missing expression means True / "always execute".
             try:
                 enhancer.enhance(trial, trial_number, experiment_info, subject_info)
             except:
-                logging.error(f"Error applying enhancer {enhancer.__class__.__name__} to trial {trial_number}.", exc_info=True)
+                logging.error(f"Error applying {enhancer.__class__.__name__} to trial {trial_number}.", exc_info=True)
                 continue
 
     def discard_before(self, time: float):
@@ -252,26 +282,3 @@ class TrialExtractor():
         self.wrt_buffer.data.discard_before(time)
         for buffer in self.named_buffers.values():
             buffer.data.discard_before(time)
-
-
-class TrialExpression():
-    """Evaluate a string expression usung Python eval(), using trial enhancements for local variable values.
-
-    TODO: document once this feels settled.
-    """
-
-    def __init__(
-        self,
-        expression: str,
-        default_result: Any = False
-    ) -> None:
-        self.expression = expression
-        self.default_result = default_result
-
-    def evaluate(self, trial:Trial) -> Any:
-        try:
-            # Evaluate the expression with free variables bound to trial enhancements.
-            return eval(self.expression, {}, trial.enhancements)
-        except:
-            logging.error(f"Error evaluating TrialExpression {self.expression}", exc_info=True)
-            return self.default_result

@@ -47,7 +47,7 @@ def test_configure_readers():
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
             "args": {"result_name": "bar"},
             "extra_buffers": {
-               "bar_2": {
+                "bar_2": {
                     "reader_result_name": "bar",
                     "transformers": [
                         {
@@ -74,11 +74,11 @@ def test_configure_readers():
     assert readers == expected_readers
 
     expected_named_buffers = {
-        "start": Buffer(NumericEventList(np.empty([0,2]))),
-        "wrt": Buffer(NumericEventList(np.empty([0,2]))),
-        "foo": Buffer(NumericEventList(np.empty([0,2]))),
-        "bar": Buffer(NumericEventList(np.empty([0,2]))),
-        "bar_2": Buffer(NumericEventList(np.empty([0,2]))),
+        "start": Buffer(NumericEventList(np.empty([0, 2]))),
+        "wrt": Buffer(NumericEventList(np.empty([0, 2]))),
+        "foo": Buffer(NumericEventList(np.empty([0, 2]))),
+        "bar": Buffer(NumericEventList(np.empty([0, 2]))),
+        "bar_2": Buffer(NumericEventList(np.empty([0, 2]))),
     }
     assert named_buffers == expected_named_buffers
 
@@ -124,8 +124,8 @@ def test_configure_trials():
         ]
     }
     named_buffers = {
-        "start": Buffer(NumericEventList(np.empty([0,2]))),
-        "wrt": Buffer(NumericEventList(np.empty([0,2])))
+        "start": Buffer(NumericEventList(np.empty([0, 2]))),
+        "wrt": Buffer(NumericEventList(np.empty([0, 2])))
     }
     (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(trials_config, named_buffers)
 
@@ -137,7 +137,7 @@ def test_configure_trials():
         for name, value in named_buffers.items()
         if name != "start" and name != "wrt"
     }
-    expected_enhancers = [TrialDurationEnhancer()]
+    expected_enhancers = {TrialDurationEnhancer(): None}
     expected_trial_extractor = TrialExtractor(
         named_buffers["wrt"],
         wrt_value=42,
@@ -156,7 +156,7 @@ def test_configure_plotters():
     ]
     plotters = configure_plotters(plotters_config)
 
-    expected_plotters=[BasicInfoPlotter(), NumericEventsPlotter(), SignalChunksPlotter()]
+    expected_plotters = [BasicInfoPlotter(), NumericEventsPlotter(), SignalChunksPlotter()]
 
     assert len(plotters) == len(expected_plotters)
     plotter_types_equal = [isinstance(a, b.__class__) for a, b in zip(plotters, expected_plotters)]
@@ -194,11 +194,11 @@ def test_from_yaml_and_reader_overrides(fixture_path):
     }
 
     expected_named_buffers = {
-        "start": Buffer(NumericEventList(np.empty([0,2]))),
-        "wrt": Buffer(NumericEventList(np.empty([0,2]))),
-        "foo": Buffer(NumericEventList(np.empty([0,2]))),
-        "bar": Buffer(NumericEventList(np.empty([0,2]))),
-        "bar_2": Buffer(NumericEventList(np.empty([0,2]))),
+        "start": Buffer(NumericEventList(np.empty([0, 2]))),
+        "wrt": Buffer(NumericEventList(np.empty([0, 2]))),
+        "foo": Buffer(NumericEventList(np.empty([0, 2]))),
+        "bar": Buffer(NumericEventList(np.empty([0, 2]))),
+        "bar_2": Buffer(NumericEventList(np.empty([0, 2]))),
     }
 
     expected_reader_routers = [
@@ -237,7 +237,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         for name, value in expected_named_buffers.items()
         if name != "start" and name != "wrt"
     }
-    expected_enhancers = [TrialDurationEnhancer()]
+    expected_enhancers = {TrialDurationEnhancer(): None}
     expected_trial_extractor = TrialExtractor(
         expected_named_buffers["wrt"],
         wrt_value=42,

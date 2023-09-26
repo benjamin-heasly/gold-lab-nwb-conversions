@@ -10,7 +10,7 @@ import graphviz
 from pyramid.model.model import Buffer
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
-from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialEnhancer
+from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialEnhancer, TrialExpression
 from pyramid.trials.trial_file import TrialFile
 from pyramid.plotters.plotters import Plotter, PlotFigureController
 
@@ -380,24 +380,28 @@ def configure_trials(
     other_buffers = {name: buffer for name, buffer in named_buffers.items()
                      if name != start_buffer_name and name != wrt_buffer_name}
 
-    # TODO: let enhaners be a map of TrialEnhancer: TrialExpression
-    enhancers = []
+    enhancers = {}
     enhancers_config = trials_config.get("enhancers", [])
     logging.info(f"Using {len(enhancers_config)} per-trial enhancers.")
     for enhancer_config in enhancers_config:
         enhancer_class = enhancer_config["class"]
-        logging.info(f"  {enhancer_class}")
         package_path = enhancer_config.get("package_path", None)
-        # TODO: look for optional "when" with a string expression
-        # TODO: parse the "when" string as a TrialExpression and store as enhancers value
-        # TODO: default to None, meaning "always execute".
         enhancer_args = enhancer_config.get("args", {})
         enhancer = TrialEnhancer.from_dynamic_import(
             enhancer_class,
             external_package_path=package_path,
             **enhancer_args
         )
-        enhancers.append(enhancer)
+
+        when_string = enhancer_config.get("when", None)
+        if when_string is not None:
+            logging.info(f"  {enhancer_class} when {when_string}")
+            when_expression = TrialExpression(expression=when_string, default_result=None)
+        else:
+            logging.info(f"  {enhancer_class}")
+            when_expression = None
+
+        enhancers[enhancer] = when_expression
 
     trial_extractor = TrialExtractor(
         wrt_buffer=named_buffers[wrt_buffer_name],
