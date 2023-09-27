@@ -82,23 +82,23 @@ def test_configure_readers():
     }
     assert named_buffers == expected_named_buffers
 
-    expected_reader_routers = [
-        ReaderRouter(
+    expected_reader_routers = {
+        "start_reader": ReaderRouter(
             expected_readers["start_reader"],
             [ReaderRoute("start", "start")],
             {"start": expected_named_buffers["start"]}
         ),
-        ReaderRouter(
+        "wrt_reader": ReaderRouter(
             expected_readers["wrt_reader"],
             [ReaderRoute("wrt", "wrt")],
             {"wrt": expected_named_buffers["wrt"]}
         ),
-        ReaderRouter(
+        "foo_reader": ReaderRouter(
             expected_readers["foo_reader"],
             [ReaderRoute("foo", "foo")],
             {"foo": expected_named_buffers["foo"]}
         ),
-        ReaderRouter(
+        "bar_reader": ReaderRouter(
             expected_readers["bar_reader"],
             [
                 ReaderRoute("bar", "bar"),
@@ -109,7 +109,7 @@ def test_configure_readers():
                 "bar_2": expected_named_buffers["bar_2"]
             }
         ),
-    ]
+    }
     assert reader_routers == expected_reader_routers
 
 
@@ -211,23 +211,23 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         "bar_2": Buffer(NumericEventList(np.empty([0, 2]))),
     }
 
-    expected_reader_routers = [
-        ReaderRouter(
+    expected_reader_routers = {
+        "start_reader": ReaderRouter(
             expected_readers["start_reader"],
             [ReaderRoute("start", "start")],
             {"start": expected_named_buffers["start"]}
         ),
-        ReaderRouter(
+        "wrt_reader": ReaderRouter(
             expected_readers["wrt_reader"],
             [ReaderRoute("wrt", "wrt")],
             {"wrt": expected_named_buffers["wrt"]}
         ),
-        ReaderRouter(
+        "foo_reader": ReaderRouter(
             expected_readers["foo_reader"],
             [ReaderRoute("foo", "foo")],
             {"foo": expected_named_buffers["foo"]}
         ),
-        ReaderRouter(
+        "bar_reader": ReaderRouter(
             expected_readers["bar_reader"],
             [
                 ReaderRoute("bar", "bar"),
@@ -238,7 +238,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
                 "bar_2": expected_named_buffers["bar_2"]
             }
         ),
-    ]
+    }
 
     expected_trial_delimiter = TrialDelimiter(expected_named_buffers["start"], start_value=1010)
 
@@ -269,7 +269,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         experiment=expected_experiment["experiment"],
         readers=expected_readers,
         named_buffers=expected_named_buffers,
-        start_router=expected_reader_routers[0],
+        start_router=expected_reader_routers["start_reader"],
         routers=expected_reader_routers,
         trial_delimiter=expected_trial_delimiter,
         trial_extractor=expected_trial_extractor,

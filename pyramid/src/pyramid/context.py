@@ -23,8 +23,7 @@ class PyramidContext():
     readers: dict[str, Reader]
     named_buffers: dict[str, Buffer]
     start_router: ReaderRouter
-    # TODO: refactor to map of named routers, same as readers?
-    routers: list[ReaderRouter]
+    routers: dict[str, ReaderRouter]
     trial_delimiter: TrialDelimiter
     trial_extractor: TrialExtractor
     plot_figure_controller: PlotFigureController
@@ -76,7 +75,7 @@ class PyramidContext():
 
         # Rummage around in the configured reader routers for the one associated with the trial "start" delimiter.
         start_router = None
-        for router in reader_routers:
+        for router in reader_routers.values():
             for buffer_name in router.named_buffers.keys():
                 if buffer_name == start_buffer_name:
                     start_router = router
@@ -121,7 +120,7 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for trial_number, new_trial in new_trials.items():
-                        for router in self.routers:
+                        for router in self.routers.values():
                             router.route_until(new_trial.end_time)
                         # TODO: update buffer clock offsets from sync events
                         # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
@@ -131,7 +130,7 @@ class PyramidContext():
                         self.trial_extractor.discard_before(new_trial.start_time)
 
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
-            for router in self.routers:
+            for router in self.routers.values():
                 router.route_next()
             # TODO: update buffer clock offsets from sync events
             # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
@@ -166,7 +165,7 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for trial_number, new_trial in new_trials.items():
-                        for router in self.routers:
+                        for router in self.routers.values():
                             router.route_until(new_trial.end_time)
                         # TODO: update buffer clock offsets from sync events
                         # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
@@ -177,7 +176,7 @@ class PyramidContext():
                         self.trial_extractor.discard_before(new_trial.start_time)
 
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
-            for router in self.routers:
+            for router in self.routers.values():
                 router.route_next()
             # TODO: update buffer clock offsets from sync events
             # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
@@ -206,8 +205,6 @@ class PyramidContext():
             }
         )
 
-        # TODO: named_routers might go away if I refactor routers to be a dict in the first place.
-        named_routers = {}
         results_styles = {}
 
         for reader_index, (name, reader) in enumerate(self.readers.items()):
@@ -223,9 +220,6 @@ class PyramidContext():
                     results_styles[result_name] = {"color": '#FFB000'}
 
             dot.node(name=name, label=label, shape="record")
-            for router in self.routers:
-                if router.reader is reader:
-                    named_routers[name] = router
 
         start_buffer_name = None
         wrt_buffer_name = None
@@ -238,7 +232,7 @@ class PyramidContext():
             if buffer is self.trial_extractor.wrt_buffer:
                 wrt_buffer_name = name
 
-        for reader_name, router in named_routers.items():
+        for reader_name, router in self.routers.items():
             for result_index, route in enumerate(router.routes):
                 route_name = f"{reader_name}_route_{result_index}"
                 if route.transformers:
@@ -289,12 +283,12 @@ class PyramidContext():
 def configure_readers(
     readers_config: dict[str, dict],
     allow_simulate_delay: bool = False
-) -> tuple[dict[str, Reader], dict[str, Buffer], list[ReaderRouter]]:
+) -> tuple[dict[str, Reader], dict[str, Buffer], dict[str, ReaderRouter]]:
     """Load the "readers:" section of an experiment YAML file."""
 
     readers = {}
     named_buffers = {}
-    routers = []
+    routers = {}
     logging.info(f"Using {len(readers_config)} readers.")
     for (reader_name, reader_config) in readers_config.items():
         # Instantiate the reader by dynamic import.
@@ -356,7 +350,7 @@ def configure_readers(
             named_buffers=reader_buffers,
             empty_reads_allowed=empty_reads_allowed
         )
-        routers.append(router)
+        routers[reader_name] = router
         named_buffers.update(router.named_buffers)
 
     logging.info(f"Using {len(named_buffers)} named buffers.")
