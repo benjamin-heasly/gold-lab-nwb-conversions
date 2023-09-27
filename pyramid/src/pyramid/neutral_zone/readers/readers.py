@@ -92,7 +92,7 @@ class ReaderSyncConfig():
     """Specify configuration for how a reader should find sync events and correct for clock drift."""
 
     is_reference: str = False
-    """Whether the reader represents the canonical, reference clock to which others readers should be aligned."""
+    """Whether the reader represents the canonical, reference clock to which others readers will be aligned."""
 
     buffer_name: str = None
     """The name of the reader results buffer that will receive clock sync numeric events."""
@@ -110,6 +110,72 @@ class ReaderSyncConfig():
     Or it may be the name of a different reader so that one reader may reuse sync info from another.
     For example, a Phy spike reader might want to use sync info from an upstream data source like Plexon or OpenEphys.
     """
+
+
+class ReaderSyncRegistry():
+    """Keep track of sync events as seen by different readers, and clock drift compared to a referencce reader.
+
+        When comparing sync event times between readers the registry will use the latest sync information recorded so far.
+        It will also try to line up times in pairs so that both times correspond to the same real-world sync event.
+
+            reference: |   |   |   |   |   |   |   |
+            other:     |   |   |   |   |  |   |   |
+                                                  ^^ latest pair seen so far, seems like a reasonable drift estimate
+
+        The registry will form the pairs based on difference in time, as opposed just lining up array indexes.
+        This should make the drift estimates robust in case readers record different numbers of sync events.
+        For example, one reader might suddenly stop recording sync altogether.
+
+            reference: |   |   |   |   |   |   |   |
+            other:     |   |   |
+                                  ^ oops, sync from other dropped around here here!
+
+        In this case, pairing up the latest events by array index would lead to "drift" estimates that grow
+        in real time, and don't really reflect the underlying clock rates.
+
+        So instead, the registry will consider the latest sync event time from each reader, and pair it with the closest
+        event time from the other reader.  From these two "closest" pairs, it will choose the pair with the smallest
+        time difference.
+            reference: |   |   |   |   |   |   |   |
+            other:     |   |   |                   ^ "closest" from reference is huge and growing in real time!
+                               ^ "closest" from other is older, but still looks reasonable
+
+        All this assumes that clock drift is small compared to the interval between real-world sync events.  If that's
+        true then looking for small differences between readers is a good way to discover which times go together.
+    """
+
+    def __init__(
+        self,
+        reference_reader_name: str
+    ) -> None:
+        self.reference_reader_name = reference_reader_name
+        self.event_times = {}
+
+    def record_event(self, reader_name: str, event_time: float) -> None:
+        """Record a sync event as seen by the named reader."""
+        reader_event_times = self.event_times.get(reader_name, [])
+        reader_event_times.append(event_time)
+        self.event_times[reader_name] = reader_event_times
+
+    def get_drift(self, reader_name: str) -> float:
+        """Estimate clock drift between the named reader and the reference, based on events marked for each reader."""
+        reader_event_times = self.event_times.get(reader_name, None)
+        if not reader_event_times:
+            return 0.0
+
+        reference_event_times = self.event_times.get(self.reference_reader_name, None)
+        if not reference_event_times:
+            return 0.0
+
+        reader_last = reader_event_times[-1]
+        reader_offsets = [reader_last - ref_time for ref_time in reference_event_times]
+        drift_from_reader = min(reader_offsets, key=abs)
+
+        reference_last = reference_event_times[-1]
+        reference_offsets = [reader_time - reference_last for reader_time in reader_event_times]
+        drift_from_reference = min(reference_offsets, key=abs)
+
+        return min(drift_from_reader, drift_from_reference, key=abs)
 
 
 class ReaderRouter():
@@ -225,12 +291,3 @@ class ReaderRouter():
                 empty_reads += 1
 
         return self.max_buffer_time
-
-
-# TODO: registry of latest sync event times per reader (reader name?), conversion utils.
-#       map of reader names to list of observed sync events (raw, absolute times)
-#       name of canonical reader
-#       for a given reader (reader name?), what is the offset vs the canonical?
-#       choose most recent pair of events from both readers, within some tolerance (or 0)
-#       offset for this reader minus offset for the canonical reader
-#       assign offset to all buffers in the reader's router (is this all part of the router?)

@@ -2,7 +2,7 @@ import numpy as np
 
 from pyramid.model.events import NumericEventList
 from pyramid.model.model import Buffer, BufferData
-from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter
+from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, ReaderSyncRegistry
 from pyramid.neutral_zone.transformers.standard_transformers import FilterRange, OffsetThenGain
 
 
@@ -291,3 +291,55 @@ def test_router_skip_transformer_errors():
 
     # Buffer two should have had errors that didn't affect buffer one.
     assert router.named_buffers["two"].data.event_count() == 0
+
+
+def test_reader_sync_registry():
+    registry = ReaderSyncRegistry("ref")
+
+    # With no data yet, offsets should default to 0.
+    assert registry.get_drift("ref") == 0
+    assert registry.get_drift("foo") == 0
+
+    # With only a reference event, offsets should still evaluate to 0.
+    # ref to ref is zero by definition.
+    # ref to foo is still undefined and defaults to 0.
+    registry.record_event("ref", 1)
+    assert registry.get_drift("ref") == 0
+    assert registry.get_drift("foo") == 0
+
+    # With both reference and other events, offsets are meaningful.
+    registry.record_event("foo", 1.11)
+    registry.record_event("bar", 0.91)
+    assert registry.get_drift("ref") == 0
+    assert registry.get_drift("foo") == 1.11 - 1.0
+    assert registry.get_drift("bar") == 0.91 - 1.0
+
+    # If bar stops recording sync, use an older, more reasonable drift estimate.
+    registry.record_event("ref", 2)
+    registry.record_event("foo", 2.12)
+    assert registry.get_drift("ref") == 0
+    assert registry.get_drift("foo") == 2.12 - 2.0
+    assert registry.get_drift("bar") == 0.91 - 1.0
+
+    # Let bar recover after dropping one sync event.
+    registry.record_event("ref", 3)
+    registry.record_event("foo", 3.13)
+    registry.record_event("bar", 2.93)
+    assert registry.get_drift("ref") == 0
+    assert registry.get_drift("foo") == 3.13 - 3.0
+    assert registry.get_drift("bar") == 2.93 - 3.0
+
+    # If ref stops recording sync, use older, more reasonable drift estimates.
+    registry.record_event("foo", 4.14)
+    registry.record_event("bar", 3.94)
+    assert registry.get_drift("ref") == 0
+    assert registry.get_drift("foo") == 3.13 - 3.0
+    assert registry.get_drift("bar") == 2.93 - 3.0
+
+    # Let ref recover after dropping one sync event.
+    registry.record_event("ref", 5)
+    registry.record_event("foo", 5.15)
+    registry.record_event("bar", 4.95)
+    assert registry.get_drift("ref") == 0
+    assert registry.get_drift("foo") == 5.15 - 5.0
+    assert registry.get_drift("bar") == 4.95 - 5.0
