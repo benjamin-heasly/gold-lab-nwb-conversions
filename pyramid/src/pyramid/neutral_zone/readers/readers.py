@@ -87,6 +87,31 @@ class ReaderRoute():
     """Optional data transformations between reader and buffer, applied in order."""
 
 
+@dataclass
+class ReaderSyncConfig():
+    """Specify configuration for how a reader should find sync events and correct for clock drift."""
+
+    is_reference: str = False
+    """Whether the reader represents the canonical, reference clock to which others readers should be aligned."""
+
+    buffer_name: str = None
+    """The name of the reader results buffer that will receive clock sync numeric events."""
+
+    event_value: int | float = None
+    """The value of sync events to look for, within the named event buffer."""
+
+    event_value_index: int = 0
+    """The numeric event value index to use within the named event buffer."""
+
+    reader_name: str = None
+    """The name of the reader to act as when aligning data within trials.
+
+    Usually reader_name would be the name of the same reader that this config applies to.
+    Or it may be the name of a different reader so that one reader may reuse sync info from another.
+    For example, a Phy spike reader might want to use sync info from an upstream data source like Plexon or OpenEphys.
+    """
+
+
 class ReaderRouter():
     """Get incremental results from a reader, copy and route the data into named buffers.
 
@@ -99,12 +124,14 @@ class ReaderRouter():
         reader: Reader,
         routes: list[ReaderRoute],
         named_buffers: dict[str, Buffer],
-        empty_reads_allowed: int = 3
+        empty_reads_allowed: int = 3,
+        sync_config: ReaderSyncConfig = None
     ) -> None:
         self.reader = reader
         self.routes = routes
         self.named_buffers = named_buffers
         self.empty_reads_allowed = empty_reads_allowed
+        self.sync_config = sync_config
 
         self.reader_exception = None
         self.max_buffer_time = 0.0
@@ -114,9 +141,10 @@ class ReaderRouter():
         if isinstance(other, self.__class__):
             return (
                 self.reader == other.reader
-                and self.named_buffers == other.named_buffers
                 and self.routes == other.routes
+                and self.named_buffers == other.named_buffers
                 and self.empty_reads_allowed == other.empty_reads_allowed
+                and self.sync_config == other.sync_config
             )
         else:  # pragma: no cover
             return False
@@ -137,7 +165,10 @@ class ReaderRouter():
             return False
         except Exception as exception:
             self.reader_exception = exception
-            logging.warning(f"Reader {self.reader.__class__.__name__} is disabled (it raised an unexpected error):", exc_info=True)
+            logging.warning(
+                f"Reader {self.reader.__class__.__name__} is disabled (it raised an unexpected error):",
+                exc_info=True
+            )
             return False
 
         if not result:

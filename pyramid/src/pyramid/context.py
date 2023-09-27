@@ -8,7 +8,7 @@ import yaml
 import graphviz
 
 from pyramid.model.model import Buffer
-from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer
+from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer, ReaderSyncConfig
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialEnhancer, TrialExpression
 from pyramid.trials.trial_file import TrialFile
@@ -302,8 +302,6 @@ def configure_readers(
             reader = DelaySimulatorReader(reader)
         readers[reader_name] = reader
 
-        # TODO: optional sync event config: buffer name, event value, event value index.
-
         # Configure default, pass-through routes for the reader.
         initial_results = reader.get_initial()
         named_routes = {buffer_name: ReaderRoute(buffer_name, buffer_name) for buffer_name in initial_results.keys()}
@@ -342,13 +340,22 @@ def configure_readers(
                     data_copy = transformer.transform(data_copy)
                 reader_buffers[route.buffer_name] = Buffer(data_copy)
 
+        # Configure sync events for correcting clock drift for this reader.
+        sync_config = reader_config.get("sync", {})
+        if sync_config:
+            sync_config_plus_default = {"reader_name": reader_name, **sync_config}
+            reader_sync_config = ReaderSyncConfig(**sync_config_plus_default)
+        else:
+            reader_sync_config = None
+
         # Create a router to route data from the reader along each configured route to its buffer.
         empty_reads_allowed = reader_config.get("empty_reads_allowed", 3)
         router = ReaderRouter(
             reader=reader,
             routes=list(named_routes.values()),
             named_buffers=reader_buffers,
-            empty_reads_allowed=empty_reads_allowed
+            empty_reads_allowed=empty_reads_allowed,
+            sync_config=reader_sync_config
         )
         routers[reader_name] = router
         named_buffers.update(router.named_buffers)

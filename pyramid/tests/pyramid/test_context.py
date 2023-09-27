@@ -5,7 +5,7 @@ import numpy as np
 
 from pyramid.model.model import Buffer
 from pyramid.model.events import NumericEventList
-from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter
+from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter, ReaderSyncConfig
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
 from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGain
@@ -33,11 +33,19 @@ def test_configure_readers():
                 "csv_file": "default.csv",
                 "result_name": "start"
             },
-            "simulate_delay": True
+            "simulate_delay": True,
+            "sync": {
+                "is_reference": True,
+                "buffer_name": "start",
+                "event_value": 1010
+            }
         },
         "wrt_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "args": {"result_name": "wrt"}
+            "args": {"result_name": "wrt"},
+            "sync": {
+                "reader_name": "start_reader"
+            }
         },
         "foo_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
@@ -82,16 +90,19 @@ def test_configure_readers():
     }
     assert named_buffers == expected_named_buffers
 
+    sync = ReaderSyncConfig(is_reference=True, buffer_name="start", event_value=1010, reader_name="start_reader")
     expected_reader_routers = {
         "start_reader": ReaderRouter(
             expected_readers["start_reader"],
             [ReaderRoute("start", "start")],
-            {"start": expected_named_buffers["start"]}
+            {"start": expected_named_buffers["start"]},
+            sync_config=sync
         ),
         "wrt_reader": ReaderRouter(
             expected_readers["wrt_reader"],
             [ReaderRoute("wrt", "wrt")],
-            {"wrt": expected_named_buffers["wrt"]}
+            {"wrt": expected_named_buffers["wrt"]},
+            sync_config=ReaderSyncConfig(reader_name="start_reader")
         ),
         "foo_reader": ReaderRouter(
             expected_readers["foo_reader"],
@@ -211,16 +222,19 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         "bar_2": Buffer(NumericEventList(np.empty([0, 2]))),
     }
 
+    sync = ReaderSyncConfig(is_reference=True, buffer_name="start", event_value=1010, reader_name="start_reader")
     expected_reader_routers = {
         "start_reader": ReaderRouter(
             expected_readers["start_reader"],
             [ReaderRoute("start", "start")],
-            {"start": expected_named_buffers["start"]}
+            {"start": expected_named_buffers["start"]},
+            sync_config=sync
         ),
         "wrt_reader": ReaderRouter(
             expected_readers["wrt_reader"],
             [ReaderRoute("wrt", "wrt")],
-            {"wrt": expected_named_buffers["wrt"]}
+            {"wrt": expected_named_buffers["wrt"]},
+            sync_config=ReaderSyncConfig(reader_name="start_reader")
         ),
         "foo_reader": ReaderRouter(
             expected_readers["foo_reader"],
