@@ -16,7 +16,7 @@ readers:
     args:
       # Override plx_file on cli with: --readers plexon_reader.plx_file=my_real_file.plx
       plx_file: my_file.plx
-      spikes: "all"
+      spikes: all
       events:
         Strobed: ecodes
       signals:

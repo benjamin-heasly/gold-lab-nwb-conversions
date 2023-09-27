@@ -72,7 +72,7 @@ readers:
     args:
       # Override plx_file on cli with: --readers plexon_reader.plx_file=my_real_file.plx
       plx_file: my_file.plx
-      spikes: all
+      spikes: "all"
       events:
         Strobed: ecodes
       signals:
@@ -107,10 +107,11 @@ To delimit trials in time, Pyramid will look at the `delimiter` buffer.  Events 
 
 To build each trial Pyramid will use two standard, rule-based enhancers and two custom code enhancers.  All of the enchancers will add some name-value pairs to each trial, indicating things like events of interest, trial scores, saccades, etc.
 
- - A standard, rule-based [PairedCodesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L28) will look for numeric events that encode property-value pairs for each trial.  The experiment-specific names and encodings for these are declared in a table, [ecode-rules.csv](ecode-rules.csv).
- - A standard, rule-based [EventTimesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L111) will look for named events of interest and record any occurrence times within each trial.  The experiment-specific names and code values for these are declared in the same table, [ecode-rules.csv](ecode-rules.csv).
- - A custom [SaccadesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L151) will examine the `gaze_x` and `gaze_y` AD signals for each trial and extract saccades.  Each saccade will be a dictionary of saccade parameters like `t_start`, `x_end`, `y_end`, etc.  The custom Python code for this is here in this folder, in [custom_enhancers.py](custom_enhancers.py)
- - Another [CustomEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L25) will examine all of the trial data and enchancements above and compute experiment-specific labels, scores, etc.  The Python code for this is in the same file, [custom_enhancers.py](custom_enhancers.py)
+ - A standard, rule-based [PairedCodesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L39) will look for numeric events that encode property-value pairs for each trial.  The experiment-specific names and encodings for these are declared in a table, [ecode-rules.csv](ecode-rules.csv).
+ - A standard, rule-based [EventTimesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L122) will look for named events of interest and record any occurrence times within each trial.  The experiment-specific names and code values for these are declared in the same table, [ecode-rules.csv](ecode-rules.csv).
+ - A standard [ExpressionEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L189) will evaluate a given expression against each trial and add the result to each trial as 'actual_task', which will drive conditional enhancements below.
+ - A custom [SaccadesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L149) will examine the `gaze_x` and `gaze_y` AD signals for each trial and extract saccades.  Each saccade will be a dictionary of saccade parameters like `t_start`, `x_end`, `y_end`, etc.  The custom Python code for this is here in this folder, in [custom_enhancers.py](custom_enhancers.py).  This will only run for trials `when` the value of `actual_task` is true, and at least one `fp_off` time is present.
+ - Another [CustomEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L25) will examine all of the trial data and enchancements above and compute experiment-specific labels, scores, etc.  The Python code for this is in the same file, [custom_enhancers.py](custom_enhancers.py).  This will only run for trials `when` the value of `actual_task` is true.
 
 ```
 trials:
@@ -130,12 +131,19 @@ trials:
       args:
         buffer_name: ecodes
         rules_csv: ecode-rules.csv
+      # Standard enchancers come along with the Pyramid code.
+    - class: pyramid.trials.standard_enhancers.ExpressionEnhancer
+      args:
+        expression: task_id > 0
+        value_name: actual_task
       # Custom enchancers can be located in any specified "package path", eg the current folder.
     - class: custom_enhancers.SaccadesEnhancer
       package_path: .
+      when: actual_task and len(fp_off) > 0
       # Custom enchancers can be located in any specified "package path", eg the current folder.
     - class: custom_enhancers.CustomEnhancer
       package_path: .
+      when: actual_task
 ```
 
 ### plotters: ###
@@ -159,14 +167,14 @@ plotters:
       xmin: -1.0
       xmax: 5.0
       match_pattern: ecodes
-    # Plot raw spike data with color-coded channels and units on the y-axis.
-  - class: pyramid.plotters.standard_plotters.NumericEventsPlotter
+    # Plot spike data with channels and units on the y-axis.
+  - class: pyramid.plotters.standard_plotters.SpikeEventsPlotter
     args:
       xmin: -1.0
       xmax: 5.0
       match_pattern: spike_.*
       value_index: 1
-      ylabel: unit
+      value_selection: 1
       marker: "|"
     # Plot time(s) of key events during each trial (enhancements in the "time" category).
   - class: pyramid.plotters.standard_plotters.EnhancementTimesPlotter
