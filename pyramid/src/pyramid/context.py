@@ -23,6 +23,7 @@ class PyramidContext():
     readers: dict[str, Reader]
     named_buffers: dict[str, Buffer]
     start_router: ReaderRouter
+    # TODO: refactor to map of named routers, same as readers?
     routers: list[ReaderRouter]
     trial_delimiter: TrialDelimiter
     trial_extractor: TrialExtractor
@@ -122,6 +123,8 @@ class PyramidContext():
                     for trial_number, new_trial in new_trials.items():
                         for router in self.routers:
                             router.route_until(new_trial.end_time)
+                        # TODO: update buffer clock offsets from sync events
+                        # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
                         self.trial_delimiter.discard_before(new_trial.start_time)
@@ -130,6 +133,8 @@ class PyramidContext():
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers:
                 router.route_next()
+            # TODO: update buffer clock offsets from sync events
+            # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
             (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
                 self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)
@@ -163,6 +168,8 @@ class PyramidContext():
                     for trial_number, new_trial in new_trials.items():
                         for router in self.routers:
                             router.route_until(new_trial.end_time)
+                        # TODO: update buffer clock offsets from sync events
+                        # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
                         self.plot_figure_controller.plot_next(new_trial, trial_number)
@@ -172,6 +179,8 @@ class PyramidContext():
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers:
                 router.route_next()
+            # TODO: update buffer clock offsets from sync events
+            # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
             (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
                 self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)
@@ -197,6 +206,7 @@ class PyramidContext():
             }
         )
 
+        # TODO: named_routers might go away if I refactor routers to be a dict in the first place.
         named_routers = {}
         results_styles = {}
 
@@ -297,6 +307,8 @@ def configure_readers(
         if simulate_delay:
             reader = DelaySimulatorReader(reader)
         readers[reader_name] = reader
+
+        # TODO: optional sync event config: buffer name, event value, event value index.
 
         # Configure default, pass-through routes for the reader.
         initial_results = reader.get_initial()

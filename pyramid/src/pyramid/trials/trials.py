@@ -274,9 +274,13 @@ class TrialExtractor():
             trial.wrt_time = 0.0
 
         for name, buffer in self.named_buffers.items():
+            # TODO: apply buffer's clock_offset to parameters of copy_time_range?
             data = buffer.data.copy_time_range(trial.start_time, trial.end_time)
+            # TODO: include buffer's clock_offset in the time shift
             data.shift_times(-trial.wrt_time)
             trial.add_buffer_data(name, data)
+            # TODO: record dict of named buffer clock_offsets as an enhancement.
+            #       Maybe: if any offsets are nonzero, record them all including the zeros?
 
         for enhancer, when_expression in self.enhancers.items():
             if when_expression is not None:

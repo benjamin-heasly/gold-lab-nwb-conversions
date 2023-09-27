@@ -143,6 +143,8 @@ class ReaderRouter():
         if not result:
             return False
 
+        # TODO: check for sync event config in result, add any new events to registry for this reader / router / reader name.
+
         for route in self.routes:
             buffer = self.named_buffers.get(route.buffer_name, None)
             if not buffer:
@@ -192,3 +194,12 @@ class ReaderRouter():
                 empty_reads += 1
 
         return self.max_buffer_time
+
+
+# TODO: registry of latest sync event times per reader (reader name?), conversion utils.
+#       map of reader names to list of observed sync events (raw, absolute times)
+#       name of canonical reader
+#       for a given reader (reader name?), what is the offset vs the canonical?
+#       choose most recent pair of events from both readers, within some tolerance (or 0)
+#       offset for this reader minus offset for the canonical reader
+#       assign offset to all buffers in the reader's router (is this all part of the router?)
