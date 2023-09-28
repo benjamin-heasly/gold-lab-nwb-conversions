@@ -2,7 +2,7 @@ import numpy as np
 
 from pyramid.model.events import NumericEventList
 from pyramid.model.model import Buffer, BufferData
-from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, ReaderSyncRegistry
+from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, ReaderSyncConfig, ReaderSyncRegistry
 from pyramid.neutral_zone.transformers.standard_transformers import FilterRange, OffsetThenGain
 
 
@@ -296,50 +296,104 @@ def test_router_skip_transformer_errors():
 def test_reader_sync_registry():
     registry = ReaderSyncRegistry("ref")
 
-    # With no data yet, offsets should default to 0.
+    # With no data yet, drift should default to 0.
     assert registry.get_drift("ref") == 0
     assert registry.get_drift("foo") == 0
 
-    # With only a reference event, offsets should still evaluate to 0.
-    # ref to ref is zero by definition.
-    # ref to foo is still undefined and defaults to 0.
-    registry.record_event("ref", 1)
+    # With only a reference event, drift should still evaluate to 0.
+    #  - ref vs ref drift is zero by definition.
+    #  - ref vs foo drift is still undefined and defaults to 0.
+    registry.record_event("ref", 1.0)
     assert registry.get_drift("ref") == 0
     assert registry.get_drift("foo") == 0
 
-    # With both reference and other events, offsets are meaningful.
+    # With both reference and other events, drift is now meaningful.
+    #   ref:    |
+    #   foo:     |
+    #   bar:   |
+    #          ^ ^ relevant events for drift estimation
     registry.record_event("foo", 1.11)
     registry.record_event("bar", 0.91)
     assert registry.get_drift("ref") == 0
     assert registry.get_drift("foo") == 1.11 - 1.0
     assert registry.get_drift("bar") == 0.91 - 1.0
 
-    # If bar stops recording sync, use an older, more reasonable drift estimate.
-    registry.record_event("ref", 2)
+    # If bar misses a sync event use an older, more reasonable drift estimate.
+    #   ref:    |    |
+    #   foo:     |    |
+    #   bar:   |    x
+    #          ^bar   ^foo
+    registry.record_event("ref", 2.0)
     registry.record_event("foo", 2.12)
     assert registry.get_drift("ref") == 0
     assert registry.get_drift("foo") == 2.12 - 2.0
     assert registry.get_drift("bar") == 0.91 - 1.0
 
-    # Let bar recover after dropping one sync event.
-    registry.record_event("ref", 3)
+    # Let bar recover after recording the next sync event.
+    #   ref:    |    |    |
+    #   foo:     |    |    |
+    #   bar:   |    x    |
+    #                    ^ ^
+    registry.record_event("ref", 3.0)
     registry.record_event("foo", 3.13)
     registry.record_event("bar", 2.93)
     assert registry.get_drift("ref") == 0
     assert registry.get_drift("foo") == 3.13 - 3.0
     assert registry.get_drift("bar") == 2.93 - 3.0
 
-    # If ref stops recording sync, use older, more reasonable drift estimates.
+    # If ref misses a sync event use older, more reasonable drift estimates for both foo and bar.
+    #   ref:    |    |    |    x
+    #   foo:     |    |    |    |
+    #   bar:   |    x    |    |
+    #                    ^ ^
     registry.record_event("foo", 4.14)
     registry.record_event("bar", 3.94)
     assert registry.get_drift("ref") == 0
     assert registry.get_drift("foo") == 3.13 - 3.0
     assert registry.get_drift("bar") == 2.93 - 3.0
 
-    # Let ref recover after dropping one sync event.
-    registry.record_event("ref", 5)
+    # Let ref recover after recording the next sync event.
+    #   ref:    |    |    |    x    |
+    #   foo:     |    |    |    |    |
+    #   bar:   |    x    |    |    |
+    #                              ^ ^
+    registry.record_event("ref", 5.0)
     registry.record_event("foo", 5.15)
     registry.record_event("bar", 4.95)
     assert registry.get_drift("ref") == 0
     assert registry.get_drift("foo") == 5.15 - 5.0
     assert registry.get_drift("bar") == 4.95 - 5.0
+
+
+def test_router_records_sync_events_in_registry():
+    reader = FakeNumericEventReader([[[0, 0], [0, 42]], [[1, 10], [1, 0]], [[2, 20], [2, 42]]])
+    routes = [
+        ReaderRoute("events", "events")
+    ]
+    sync_config = ReaderSyncConfig(buffer_name="events", event_value=42, reader_name="test_reader")
+    sync_registry = ReaderSyncRegistry(reference_reader_name="test_reader")
+    router = ReaderRouter(
+        reader=reader,
+        routes=routes,
+        named_buffers=buffers_for_reader_and_routes(reader, routes),
+        sync_config=sync_config,
+        sync_registry=sync_registry
+    )
+
+    # The first read should contain two events, including a sync event at time 0.
+    assert router.route_next() == True
+    assert router.named_buffers["events"].data.event_count() == 2
+    assert sync_registry.event_times["test_reader"] == [0]
+
+    # The second read should contain two more events but no sync event.
+    assert router.route_next() == True
+    assert router.named_buffers["events"].data.event_count() == 4
+    assert sync_registry.event_times["test_reader"] == [0]
+
+    # The last read should contain two more events, including a sync event at time 2.
+    assert router.route_next() == True
+    assert router.named_buffers["events"].data.event_count() == 6
+    assert sync_registry.event_times["test_reader"] == [0, 2]
+
+    # All done.
+    assert router.route_next() == False

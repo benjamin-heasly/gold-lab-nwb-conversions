@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import logging
 
 from pyramid.model.model import DynamicImport, BufferData, Buffer
+from pyramid.model.events import NumericEventList
 from pyramid.neutral_zone.transformers.transformers import Transformer
 
 
@@ -151,6 +152,16 @@ class ReaderSyncRegistry():
         self.reference_reader_name = reference_reader_name
         self.event_times = {}
 
+    def __eq__(self, other: object) -> bool:
+        """Compare registry field-wise, to support use of this class in tests."""
+        if isinstance(other, self.__class__):
+            return (
+                self.reference_reader_name == other.reference_reader_name
+                and self.event_times == other.event_times
+            )
+        else:  # pragma: no cover
+            return False
+
     def record_event(self, reader_name: str, event_time: float) -> None:
         """Record a sync event as seen by the named reader."""
         reader_event_times = self.event_times.get(reader_name, [])
@@ -159,12 +170,12 @@ class ReaderSyncRegistry():
 
     def get_drift(self, reader_name: str) -> float:
         """Estimate clock drift between the named reader and the reference, based on events marked for each reader."""
-        reader_event_times = self.event_times.get(reader_name, None)
-        if not reader_event_times:
-            return 0.0
-
         reference_event_times = self.event_times.get(self.reference_reader_name, None)
         if not reference_event_times:
+            return 0.0
+
+        reader_event_times = self.event_times.get(reader_name, None)
+        if not reader_event_times:
             return 0.0
 
         reader_last = reader_event_times[-1]
@@ -191,13 +202,15 @@ class ReaderRouter():
         routes: list[ReaderRoute],
         named_buffers: dict[str, Buffer],
         empty_reads_allowed: int = 3,
-        sync_config: ReaderSyncConfig = None
+        sync_config: ReaderSyncConfig = None,
+        sync_registry: ReaderSyncRegistry = None
     ) -> None:
         self.reader = reader
         self.routes = routes
         self.named_buffers = named_buffers
         self.empty_reads_allowed = empty_reads_allowed
         self.sync_config = sync_config
+        self.sync_registry = sync_registry
 
         self.reader_exception = None
         self.max_buffer_time = 0.0
@@ -224,7 +237,7 @@ class ReaderRouter():
             return False
 
         try:
-            result = self.reader.read_next()
+            read_result = self.reader.read_next()
         except StopIteration as stop_iteration:
             self.reader_exception = stop_iteration
             logging.info(f"Reader {self.reader.__class__.__name__} is done (it raised StopIteration).")
@@ -237,17 +250,26 @@ class ReaderRouter():
             )
             return False
 
-        if not result:
+        if not read_result:
             return False
 
-        # TODO: check for sync event config in result, add any new events to registry for this reader / router / reader name.
+        if self.sync_config is not None and self.sync_registry is not None:
+            # Add any new sync events to the sync registry.
+            event_data = read_result.get(self.sync_config.buffer_name, None)
+            if event_data is not None and isinstance(event_data, NumericEventList):
+                sync_event_times = event_data.get_times_of(
+                    event_value=self.sync_config.event_value,
+                    value_index=self.sync_config.event_value_index
+                )
+                for event_time in sync_event_times:
+                    self.sync_registry.record_event(self.sync_config.reader_name, event_time)
 
         for route in self.routes:
             buffer = self.named_buffers.get(route.buffer_name, None)
             if not buffer:
                 continue
 
-            data = result.get(route.reader_result_name, None)
+            data = read_result.get(route.reader_result_name, None)
             if not data:
                 continue
 

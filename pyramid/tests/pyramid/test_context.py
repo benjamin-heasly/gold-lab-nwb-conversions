@@ -5,7 +5,7 @@ import numpy as np
 
 from pyramid.model.model import Buffer
 from pyramid.model.events import NumericEventList
-from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter, ReaderSyncConfig
+from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter, ReaderSyncConfig, ReaderSyncRegistry
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
 from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGain
@@ -71,7 +71,7 @@ def test_configure_readers():
         }
     }
     allow_simulate_delay = True
-    (readers, named_buffers, reader_routers) = configure_readers(readers_config, allow_simulate_delay)
+    (readers, named_buffers, reader_routers, sync_registry) = configure_readers(readers_config, allow_simulate_delay)
 
     expected_readers = {
         "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", "start")),
@@ -122,6 +122,9 @@ def test_configure_readers():
         ),
     }
     assert reader_routers == expected_reader_routers
+
+    expected_sync_registry = ReaderSyncRegistry("start_reader")
+    assert sync_registry == expected_sync_registry
 
 
 def test_configure_trials():
@@ -272,6 +275,8 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         enhancers=expected_enhancers
     )
 
+    expected_sync_registry = ReaderSyncRegistry(reference_reader_name="start_reader")
+
     expected_plot_figure_controller = PlotFigureController(
         plotters=[BasicInfoPlotter(), NumericEventsPlotter(), SignalChunksPlotter()],
         subject_info=expected_subject["subject"],
@@ -287,6 +292,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         routers=expected_reader_routers,
         trial_delimiter=expected_trial_delimiter,
         trial_extractor=expected_trial_extractor,
+        sync_registry=expected_sync_registry,
         plot_figure_controller=expected_plot_figure_controller
     )
     assert context == expected_context
