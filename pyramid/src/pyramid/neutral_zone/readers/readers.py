@@ -313,3 +313,14 @@ class ReaderRouter():
                 empty_reads += 1
 
         return self.max_buffer_time
+
+    def update_drift_estimate(self) -> float:
+        """Get a reader clock drift estimate from the sync registry and propagate it to all buffers."""
+        if self.sync_config is None or self.sync_registry is None:
+            return None
+
+        drift = self.sync_registry.get_drift(self.sync_config.reader_name)
+        for buffer in self.named_buffers.values():
+            buffer.clock_drift = drift
+
+        return drift

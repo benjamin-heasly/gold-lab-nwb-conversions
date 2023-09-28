@@ -127,9 +127,14 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for trial_number, new_trial in new_trials.items():
+                        # Let all readers catch up to the trial end time.
                         for router in self.routers.values():
                             router.route_until(new_trial.end_time)
-                        # TODO: let each router re-estimate drift with latest data, and push out to connected buffers
+
+                        # Re-estimate clock drift for all readers using latest events from reference and other readers.
+                        for router in self.routers.values():
+                            router.update_drift_estimate()
+
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
                         self.trial_delimiter.discard_before(new_trial.start_time)
@@ -138,7 +143,9 @@ class PyramidContext():
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers.values():
                 router.route_next()
-            # TODO: let each router re-estimate drift with last data, and push out to connected buffers
+            # Re-estimate clock drift for all readers using last events from reference and other readers.
+            for router in self.routers.values():
+                router.update_drift_estimate()
             (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
                 self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)
@@ -170,9 +177,14 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for trial_number, new_trial in new_trials.items():
+                        # Let all readers catch up to the trial end time.
                         for router in self.routers.values():
                             router.route_until(new_trial.end_time)
-                        # TODO: let each router re-estimate drift with latest data, and push out to connected buffers
+
+                        # Re-estimate clock drift for all readers using latest events from reference and other readers.
+                        for router in self.routers.values():
+                            router.update_drift_estimate()
+
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
                         self.plot_figure_controller.plot_next(new_trial, trial_number)
@@ -182,7 +194,9 @@ class PyramidContext():
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers.values():
                 router.route_next()
-            # TODO: let each router re-estimate drift with last data, and push out to connected buffers
+            # Re-estimate clock drift for all readers using last events from reference and other readers.
+            for router in self.routers.values():
+                router.update_drift_estimate()
             (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
                 self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)

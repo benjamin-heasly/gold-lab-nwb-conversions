@@ -294,75 +294,75 @@ def test_router_skip_transformer_errors():
 
 
 def test_reader_sync_registry():
-    registry = ReaderSyncRegistry("ref")
+    sync_registry = ReaderSyncRegistry("ref")
 
     # With no data yet, drift should default to 0.
-    assert registry.get_drift("ref") == 0
-    assert registry.get_drift("foo") == 0
+    assert sync_registry.get_drift("ref") == 0
+    assert sync_registry.get_drift("foo") == 0
 
     # With only a reference event, drift should still evaluate to 0.
     #  - ref vs ref drift is zero by definition.
     #  - ref vs foo drift is still undefined and defaults to 0.
-    registry.record_event("ref", 1.0)
-    assert registry.get_drift("ref") == 0
-    assert registry.get_drift("foo") == 0
+    sync_registry.record_event("ref", 1.0)
+    assert sync_registry.get_drift("ref") == 0
+    assert sync_registry.get_drift("foo") == 0
 
     # With both reference and other events, drift is now meaningful.
     #   ref:    |
     #   foo:     |
     #   bar:   |
     #          ^ ^ relevant events for drift estimation
-    registry.record_event("foo", 1.11)
-    registry.record_event("bar", 0.91)
-    assert registry.get_drift("ref") == 0
-    assert registry.get_drift("foo") == 1.11 - 1.0
-    assert registry.get_drift("bar") == 0.91 - 1.0
+    sync_registry.record_event("foo", 1.11)
+    sync_registry.record_event("bar", 0.91)
+    assert sync_registry.get_drift("ref") == 0
+    assert sync_registry.get_drift("foo") == 1.11 - 1.0
+    assert sync_registry.get_drift("bar") == 0.91 - 1.0
 
     # If bar misses a sync event use an older, more reasonable drift estimate.
     #   ref:    |    |
     #   foo:     |    |
     #   bar:   |    x
     #          ^bar   ^foo
-    registry.record_event("ref", 2.0)
-    registry.record_event("foo", 2.12)
-    assert registry.get_drift("ref") == 0
-    assert registry.get_drift("foo") == 2.12 - 2.0
-    assert registry.get_drift("bar") == 0.91 - 1.0
+    sync_registry.record_event("ref", 2.0)
+    sync_registry.record_event("foo", 2.12)
+    assert sync_registry.get_drift("ref") == 0
+    assert sync_registry.get_drift("foo") == 2.12 - 2.0
+    assert sync_registry.get_drift("bar") == 0.91 - 1.0
 
     # Let bar recover after recording the next sync event.
     #   ref:    |    |    |
     #   foo:     |    |    |
     #   bar:   |    x    |
     #                    ^ ^
-    registry.record_event("ref", 3.0)
-    registry.record_event("foo", 3.13)
-    registry.record_event("bar", 2.93)
-    assert registry.get_drift("ref") == 0
-    assert registry.get_drift("foo") == 3.13 - 3.0
-    assert registry.get_drift("bar") == 2.93 - 3.0
+    sync_registry.record_event("ref", 3.0)
+    sync_registry.record_event("foo", 3.13)
+    sync_registry.record_event("bar", 2.93)
+    assert sync_registry.get_drift("ref") == 0
+    assert sync_registry.get_drift("foo") == 3.13 - 3.0
+    assert sync_registry.get_drift("bar") == 2.93 - 3.0
 
     # If ref misses a sync event use older, more reasonable drift estimates for both foo and bar.
     #   ref:    |    |    |    x
     #   foo:     |    |    |    |
     #   bar:   |    x    |    |
     #                    ^ ^
-    registry.record_event("foo", 4.14)
-    registry.record_event("bar", 3.94)
-    assert registry.get_drift("ref") == 0
-    assert registry.get_drift("foo") == 3.13 - 3.0
-    assert registry.get_drift("bar") == 2.93 - 3.0
+    sync_registry.record_event("foo", 4.14)
+    sync_registry.record_event("bar", 3.94)
+    assert sync_registry.get_drift("ref") == 0
+    assert sync_registry.get_drift("foo") == 3.13 - 3.0
+    assert sync_registry.get_drift("bar") == 2.93 - 3.0
 
     # Let ref recover after recording the next sync event.
     #   ref:    |    |    |    x    |
     #   foo:     |    |    |    |    |
     #   bar:   |    x    |    |    |
     #                              ^ ^
-    registry.record_event("ref", 5.0)
-    registry.record_event("foo", 5.15)
-    registry.record_event("bar", 4.95)
-    assert registry.get_drift("ref") == 0
-    assert registry.get_drift("foo") == 5.15 - 5.0
-    assert registry.get_drift("bar") == 4.95 - 5.0
+    sync_registry.record_event("ref", 5.0)
+    sync_registry.record_event("foo", 5.15)
+    sync_registry.record_event("bar", 4.95)
+    assert sync_registry.get_drift("ref") == 0
+    assert sync_registry.get_drift("foo") == 5.15 - 5.0
+    assert sync_registry.get_drift("bar") == 4.95 - 5.0
 
 
 def test_router_records_sync_events_in_registry():
@@ -397,3 +397,39 @@ def test_router_records_sync_events_in_registry():
 
     # All done.
     assert router.route_next() == False
+
+
+def test_router_propagates_drift_estimate_to_buffers():
+    reader = FakeNumericEventReader([[[0, 0], [0, 42]], [[1, 10], [1, 0]], [[2, 20], [2, 42]]])
+    routes = [
+        ReaderRoute("events", "foo"),
+        ReaderRoute("events", "bar")
+    ]
+    sync_config = ReaderSyncConfig(reader_name="test_reader")
+    sync_registry = ReaderSyncRegistry(reference_reader_name="ref")
+    router = ReaderRouter(
+        reader=reader,
+        routes=routes,
+        named_buffers=buffers_for_reader_and_routes(reader, routes),
+        sync_config=sync_config,
+        sync_registry=sync_registry
+    )
+
+    # With no data yet, drift should default to 0.
+    assert router.update_drift_estimate() == 0
+    assert router.named_buffers["foo"].clock_drift == 0
+    assert router.named_buffers["bar"].clock_drift == 0
+
+    # With reference and other events, drift is now meaningful.
+    sync_registry.record_event("ref", 1.0)
+    sync_registry.record_event("test_reader", 1.11)
+    assert router.update_drift_estimate() == 1.11 - 1.0
+    assert router.named_buffers["foo"].clock_drift == 1.11 - 1.0
+    assert router.named_buffers["bar"].clock_drift == 1.11 - 1.0
+
+    # Drift estimate can chance over time.
+    sync_registry.record_event("ref", 2.0)
+    sync_registry.record_event("test_reader", 2.12)
+    assert router.update_drift_estimate() == 2.12 - 2.0
+    assert router.named_buffers["foo"].clock_drift == 2.12 - 2.0
+    assert router.named_buffers["bar"].clock_drift == 2.12 - 2.0
