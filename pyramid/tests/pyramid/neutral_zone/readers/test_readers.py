@@ -364,6 +364,9 @@ def test_reader_sync_registry():
     assert sync_registry.get_drift("foo") == 5.15 - 5.0
     assert sync_registry.get_drift("bar") == 4.95 - 5.0
 
+    # TODO: pass a reference end time and reader end time to limit which sync events are considered
+    # ie be able to go back in time and look at a previous "trial" just like above.
+
 
 def test_router_records_sync_events_in_registry():
     reader = FakeNumericEventReader([[[0, 0], [0, 42]], [[1, 10], [1, 0]], [[2, 20], [2, 42]]])
@@ -427,9 +430,16 @@ def test_router_propagates_drift_estimate_to_buffers():
     assert router.named_buffers["foo"].clock_drift == 1.11 - 1.0
     assert router.named_buffers["bar"].clock_drift == 1.11 - 1.0
 
-    # Drift estimate can chance over time.
+    # Drift estimate can change over time.
     sync_registry.record_event("ref", 2.0)
     sync_registry.record_event("test_reader", 2.12)
     assert router.update_drift_estimate() == 2.12 - 2.0
     assert router.named_buffers["foo"].clock_drift == 2.12 - 2.0
     assert router.named_buffers["bar"].clock_drift == 2.12 - 2.0
+
+    # TODO: pass a reference time to limit which sync events are considered
+    # # Drift estimate respects an end time to focus on a time of interest.
+    # # In other words, we can look back in time and estimate drift as of that time.
+    # assert router.update_drift_estimate(end_time = 2.0) == 1.11 - 1.0
+    # assert router.named_buffers["foo"].clock_drift == 1.11 - 1.0
+    # assert router.named_buffers["bar"].clock_drift == 1.11 - 1.0

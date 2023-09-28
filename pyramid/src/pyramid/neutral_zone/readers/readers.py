@@ -95,8 +95,9 @@ class ReaderSyncConfig():
     is_reference: str = False
     """Whether the reader represents the canonical, reference clock to which others readers will be aligned."""
 
+    # TODO: rename to reader_result_name
     buffer_name: str = None
-    """The name of the reader results buffer that will receive clock sync numeric events."""
+    """The name of the reader result that will contain clock sync numeric events."""
 
     event_value: int | float = None
     """The value of sync events to look for, within the named event buffer."""
@@ -168,12 +169,15 @@ class ReaderSyncRegistry():
         reader_event_times.append(event_time)
         self.event_times[reader_name] = reader_event_times
 
+    # TODO: accept a reference end time and reader end time to limit which sync events are considered
     def get_drift(self, reader_name: str) -> float:
         """Estimate clock drift between the named reader and the reference, based on events marked for each reader."""
+        # TODO: filter reference_event_times with passed in reference end time
         reference_event_times = self.event_times.get(self.reference_reader_name, None)
         if not reference_event_times:
             return 0.0
 
+        # TODO: filter reader_event_times with passed in reader end time
         reader_event_times = self.event_times.get(reader_name, None)
         if not reader_event_times:
             return 0.0
@@ -314,11 +318,14 @@ class ReaderRouter():
 
         return self.max_buffer_time
 
-    def update_drift_estimate(self) -> float:
+    # TODO: accept a reference end time to limit which sync events are considered
+    def update_drift_estimate(self, reference_end_time: float = None) -> float:
         """Get a reader clock drift estimate from the sync registry and propagate it to all buffers."""
         if self.sync_config is None or self.sync_registry is None:
             return None
 
+        # TODO: convert the given reference end time to a reader end time based on old drit estimates (peek at the first buffer?)
+        # TODO: pass a reference end time and reader end time to limit which sync events are considered
         drift = self.sync_registry.get_drift(self.sync_config.reader_name)
         for buffer in self.named_buffers.values():
             buffer.clock_drift = drift
