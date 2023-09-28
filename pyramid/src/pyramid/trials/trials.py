@@ -102,14 +102,14 @@ class TrialDelimiter():
         start_buffer: Buffer,
         start_value: float,
         start_value_index: int = 0,
-        trial_start_time: float = 0.0,
+        start_time: float = 0.0,
         trial_count: int = 0,
         trial_log_mod: int = 50
     ) -> None:
         self.start_buffer = start_buffer
         self.start_value = start_value
         self.start_value_index = start_value_index
-        self.trial_start_time = trial_start_time
+        self.start_time = start_time
         self.trial_count = trial_count
         self.trial_log_mod = trial_log_mod
 
@@ -120,7 +120,7 @@ class TrialDelimiter():
                 self.start_buffer == other.start_buffer
                 and self.start_value == other.start_value
                 and self.start_value_index == other.start_value_index
-                and self.trial_start_time == other.trial_start_time
+                and self.start_time == other.start_time
                 and self.trial_count == other.trial_count
             )
         else:  # pragma: no cover
@@ -134,13 +134,14 @@ class TrialDelimiter():
         trials = {}
         next_start_times = self.start_buffer.data.get_times_of(self.start_value, self.start_value_index)
         for next_start_time in next_start_times:
-            if next_start_time > self.trial_start_time:
-                # TODO: drift correct from start_buffer raw to reference before adding to trial.
-                trial = Trial(start_time=self.trial_start_time, end_time=next_start_time)
+            if next_start_time > self.start_time:
+                trial = Trial(
+                    start_time=self.start_buffer.raw_time_to_reference(self.start_time),
+                    end_time=self.start_buffer.raw_time_to_reference(next_start_time)
+                )
                 trials[self.trial_count] = trial
 
-                # TODO: self.trial_start_time can remain in start_buffer raw, rename to clarify this
-                self.trial_start_time = next_start_time
+                self.start_time = next_start_time
                 self.trial_count += 1
                 if self.trial_count % self.trial_log_mod == 0:
                     logging.info(f"Delimited {self.trial_count} trials.")
@@ -152,17 +153,18 @@ class TrialDelimiter():
 
         This has the side effect of incrementing trial_count.
         """
-        # TODO: drift correct from start_buffer raw to reference before adding to trial.
-        trial = Trial(start_time=self.trial_start_time, end_time=None)
+        trial = Trial(
+            start_time=self.start_buffer.raw_time_to_reference(self.start_time),
+            end_time=None
+        )
         last_trial = (self.trial_count, trial)
         self.trial_count += 1
         logging.info(f"Delimited {self.trial_count} trials (last one).")
         return last_trial
 
-    def discard_before(self, time: float):
+    def discard_before(self, reference_time: float):
         """Let event buffer discard data no longer needed."""
-        # TODO: drift correct given time from reference to start_buffer raw before discarding.
-        self.start_buffer.data.discard_before(time)
+        self.start_buffer.data.discard_before(self.start_buffer.reference_time_to_raw(reference_time))
 
 
 class TrialEnhancer(DynamicImport):
@@ -266,24 +268,25 @@ class TrialExtractor():
         subject_info: dict[str: Any]
     ):
         """Fill in the given trial with data from configured buffers, in the trial's time range."""
-        # TODO: drift correct given start and end times from reference to wrt_buffer raw before querying.
         trial_wrt_times = self.wrt_buffer.data.get_times_of(
             self.wrt_value,
             self.wrt_value_index,
-            trial.start_time,
-            trial.end_time
+            self.wrt_buffer.reference_time_to_raw(trial.start_time),
+            self.wrt_buffer.reference_time_to_raw(trial.end_time)
         )
         if trial_wrt_times.size > 0:
-            # TODO: drift correct from wrt_buffer raw to reference before before adding to trial.
-            trial.wrt_time = trial_wrt_times.min()
+            raw_wrt_time = trial_wrt_times.min()
+            trial.wrt_time = self.wrt_buffer.raw_time_to_reference(raw_wrt_time)
         else:
             trial.wrt_time = 0.0
 
         for name, buffer in self.named_buffers.items():
-            # TODO: drift correct given start and end times from reference to wrt_buffer raw before querying.
-            data = buffer.data.copy_time_range(trial.start_time, trial.end_time)
-            # TODO: drift correct data from buffer raw to reference before adding to trial (combine with wrt shift?)
-            data.shift_times(-trial.wrt_time)
+            data = buffer.data.copy_time_range(
+                buffer.reference_time_to_raw(trial.start_time),
+                buffer.reference_time_to_raw(trial.end_time)
+            )
+            raw_wrt_time = buffer.reference_time_to_raw(trial.wrt_time)
+            data.shift_times(-raw_wrt_time)
             trial.add_buffer_data(name, data)
             # TODO: record dict of buffer name -> drift estimate as an enhancement.
 
@@ -300,10 +303,8 @@ class TrialExtractor():
             except:
                 logging.error(f"Error applying {enhancer.__class__.__name__} to trial {trial_number}.", exc_info=True)
 
-    def discard_before(self, time: float):
+    def discard_before(self, reference_time: float):
         """Let event wrt and named buffers discard data no longer needed."""
-        # TODO: drift correct given time from reference to wrt_buffer raw before discarding.
-        self.wrt_buffer.data.discard_before(time)
+        self.wrt_buffer.data.discard_before(self.wrt_buffer.reference_time_to_raw(reference_time))
         for buffer in self.named_buffers.values():
-            # TODO: drift correct given time from reference to buffer raw before discarding.
-            buffer.data.discard_before(time)
+            buffer.data.discard_before(buffer.reference_time_to_raw(reference_time))

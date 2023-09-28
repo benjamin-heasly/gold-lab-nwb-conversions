@@ -98,3 +98,14 @@ class Buffer():
             )
         else:  # pragma: no cover
             return False
+
+    def raw_time_to_reference(self, raw_time: float) -> float:
+        """Convert a time from the buffer's own raw clock to align with the Pyramid reference clock."""
+        return raw_time - self.clock_drift
+
+    def reference_time_to_raw(self, reference_time: float) -> float:
+        """Convert a time Pyramid's reference clock to align with the buffer's own raw clock."""
+        if reference_time is None:
+            return None
+        else:
+            return reference_time + self.clock_drift

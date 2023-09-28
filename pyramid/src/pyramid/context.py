@@ -409,7 +409,7 @@ def configure_trials(
         start_buffer=named_buffers[start_buffer_name],
         start_value=start_value,
         start_value_index=start_value_index,
-        trial_start_time=trial_start_time,
+        start_time=trial_start_time,
         trial_count=trial_count
     )
 
