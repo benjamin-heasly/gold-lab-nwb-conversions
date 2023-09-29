@@ -8,7 +8,7 @@ import yaml
 import graphviz
 
 from pyramid.model.model import Buffer
-from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer, ReaderSyncConfig
+from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer, ReaderSyncConfig, ReaderSyncRegistry
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialEnhancer, TrialExpression
 from pyramid.trials.trial_file import TrialFile
@@ -26,6 +26,7 @@ class PyramidContext():
     routers: dict[str, ReaderRouter]
     trial_delimiter: TrialDelimiter
     trial_extractor: TrialExtractor
+    sync_registry: ReaderSyncRegistry
     plot_figure_controller: PlotFigureController
 
     @classmethod
@@ -69,9 +70,14 @@ class PyramidContext():
         plot_positions_yaml: str = None
     ) -> Self:
         """Load a context after things like YAML files are already read into memory."""
-        (readers, named_buffers, reader_routers) = configure_readers(experiment_config["readers"], allow_simulate_delay)
+        (readers, named_buffers, reader_routers, reader_sync_registry) = configure_readers(
+            experiment_config["readers"],
+            allow_simulate_delay
+        )
         (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(
-            experiment_config["trials"], named_buffers)
+            experiment_config["trials"],
+            named_buffers
+        )
 
         # Rummage around in the configured reader routers for the one associated with the trial "start" delimiter.
         start_router = None
@@ -98,6 +104,7 @@ class PyramidContext():
             routers=reader_routers,
             trial_delimiter=trial_delimiter,
             trial_extractor=trial_extractor,
+            sync_registry=reader_sync_registry,
             plot_figure_controller=plot_figure_controller
         )
 
@@ -120,10 +127,14 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for trial_number, new_trial in new_trials.items():
+                        # Let all readers catch up to the trial end time.
                         for router in self.routers.values():
                             router.route_until(new_trial.end_time)
-                        # TODO: update buffer clock offsets from sync events
-                        # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
+
+                        # Re-estimate clock drift for all readers using latest events from reference and other readers.
+                        for router in self.routers.values():
+                            router.update_drift_estimate(new_trial.end_time)
+
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
                         self.trial_delimiter.discard_before(new_trial.start_time)
@@ -132,8 +143,9 @@ class PyramidContext():
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers.values():
                 router.route_next()
-            # TODO: update buffer clock offsets from sync events
-            # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
+            # Re-estimate clock drift for all readers using last events from reference and other readers.
+            for router in self.routers.values():
+                router.update_drift_estimate()
             (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
                 self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)
@@ -165,10 +177,14 @@ class PyramidContext():
                 if got_start_data:
                     new_trials = self.trial_delimiter.next()
                     for trial_number, new_trial in new_trials.items():
+                        # Let all readers catch up to the trial end time.
                         for router in self.routers.values():
                             router.route_until(new_trial.end_time)
-                        # TODO: update buffer clock offsets from sync events
-                        # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
+
+                        # Re-estimate clock drift for all readers using latest events from reference and other readers.
+                        for router in self.routers.values():
+                            router.update_drift_estimate(new_trial.end_time)
+
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
                         self.plot_figure_controller.plot_next(new_trial, trial_number)
@@ -178,8 +194,9 @@ class PyramidContext():
             # Make a best effort to catch the last trial -- which would have no "next trial" to delimit it.
             for router in self.routers.values():
                 router.route_next()
-            # TODO: update buffer clock offsets from sync events
-            # TODO: update buffer clock offsets from other readers (eg. Phy data from Plexon reader)
+            # Re-estimate clock drift for all readers using last events from reference and other readers.
+            for router in self.routers.values():
+                router.update_drift_estimate()
             (last_trial_number, last_trial) = self.trial_delimiter.last()
             if last_trial:
                 self.trial_extractor.populate_trial(last_trial, last_trial_number, self.experiment, self.subject)
@@ -242,7 +259,8 @@ class PyramidContext():
                     route_label = "as is"
                 dot.node(name=route_name, label=route_label, shape="record", **results_styles[route.reader_result_name])
 
-                dot.edge(f"{reader_name}:{route.reader_result_name}:e", f"{route_name}:w", **results_styles[route.reader_result_name])
+                dot.edge(f"{reader_name}:{route.reader_result_name}:e",
+                         f"{route_name}:w", **results_styles[route.reader_result_name])
                 dot.edge(f"{route_name}:e", f"{route.buffer_name}:w", **results_styles[route.reader_result_name])
 
         dot.node(
@@ -289,6 +307,10 @@ def configure_readers(
     readers = {}
     named_buffers = {}
     routers = {}
+
+    # We'll update the reference_reader_name below based on individual reader sync config.
+    reader_sync_registry = ReaderSyncRegistry(reference_reader_name=None)
+
     logging.info(f"Using {len(readers_config)} readers.")
     for (reader_name, reader_config) in readers_config.items():
         # Instantiate the reader by dynamic import.
@@ -345,6 +367,10 @@ def configure_readers(
         if sync_config:
             sync_config_plus_default = {"reader_name": reader_name, **sync_config}
             reader_sync_config = ReaderSyncConfig(**sync_config_plus_default)
+
+            # Fill in the reference reader name which had a None placeholder, above.
+            if reader_sync_config.is_reference:
+                reader_sync_registry.reference_reader_name = reader_name
         else:
             reader_sync_config = None
 
@@ -355,7 +381,8 @@ def configure_readers(
             routes=list(named_routes.values()),
             named_buffers=reader_buffers,
             empty_reads_allowed=empty_reads_allowed,
-            sync_config=reader_sync_config
+            sync_config=reader_sync_config,
+            sync_registry=reader_sync_registry
         )
         routers[reader_name] = router
         named_buffers.update(router.named_buffers)
@@ -364,7 +391,7 @@ def configure_readers(
     for name in named_buffers.keys():
         logging.info(f"  {name}")
 
-    return (readers, named_buffers, routers)
+    return (readers, named_buffers, routers, reader_sync_registry)
 
 
 def configure_trials(
@@ -382,7 +409,7 @@ def configure_trials(
         start_buffer=named_buffers[start_buffer_name],
         start_value=start_value,
         start_value_index=start_value_index,
-        trial_start_time=trial_start_time,
+        start_time=trial_start_time,
         trial_count=trial_count
     )
 

@@ -46,11 +46,20 @@ experiment_config = {
             "args": {"result_name": "start"},
             "extra_buffers": {
                 "wrt": {"reader_result_name": "start"},
+            },
+            "sync": {
+                "is_reference": True,
+                "reader_result_name": "start",
+                "event_value": 42
             }
         },
         "foo_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
-            "args": {"result_name": "foo"}
+            "args": {"result_name": "foo"},
+            "sync": {
+                "reader_result_name": "foo",
+                "event_value": 43
+            }
         },
         "bar_reader": {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
@@ -94,6 +103,7 @@ experiment_config = {
         {"class": "pyramid.plotters.standard_plotters.SpikeEventsPlotter"},
     ]
 }
+
 
 def test_gui_success(fixture_path, tmp_path):
     delimiter_csv = Path(fixture_path, "delimiter.csv").as_posix()

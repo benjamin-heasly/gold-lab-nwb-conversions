@@ -5,7 +5,7 @@ import numpy as np
 
 from pyramid.model.model import Buffer
 from pyramid.model.events import NumericEventList
-from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter, ReaderSyncConfig
+from pyramid.neutral_zone.readers.readers import ReaderRoute, ReaderRouter, ReaderSyncConfig, ReaderSyncRegistry
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.neutral_zone.readers.csv import CsvNumericEventReader
 from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGain
@@ -36,7 +36,7 @@ def test_configure_readers():
             "simulate_delay": True,
             "sync": {
                 "is_reference": True,
-                "buffer_name": "start",
+                "reader_result_name": "start",
                 "event_value": 1010
             }
         },
@@ -71,7 +71,7 @@ def test_configure_readers():
         }
     }
     allow_simulate_delay = True
-    (readers, named_buffers, reader_routers) = configure_readers(readers_config, allow_simulate_delay)
+    (readers, named_buffers, reader_routers, sync_registry) = configure_readers(readers_config, allow_simulate_delay)
 
     expected_readers = {
         "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", "start")),
@@ -90,7 +90,7 @@ def test_configure_readers():
     }
     assert named_buffers == expected_named_buffers
 
-    sync = ReaderSyncConfig(is_reference=True, buffer_name="start", event_value=1010, reader_name="start_reader")
+    sync = ReaderSyncConfig(is_reference=True, reader_result_name="start", event_value=1010, reader_name="start_reader")
     expected_reader_routers = {
         "start_reader": ReaderRouter(
             expected_readers["start_reader"],
@@ -122,6 +122,9 @@ def test_configure_readers():
         ),
     }
     assert reader_routers == expected_reader_routers
+
+    expected_sync_registry = ReaderSyncRegistry("start_reader")
+    assert sync_registry == expected_sync_registry
 
 
 def test_configure_trials():
@@ -222,7 +225,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         "bar_2": Buffer(NumericEventList(np.empty([0, 2]))),
     }
 
-    sync = ReaderSyncConfig(is_reference=True, buffer_name="start", event_value=1010, reader_name="start_reader")
+    sync = ReaderSyncConfig(is_reference=True, reader_result_name="start", event_value=1010, reader_name="start_reader")
     expected_reader_routers = {
         "start_reader": ReaderRouter(
             expected_readers["start_reader"],
@@ -272,6 +275,8 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         enhancers=expected_enhancers
     )
 
+    expected_sync_registry = ReaderSyncRegistry(reference_reader_name="start_reader")
+
     expected_plot_figure_controller = PlotFigureController(
         plotters=[BasicInfoPlotter(), NumericEventsPlotter(), SignalChunksPlotter()],
         subject_info=expected_subject["subject"],
@@ -287,6 +292,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         routers=expected_reader_routers,
         trial_delimiter=expected_trial_delimiter,
         trial_extractor=expected_trial_extractor,
+        sync_registry=expected_sync_registry,
         plot_figure_controller=expected_plot_figure_controller
     )
     assert context == expected_context

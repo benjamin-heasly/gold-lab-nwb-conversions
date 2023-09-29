@@ -76,25 +76,36 @@ class BufferData():
 class Buffer():
     """Hold data in a sliding window of time, smoothing any timing mismatch between Readers and Trials.
 
-    In addition to the actual buffer data, holds a clock offset that may change over time.
-    Readers can update this offset as they calibrate themselves over time,
-    and Trials can include this offset when doing data "wrt" alignment.
+    In addition to the actual buffer data, holds a clock drift estimate that may change over time.
+    Reader routers can update this offset as they calibrate themselves over time,
+    and Trials can include this offset querying and aligning data.
     """
 
     def __init__(
         self,
         initial_data: BufferData,
-        initial_clock_offset: float = 0.0
+        initial_clock_drift: float = 0.0
     ) -> None:
         self.data = initial_data
-        self.clock_offset = initial_clock_offset
+        self.clock_drift = initial_clock_drift
 
     def __eq__(self, other: object) -> bool:
         """Compare buffers field-wise, to support use of this class in tests."""
         if isinstance(other, self.__class__):
             return (
                 self.data == other.data
-                and self.clock_offset == other.clock_offset
+                and self.clock_drift == other.clock_drift
             )
         else:  # pragma: no cover
             return False
+
+    def raw_time_to_reference(self, raw_time: float) -> float:
+        """Convert a time from the buffer's own raw clock to align with the Pyramid reference clock."""
+        return raw_time - self.clock_drift
+
+    def reference_time_to_raw(self, reference_time: float) -> float:
+        """Convert a time Pyramid's reference clock to align with the buffer's own raw clock."""
+        if reference_time is None:
+            return None
+        else:
+            return reference_time + self.clock_drift
