@@ -133,7 +133,7 @@ class PyramidContext():
 
                         # Re-estimate clock drift for all readers using latest events from reference and other readers.
                         for router in self.routers.values():
-                            router.update_drift_estimate()
+                            router.update_drift_estimate(new_trial.end_time)
 
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)
@@ -183,7 +183,7 @@ class PyramidContext():
 
                         # Re-estimate clock drift for all readers using latest events from reference and other readers.
                         for router in self.routers.values():
-                            router.update_drift_estimate()
+                            router.update_drift_estimate(new_trial.end_time)
 
                         self.trial_extractor.populate_trial(new_trial, trial_number, self.experiment, self.subject)
                         writer.append_trial(new_trial)

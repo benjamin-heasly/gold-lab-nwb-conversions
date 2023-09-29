@@ -288,7 +288,6 @@ class TrialExtractor():
             raw_wrt_time = buffer.reference_time_to_raw(trial.wrt_time)
             data.shift_times(-raw_wrt_time)
             trial.add_buffer_data(name, data)
-            # TODO: record dict of buffer name -> drift estimate as an enhancement.
 
         for enhancer, when_expression in self.enhancers.items():
             if when_expression is not None:

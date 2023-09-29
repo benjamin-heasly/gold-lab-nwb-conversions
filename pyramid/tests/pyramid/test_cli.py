@@ -49,7 +49,7 @@ experiment_config = {
             },
             "sync": {
                 "is_reference": True,
-                "buffer_name": "start",
+                "reader_result_name": "start",
                 "event_value": 42
             }
         },
@@ -57,7 +57,7 @@ experiment_config = {
             "class": "pyramid.neutral_zone.readers.csv.CsvNumericEventReader",
             "args": {"result_name": "foo"},
             "sync": {
-                "buffer_name": "foo",
+                "reader_result_name": "foo",
                 "event_value": 43
             }
         },
@@ -262,10 +262,6 @@ def test_convert(fixture_path, tmp_path):
     with open(expected_trial_list) as f:
         expected_trials = json.load(f)
 
-    # TODO: This is busted for now.
-    #       It's because the foo reader is reading ahead, and computing a bogus clock drift based on events after the current trial.
-    #       Which is almost not a problem, except that the second trial contains a duplicate sync/wrt event in the delimiter reader!
-    #       Try again once clock drift accepts reference and reader end times, and the "future" sync event is ignored.
     assert trials == expected_trials
 
 

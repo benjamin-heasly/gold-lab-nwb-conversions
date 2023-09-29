@@ -36,7 +36,7 @@ def test_configure_readers():
             "simulate_delay": True,
             "sync": {
                 "is_reference": True,
-                "buffer_name": "start",
+                "reader_result_name": "start",
                 "event_value": 1010
             }
         },
@@ -90,7 +90,7 @@ def test_configure_readers():
     }
     assert named_buffers == expected_named_buffers
 
-    sync = ReaderSyncConfig(is_reference=True, buffer_name="start", event_value=1010, reader_name="start_reader")
+    sync = ReaderSyncConfig(is_reference=True, reader_result_name="start", event_value=1010, reader_name="start_reader")
     expected_reader_routers = {
         "start_reader": ReaderRouter(
             expected_readers["start_reader"],
@@ -225,7 +225,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         "bar_2": Buffer(NumericEventList(np.empty([0, 2]))),
     }
 
-    sync = ReaderSyncConfig(is_reference=True, buffer_name="start", event_value=1010, reader_name="start_reader")
+    sync = ReaderSyncConfig(is_reference=True, reader_result_name="start", event_value=1010, reader_name="start_reader")
     expected_reader_routers = {
         "start_reader": ReaderRouter(
             expected_readers["start_reader"],
