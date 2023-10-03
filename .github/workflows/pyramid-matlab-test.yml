@@ -16,5 +16,3 @@ jobs:
         with:
           source-folder: pyramid/matlab
           select-by-folder: pyramid/matlab/test
-          test-results-junit: pyramid/matlab/test-results.xml
-          code-coverage-cobertura: pyramid/matlab/code-coverage.xml
