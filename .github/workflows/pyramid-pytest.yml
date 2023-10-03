@@ -1,4 +1,4 @@
-name: pytest-pyramid
+name: pyramid-pytest
 
 on: push
 
