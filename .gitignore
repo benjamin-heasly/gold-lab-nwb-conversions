@@ -139,3 +139,7 @@ demo_trials.hdf5
 # line_profiler / kernprof
 profile.py
 *.lprof
+
+# Matlab
+*.asv
+*.m~

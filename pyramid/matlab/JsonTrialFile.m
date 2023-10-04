@@ -35,9 +35,8 @@ classdef JsonTrialFile
             trialCell = {};
             index = 0;
             while true
-                trialJson = fgetl(fid);
-
                 % Check for end of file.
+                trialJson = fgetl(fid);
                 if ~ischar(trialJson) || isempty(trialJson)
                     break
                 end
@@ -46,11 +45,13 @@ classdef JsonTrialFile
                 index = index + 1;
 
                 % Only add trials at the requested indices.
-                if isempty(indices) || any(index == indices)
-                    wildTrial = jsondecode(trialJson);
-                    trial = obj.standardize(wildTrial);
-                    trialCell{end+1} = trial;
+                if ~isempty(indices) && ~any(index == indices)
+                    continue
                 end
+
+                wildTrial = jsondecode(trialJson);
+                trial = obj.standardize(wildTrial);
+                trialCell{end+1} = trial;
             end
             trials = [trialCell{:}];
         end
