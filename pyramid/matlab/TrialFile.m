@@ -2,8 +2,8 @@ classdef TrialFile
     % Read Pyramid trials from HDF5 or JSON into a Matlab struct array.
 
     properties (SetAccess = private)
-        % Format-specific (HDF5 or JSON) iterator over trial file.
-        trialIterator
+        % The Pyramid trial file to read.
+        trialFile
 
         % Standard list of fields for all trials to share.
         trialFields = { ...
@@ -23,16 +23,19 @@ classdef TrialFile
             arguments
                 trialFile {mustBeFile}
             end
+            obj.trialFile = trialFile;
+        end
 
+        function iterator = openIterator(obj)
             % Use trialFile extension to pick a format.
-            [~, ~, extension] = fileparts(trialFile);
+            [~, ~, extension] = fileparts(obj.trialFile);
             switch extension
                 case {".hdf", ".h5", ".hdf5", ".he5"}
-                    obj.trialIterator = Hdf5TrialIterator(trialFile);
+                    iterator = Hdf5TrialIterator(obj.trialFile);
                 case {".json", ".jsonl"}
-                    obj.trialIterator = JsonTrialIterator(trialFile);
+                    iterator = JsonTrialIterator(obj.trialFile);
                 otherwise
-                    error("Unknown format %s for trial file %s.", extension, trialFile);
+                    error("Unknown format %s for trial file %s.", extension, obj.trialFile);
             end
         end
 
@@ -41,7 +44,7 @@ classdef TrialFile
             %
             % By default, this will read all trials from the trial file
             % into memory and return them as a struct array.
-            % 
+            %
             % You can provide a filterFun to decide which trials to keep or
             % ignore. The filterFun should expect one argument: the current
             % trial being read as a scalar struct.  When filterFun returns
@@ -52,15 +55,16 @@ classdef TrialFile
             end
 
             % Append trials one at a time to a list.
+            iterator = obj.openIterator();
             trialsSoFar = {};
-            wildTrial = obj.trialIterator.next();
+            wildTrial = iterator.next();
             while ~isempty(wildTrial)
                 trial = obj.standardize(wildTrial);
                 if filterFun(trial)
                     trialsSoFar{end + 1} = trial; %#ok<AGROW>
                 end
 
-                wildTrial = obj.trialIterator.next();
+                wildTrial = iterator.next();
             end
 
             % Reshape the list as a uniform struct array.
