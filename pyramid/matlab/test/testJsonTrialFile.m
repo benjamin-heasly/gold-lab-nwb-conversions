@@ -1,21 +1,30 @@
-%% Empty Trial File
-
-% Set up to read a trial file with no data in it.
+%% Empty trial file
 emptyTrialFile = 'fixture_files/empty_trials.json';
-jsonTrialFile = JsonTrialFile(emptyTrialFile);
+trialFile = TrialFile(emptyTrialFile);
+assert(isequal(class(trialFile.trialIterator), 'JsonTrialIterator'));
+assert(isempty(trialFile.read()), 'Empty trial file should produce empty trial struct.');
 
-assert(isempty(jsonTrialFile.readTrials()), 'Empty trial file should produce empty trial struct.');
-assert(isempty(jsonTrialFile.readTrials([1, 2, 3])), 'Empty trial file should produce empty trial struct for index selection.');
+
+%% Empty trial file with filter
+emptyTrialFile = 'fixture_files/empty_trials.json';
+trialFile = TrialFile(emptyTrialFile);
+assert(isequal(class(trialFile.trialIterator), 'JsonTrialIterator'));
+filterFun = @(trial) ~isempty(trial.enhancements);
+assert(isempty(trialFile.read(filterFun)), 'Empty trial file should produce empty trial struct with filter.');
 
 
 %% Sample Trial File
-
-% Set up to read a trial file with data in it.
 sampleTrialFile = 'fixture_files/sample_trials.json';
-jsonTrialFile = JsonTrialFile(sampleTrialFile);
-
-% Load up expected trial data as a Matlab struct array.
+trialFile = TrialFile(sampleTrialFile);
+assert(isequal(class(trialFile.trialIterator), 'JsonTrialIterator'));
 expectedTrials = sampleTrials();
+assert(isequal(trialFile.read(), expectedTrials), 'Sample trial file should produce expected trials.');
 
-assert(isequal(jsonTrialFile.readTrials(), expectedTrials), 'Sample trial file should produce expected trials.');
-assert(isequal(jsonTrialFile.readTrials([1, 3, 4]), expectedTrials([1, 3, 4])), 'Sample trial file should produce expected trials for index selection.');
+
+%% Sample Trial File with filter
+sampleTrialFile = 'fixture_files/sample_trials.json';
+trialFile = TrialFile(sampleTrialFile);
+assert(isequal(class(trialFile.trialIterator), 'JsonTrialIterator'));
+expectedTrials = sampleTrials();
+filterFun = @(trial) ~isempty(trial.enhancements);
+assert(isequal(trialFile.read(filterFun), expectedTrials(4:5)), 'Sample trial file should produce expected trials with filter.');

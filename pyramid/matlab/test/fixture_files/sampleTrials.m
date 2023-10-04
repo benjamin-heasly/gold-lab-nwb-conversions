@@ -1,8 +1,9 @@
 % Return a Matlab struct representation of expected Pyramid trial files.
-% It's indended to support tests of trial file parsing.
-% The trial data here should match the contents of sample_trials.json and
-% sample_trials.hdf5.  See also generate_fixture_files.sh for where these
-% came from.
+% This is used as a fixture to support testing Matlab TrialFiles.
+%
+% This file was created manually, to match the contents of
+% sample_trials.json and sample_trials.hdf5.  See also
+% generate_fixture_files.sh for where those originals came from.
 function trials = sampleTrials()
 
 % Numeric event data, reused in different trials.
