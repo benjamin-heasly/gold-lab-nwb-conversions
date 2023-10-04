@@ -54,7 +54,7 @@ The main sections of each YAML file are:
 
 This demo experiment reads data from three CSV files.
 CSV is a simple format, easy to get started with.
-Going forward we expect to read data from other online and offline sources like Plexon, Open Ephys and NWB.
+Going forward we expect to read data from other online and offline sources like Plexon, Open Ephys / ZMQ and Phy.
 
 Since the CSVs in this demo are small, we can just look at them here and get a sense for what should happen when Pyramid runs.
 
@@ -172,131 +172,114 @@ Why does `gui` mode run for several seconds, when the data are just sitting ther
 This happens because Pyramid is simulating the delay between the trial `1010` start event times written in `delimiter.csv`.
 Delay simulation is handy for demo purposes, and optional, and only happens if a reader's YAML contains `simulate_delay: True`.
 
-## loading JSON trial file in Matlab
+## JSON trial file in Matlab
 
 It should be possible to read a JSON trial file in a variety of environments, not just Pyramid or Python.
-Here's a Matlab example for reading lines of JSON into from a trial file into a struct array.
+Pyramid includes [a bit of Matlab code](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/tree/main/pyramid/matlab) for reading trials as a Matlab struct array.
+
+If you add `pyramid/matlab` and its subfolders to your Matlab path, then you should be able to read a trial file like this:
+
 
 ```
-trialFile = 'demo_trials.json';
-trialCell = {};
-fid = fopen(trialFile, 'r');
-while true
-    trialJson = fgetl(fid);
-    if ~ischar(trialJson) || isempty(trialJson)
-        break
-    end
-    trialCell{end+1} = jsondecode(trialJson);
-end
+trialFile = TrialFile('demo_trials.json');
+trials = trialFile.read()
 
-trials = [trialCell{:}]
-%  trials =
-%
-%    1×4 struct array with fields:
-%
-%      start_time
-%      end_time
-%      wrt_time
-%      numeric_events
+% trials =
+
+%   1×4 struct array with fields:
+
+%     start_time
+%     end_time
+%     wrt_time
+%     numeric_events
+%     signals
+%     enhancements
+%     enhancement_categories
 
 events = [trials.numeric_events]
-%  events =
-%
-%    1×4 struct array with fields:
-%
-%      foo
-%      bar
-%      bar_2
+
+% events =
+
+%   1×4 struct array with fields:
+
+%     foo
+%     bar
+%     bar_2
 ```
 
-This example loads all the lines/trials into memory at once.
-For larger trial files it might be better to load one or a few trials at a time (i.e. don't always append loaded trials to one big array).
-
-## HDF5 trial file
-
-Pyramid can also produce trial files using HDF5.
-This is a binary format that supports folder-like Groups, numeric array-like Datasets, and data compression.
-It's likely to be faster and smaller than JSON, though potentially less portable and not human-readable.
-
-To create an HDF5 trial file, just use the `.hdf5` extension for the `--trial-file` argument.
+The example above loads all the lines/trials into memory at once.
+For larger trial files this might be unreasonable and it might be necessary to load fewer trials at a time.
+The Pyramid Matlab utility supports an optional trial filter function to limit loaded trials by, for example, `start_time`.
 
 ```
-pyramid convert --trial-file demo_trials.hdf5 --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv
-```
+trials = trialFile.read( @(trial) trial.start_time < 3 )
 
-Matlab supports reading HDF5 files.
-Here's a Matlab example for reading trials from an HDF5 trial file into a struct array.  The result is similar to the Matlab JSON example, above.
-
-```
-trialFile = 'demo_trials.hdf5';
-info = h5info(trialFile);
-trialCell = {};
-for trialGroup = info.Groups'
-    trial = struct();
-
-    % Get top-level trial fields like start_time, end_time, and wrt_time.
-    % Decode any trial enhancements from JSON.
-    for attribute = trialGroup.Attributes'
-        switch attribute.Name
-            case 'enhancements'
-                trial.enhancements = jsondecode(attribute.Value);
-            otherwise
-                trial.(attribute.Name) = attribute.Value;
-        end
-    end
-
-    % Unpack data assigned to the trial, depending on Neutral Zone type.
-    for dataGroup = trialGroup.Groups'
-        subgroupName = dataGroup.Name(numel(trialGroup.Name)+2:end);
-        switch subgroupName
-            case 'numeric_events'
-                for dataset = dataGroup.Datasets'
-                    dataPath = [dataGroup.Name '/' dataset.Name];
-                    data = h5read(trialFile, dataPath);
-                    trial.numeric_events.(dataset.Name) = data';
-                end
-
-            case 'signals'
-                for dataset = dataGroup.Datasets'
-                    dataPath = [dataGroup.Name '/' dataset.Name];
-                    data = h5read(trialFile, dataPath);
-                    trial.signals.(dataset.Name).sample_data = data';
-
-                    for attribute = dataset.Attributes'
-                        trial.signals.(dataset.Name).(attribute.Name) = attribute.Value;
-                    end
-                end
-        end
-    end
-
-    trialCell{end+1} = trial;
-end
-
-trials = [trialCell{:}]
 trials =
 
-  1×4 struct array with fields:
+  1×3 struct array with fields:
 
     start_time
     end_time
     wrt_time
     numeric_events
-
-events = [trials.numeric_events]
-events =
-
-  1×4 struct array with fields:
-
-    bar
-    bar_2
-    foo
+    signals
+    enhancements
+    enhancement_categories
 ```
 
-This HDF5 example has more lines of code than the JSON example above.  Why?
-For JSON, there are well-established conventions for converting between Python data types, JSON objects, and Matlab data types -- enough so that these conversions feel obvious and 1:1, and can be done with standard library functions.  But for HDF5 the conversion conventions are not so obvious or standardized.  So, we need to make a few of our own choices and write a bit of opinionated Python code and matching Matlab code.
 
-One choice Pyramid makes is to keep a little bit of JSON in the mix.  Pyramid has a concept of per-trial enhancements which are name-value pairs, where the values can be scalars, strings, lists, dictionaries, or nested combinations of these.  JSON still feels like a natural way to represent these complex types -- as opposed to writing our own fiddly code for dealing with arbitrary nestings.  As long as enhanements are small compared to the bulk of trial event and signal data, HDF5's binary Datasets and data compression will still win out.
+## HDF5 trial file
 
-This example loads all the trials into memory at once.
-HDF5 also supports reading files a piece at a time, even for very large files.
-For larger trial files it might be better to load one or a few trials, which are HDF5 Groups, at a time (i.e. don't always append loaded trials to one big array).
+Pyramid can also produce trial files using HDF5.
+This is a binary format that supports folder-like Groups, array-like Datasets, and data compression.
+It's likely to be faster and smaller than JSON, though potentially less portable and not human-readable.
+
+To create an HDF5 trial file, use the `.hdf5` extension for the `--trial-file` argument.
+
+```
+pyramid convert --trial-file demo_trials.hdf5 --experiment demo_experiment.yaml --readers delimiter_reader.csv_file=delimiter.csv foo_reader.csv_file=foo.csv bar_reader.csv_file=bar.csv
+```
+
+Matlab supports reading HDF5 files, and so does the Pyramid Matlab utility.
+This works just like the JSON example above, but with the `.hdf5` file extension.
+
+```
+trialFile = TrialFile('demo_trials.hdf5');
+trials = trialFile.read()
+
+% trials =
+
+%   1×4 struct array with fields:
+
+%     start_time
+%     end_time
+%     wrt_time
+%     numeric_events
+%     signals
+%     enhancements
+%     enhancement_categories
+
+events = [trials.numeric_events]
+
+% events =
+
+%   1×4 struct array with fields:
+
+%     bar
+%     bar_2
+%     foo
+
+trials = trialFile.read(@(trial) trial.start_time < 3)
+
+% trials =
+
+%   1×3 struct array with fields:
+
+%     start_time
+%     end_time
+%     wrt_time
+%     numeric_events
+%     signals
+%     enhancements
+%     enhancement_categories
+```
