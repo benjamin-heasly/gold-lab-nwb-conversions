@@ -135,6 +135,8 @@ demo_experiment.hdf5
 plot_positions.yaml
 demo_trials.json
 demo_trials.hdf5
+demo_trials_with_sync.json
+demo_trials_with_sync.hdf5
 
 # line_profiler / kernprof
 profile.py

@@ -17,12 +17,26 @@ readers:
       csv_file: delimiter.csv
       result_name: delimiter
     simulate_delay: True
+    sync:
+      is_reference: True
+      reader_result_name: delimiter
+      event_value: 1
   signal_reader:
     class: pyramid.neutral_zone.readers.csv.CsvSignalReader
     args:
       csv_file: signal.csv
       sample_frequency: 10
       result_name: signal
+    sync:
+      reader_name: signal_sync_reader
+  signal_sync_reader:
+    class: pyramid.neutral_zone.readers.csv.CsvNumericEventReader
+    args:
+      csv_file: signal_sync.csv
+      result_name: sync
+    sync:
+      reader_result_name: sync
+      event_value: 1
 trials:
   # How to delimit Trials in time, and how to align data within each trial.
   start_buffer: delimiter

@@ -42,7 +42,8 @@ class PyramidContext():
         with open(experiment_yaml) as f:
             experiment_config = yaml.safe_load(f)
 
-        # start_reader.csv_file=real.csv
+        # For example, command line might have "--readers start_reader.csv_file=real.csv",
+        # which should be equivalent to start_reader kwargs "csv_file=real.csv".
         if reader_overrides:
             for override in reader_overrides:
                 (reader_name, assignment) = override.split(".", maxsplit=1)
@@ -205,6 +206,10 @@ class PyramidContext():
 
     def to_graphviz(self, graph_name: str, out_file: str):
         """Do introspection of loaded config and write out a graphviz "dot" file and overview image for viewing."""
+
+        # TODO: visualize sync config, where present
+        # TODO: visualize conditional enhancements, when present
+
         dot = graphviz.Digraph(
             name=graph_name,
             graph_attr={
