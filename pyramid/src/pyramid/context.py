@@ -209,6 +209,7 @@ class PyramidContext():
 
         # TODO: visualize sync config, where present
         # TODO: visualize conditional enhancements, when present
+        # TODO: visualize reader args
 
         dot = graphviz.Digraph(
             name=graph_name,
