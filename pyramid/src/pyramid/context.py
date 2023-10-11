@@ -15,6 +15,52 @@ from pyramid.trials.trial_file import TrialFile
 from pyramid.plotters.plotters import Plotter, PlotFigureController
 
 
+class FileFinder():
+    """Locate files with respect to a search path -- ie a list of path prefixes."""
+
+    def __init__(
+        self,
+        search_path: list[str]
+    ) -> None:
+        self.search_path = search_path
+
+    def __eq__(self, other: object) -> bool:
+        """Compare FileFinders field-wise, to support tests."""
+        if isinstance(other, self.__class__):
+            return self.search_path == other.search_path
+        else:  # pragma: no cover
+            return False
+
+    def find(self, original: str) -> str:
+        """Locate the given original file or directory path with respect to this FileFinder's search_path.
+
+        The search rules are:
+         - If original is not a string, return it as-is.
+         - If original is an absolute path, return it with any user folder (eg "~") expanded.
+         - For each element of search_path p, in order, check the following:
+           - Does original, prepended with p, with any user folder expanded, exist?
+           - If so, return the path that exists.
+         - If none of the search_path prefixes yields a match, return the original with any user folder expanded.
+        """
+        if not isinstance(original, str):
+            return original
+
+        original_path = Path(original).expanduser()
+        if original_path.is_absolute():
+            # Don't try to search for absolute paths, just use them.
+            return original_path.as_posix()
+
+        for prefix in self.search_path:
+            prefixed_path = Path(prefix, original).expanduser()
+            print(prefixed_path)
+            if prefixed_path.exists():
+                # Use the first matching prefix, if any.
+                return prefixed_path.as_posix()
+
+        # The original doesn't exist yet, but it's still useful to expand the user folder.
+        return original_path.as_posix()
+
+
 @dataclass
 class PyramidContext():
     """Pyramid context holds everything needed to run Pyramid including experiment YAML, CLI args, etc."""
@@ -28,7 +74,7 @@ class PyramidContext():
     trial_extractor: TrialExtractor
     sync_registry: ReaderSyncRegistry
     plot_figure_controller: PlotFigureController
-    # TODO: accept a file search path.
+    file_finder: FileFinder
 
     @classmethod
     def from_yaml_and_reader_overrides(
@@ -37,9 +83,12 @@ class PyramidContext():
         subject_yaml: str = None,
         reader_overrides: list[str] = [],
         allow_simulate_delay: bool = False,
-        plot_positions_yaml: str = None
+        plot_positions_yaml: str = None,
+        search_path: list[str] = []
     ) -> Self:
         """Load a context the way it comes from the CLI, with a YAML files etc."""
+        file_finder = FileFinder(search_path)
+
         # TODO: resolve experiment_yaml WRT search path
         with open(experiment_yaml) as f:
             experiment_config = yaml.safe_load(f)
@@ -62,7 +111,13 @@ class PyramidContext():
         else:
             subject_config = {}
 
-        pyramid_context = cls.from_dict(experiment_config, subject_config, allow_simulate_delay, plot_positions_yaml)
+        pyramid_context = cls.from_dict(
+            experiment_config,
+            subject_config,
+            allow_simulate_delay,
+            plot_positions_yaml,
+            file_finder
+        )
         return pyramid_context
 
     @classmethod
@@ -71,7 +126,8 @@ class PyramidContext():
         experiment_config: dict[str, Any],
         subject_config: dict[str, Any],
         allow_simulate_delay: bool = False,
-        plot_positions_yaml: str = None
+        plot_positions_yaml: str = None,
+        file_finder: FileFinder = None
     ) -> Self:
         """Load a context after things like YAML files are already read into memory."""
         (readers, named_buffers, reader_routers, reader_sync_registry) = configure_readers(
@@ -110,15 +166,9 @@ class PyramidContext():
             trial_delimiter=trial_delimiter,
             trial_extractor=trial_extractor,
             sync_registry=reader_sync_registry,
-            plot_figure_controller=plot_figure_controller
+            plot_figure_controller=plot_figure_controller,
+            file_finder=file_finder
         )
-
-    # TODO: method to resolve file-like strings WRT a search path.
-    # not a string -> return as-is
-    # Path is_absoulte() -> return with user expanded
-    # starts with . or .. -> return with user expanded
-    # exists with search path prepended and user expanded -> return with search path prepended and user expanded
-    # otherwise -> return with user expanded
 
     def run_without_plots(self, trial_file: str) -> None:
         """Run without plots as fast as the data allow.

@@ -50,7 +50,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         type=str,
                         default=None,
                         help="Name of a YAML where Pyramid can record and restore plot figure window positions")
-    # TODO: argument for file search path, default to ~/pyramid.
+    parser.add_argument("--search-path", "-P",
+                        type=str,
+                        nargs="+",
+                        default=["~/pyramid"],
+                        help="List of paths to search for files (YAML config, data, etc.)")
     parser.add_argument("--version", "-v",
                         action="version",
                         version=version_string)
@@ -67,7 +71,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     subject_yaml=cli_args.subject,
                     reader_overrides=cli_args.readers,
                     allow_simulate_delay=True,
-                    plot_positions_yaml=cli_args.plot_positions
+                    plot_positions_yaml=cli_args.plot_positions,
+                    search_path=cli_args.search_path
                 )
                 context.run_with_plots(cli_args.trial_file)
                 exit_code = 0
@@ -80,7 +85,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 context = PyramidContext.from_yaml_and_reader_overrides(
                     experiment_yaml=cli_args.experiment,
                     subject_yaml=cli_args.subject,
-                    reader_overrides=cli_args.readers
+                    reader_overrides=cli_args.readers,
+                    search_path=cli_args.search_path
                 )
                 context.run_without_plots(cli_args.trial_file)
                 exit_code = 0
@@ -93,7 +99,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 context = PyramidContext.from_yaml_and_reader_overrides(
                     experiment_yaml=cli_args.experiment,
                     subject_yaml=cli_args.subject,
-                    reader_overrides=cli_args.readers
+                    reader_overrides=cli_args.readers,
+                    search_path=cli_args.search_path
                 )
                 graph_name = Path(cli_args.experiment).stem
                 context.to_graphviz(graph_name, cli_args.graph_file)
