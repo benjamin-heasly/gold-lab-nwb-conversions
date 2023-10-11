@@ -1,6 +1,7 @@
 from pathlib import Path
 import numpy as np
 
+from pyramid.file_finder import FileFinder
 from pyramid.model.events import NumericEventList
 from pyramid.trials.trials import Trial
 from pyramid.trials.standard_enhancers import PairedCodesEnhancer, EventTimesEnhancer, ExpressionEnhancer
@@ -19,7 +20,8 @@ def test_paired_codes_enhancer(tmp_path):
 
     enhancer = PairedCodesEnhancer(
         buffer_name="propcodes",
-        rules_csv=rules_csv
+        rules_csv=rules_csv,
+        file_finder=FileFinder()
     )
 
     # The "id" and "value" rows should be included.
@@ -89,7 +91,8 @@ def test_event_times_enhancer(tmp_path):
 
     enhancer = EventTimesEnhancer(
         buffer_name="events",
-        rules_csv=rules_csv
+        rules_csv=rules_csv,
+        file_finder=FileFinder()
     )
 
     # The "time" rows should be included.

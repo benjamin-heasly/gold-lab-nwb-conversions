@@ -7,58 +7,13 @@ from dataclasses import dataclass
 import yaml
 import graphviz
 
+from pyramid.file_finder import FileFinder
 from pyramid.model.model import Buffer
 from pyramid.neutral_zone.readers.readers import Reader, ReaderRoute, ReaderRouter, Transformer, ReaderSyncConfig, ReaderSyncRegistry
 from pyramid.neutral_zone.readers.delay_simulator import DelaySimulatorReader
 from pyramid.trials.trials import TrialDelimiter, TrialExtractor, TrialEnhancer, TrialExpression
 from pyramid.trials.trial_file import TrialFile
 from pyramid.plotters.plotters import Plotter, PlotFigureController
-
-
-class FileFinder():
-    """Locate files with respect to a search path -- ie a list of path prefixes."""
-
-    def __init__(
-        self,
-        search_path: list[str]
-    ) -> None:
-        self.search_path = search_path
-
-    def __eq__(self, other: object) -> bool:
-        """Compare FileFinders field-wise, to support tests."""
-        if isinstance(other, self.__class__):
-            return self.search_path == other.search_path
-        else:  # pragma: no cover
-            return False
-
-    def find(self, original: str) -> str:
-        """Locate the given original file or directory path with respect to this FileFinder's search_path.
-
-        The search rules are:
-         - If original is not a string, return it as-is.
-         - If original is an absolute path, return it with any user folder (eg "~") expanded.
-         - For each element of search_path p, in order, check the following:
-           - Does original, prepended with p, with any user folder expanded, exist?
-           - If so, return the path that exists.
-         - If none of the search_path prefixes yields a match, return the original with any user folder expanded.
-        """
-        if not isinstance(original, str):
-            return original
-
-        original_path = Path(original).expanduser()
-        if original_path.is_absolute():
-            # Don't try to search for absolute paths, just use them.
-            return original_path.as_posix()
-
-        for prefix in self.search_path:
-            prefixed_path = Path(prefix, original).expanduser()
-            print(prefixed_path)
-            if prefixed_path.exists():
-                # Use the first matching prefix, if any.
-                return prefixed_path.as_posix()
-
-        # The original doesn't exist yet, but it's still useful to expand the user folder.
-        return original_path.as_posix()
 
 
 @dataclass
@@ -89,8 +44,7 @@ class PyramidContext():
         """Load a context the way it comes from the CLI, with a YAML files etc."""
         file_finder = FileFinder(search_path)
 
-        # TODO: resolve experiment_yaml WRT search path
-        with open(experiment_yaml) as f:
+        with open(file_finder.find(experiment_yaml)) as f:
             experiment_config = yaml.safe_load(f)
 
         # For example, command line might have "--readers start_reader.csv_file=real.csv",
@@ -105,8 +59,7 @@ class PyramidContext():
                 reader_config["args"] = reader_args
 
         if subject_yaml:
-            # TODO: resolve subject_yaml WRT search path
-            with open(subject_yaml) as f:
+            with open(file_finder.find(subject_yaml)) as f:
                 subject_config = yaml.safe_load(f)
         else:
             subject_config = {}
@@ -132,11 +85,13 @@ class PyramidContext():
         """Load a context after things like YAML files are already read into memory."""
         (readers, named_buffers, reader_routers, reader_sync_registry) = configure_readers(
             experiment_config["readers"],
-            allow_simulate_delay
+            allow_simulate_delay,
+            file_finder
         )
         (trial_delimiter, trial_extractor, start_buffer_name) = configure_trials(
             experiment_config["trials"],
-            named_buffers
+            named_buffers,
+            file_finder
         )
 
         # Rummage around in the configured reader routers for the one associated with the trial "start" delimiter.
@@ -146,15 +101,17 @@ class PyramidContext():
                 if buffer_name == start_buffer_name:
                     start_router = router
 
-        plotters = configure_plotters(experiment_config.get("plotters", []))
+        plotters = configure_plotters(
+            experiment_config.get("plotters", []),
+            file_finder
+        )
         subject = subject_config.get("subject", {})
         experiment = experiment_config.get("experiment", {})
-        # TODO: resolve plot_positions_yaml WRT search path
         plot_figure_controller = PlotFigureController(
             plotters=plotters,
             experiment_info=experiment,
             subject_info=subject,
-            plot_positions_yaml=plot_positions_yaml
+            plot_positions_yaml=file_finder.find(plot_positions_yaml)
         )
         return PyramidContext(
             subject=subject,
@@ -177,10 +134,9 @@ class PyramidContext():
         It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
         run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
         """
-        # TODO: resolve trial_file WRT search path
         with ExitStack() as stack:
             # All these "context managers" will clean up automatically when the "with" exits.
-            writer = stack.enter_context(TrialFile.for_file_suffix(trial_file))
+            writer = stack.enter_context(TrialFile.for_file_suffix(self.file_finder.find(trial_file)))
             for reader in self.readers.values():
                 stack.enter_context(reader)
 
@@ -221,10 +177,9 @@ class PyramidContext():
         It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
         run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
         """
-        # TODO: resolve trial_file WRT search path
         with ExitStack() as stack:
             # All these "context managers" will clean up automatically when the "with" exits.
-            writer = stack.enter_context(TrialFile.for_file_suffix(trial_file))
+            writer = stack.enter_context(TrialFile.for_file_suffix(self.file_finder.find(trial_file)))
             for reader in self.readers.values():
                 stack.enter_context(reader)
             stack.enter_context(self.plot_figure_controller)
@@ -369,7 +324,8 @@ class PyramidContext():
 
 def configure_readers(
     readers_config: dict[str, dict],
-    allow_simulate_delay: bool = False
+    allow_simulate_delay: bool = False,
+    file_finder: FileFinder = None
 ) -> tuple[dict[str, Reader], dict[str, Buffer], dict[str, ReaderRouter]]:
     """Load the "readers:" section of an experiment YAML file."""
 
@@ -385,12 +341,15 @@ def configure_readers(
         # Instantiate the reader by dynamic import.
         reader_class = reader_config["class"]
         logging.info(f"  {reader_class}")
-        # TODO: resolve package_path WRT search path
         package_path = reader_config.get("package_path", None)
-        # TODO: pass file_finder callback to inject into Reader constructors
         reader_args = reader_config.get("args", {})
         simulate_delay = allow_simulate_delay and reader_config.get("simulate_delay", False)
-        reader = Reader.from_dynamic_import(reader_class, external_package_path=package_path, **reader_args)
+        reader = Reader.from_dynamic_import(
+            reader_class,
+            file_finder,
+            external_package_path=package_path,
+            **reader_args
+        )
         if simulate_delay:
             reader = DelaySimulatorReader(reader)
         readers[reader_name] = reader
@@ -410,12 +369,11 @@ def configure_readers(
             for transformer_config in transformers_config:
                 transformer_class = transformer_config["class"]
                 logging.info(f"  {transformer_class}")
-                # TODO: resolve package_path WRT search path
                 package_path = transformer_config.get("package_path", None)
-                # TODO: pass file_finder callback to inject into Transformer constructors
                 transformer_args = transformer_config.get("args", {})
                 transformer = Transformer.from_dynamic_import(
                     transformer_class,
+                    file_finder,
                     external_package_path=package_path,
                     **transformer_args
                 )
@@ -469,7 +427,8 @@ def configure_readers(
 
 def configure_trials(
     trials_config: dict[str, Any],
-    named_buffers: dict[str, Buffer]
+    named_buffers: dict[str, Buffer],
+    file_finder: FileFinder = None
 ) -> tuple[TrialDelimiter, TrialExtractor, str]:
     """Load the "trials:" section of an experiment YAML file."""
 
@@ -498,12 +457,11 @@ def configure_trials(
     logging.info(f"Using {len(enhancers_config)} per-trial enhancers.")
     for enhancer_config in enhancers_config:
         enhancer_class = enhancer_config["class"]
-        # TODO: resolve package_path WRT search path
         package_path = enhancer_config.get("package_path", None)
-        # TODO: pass file_finder callback to inject into TrialEnhancer constructors
         enhancer_args = enhancer_config.get("args", {})
         enhancer = TrialEnhancer.from_dynamic_import(
             enhancer_class,
+            file_finder,
             external_package_path=package_path,
             **enhancer_args
         )
@@ -529,7 +487,10 @@ def configure_trials(
     return (trial_delimiter, trial_extractor, start_buffer_name)
 
 
-def configure_plotters(plotters_config: list[dict[str, str]]) -> list[Plotter]:
+def configure_plotters(
+    plotters_config: list[dict[str, str]],
+    file_finder: FileFinder = None
+) -> list[Plotter]:
     """Load the "plotters:" section of an experiment YAML file."""
 
     if not plotters_config:
@@ -541,11 +502,14 @@ def configure_plotters(plotters_config: list[dict[str, str]]) -> list[Plotter]:
     for plotter_config in plotters_config:
         plotter_class = plotter_config["class"]
         logging.info(f"  {plotter_class}")
-        # TODO: resolve package_path WRT search path
         package_path = plotter_config.get("package_path", None)
-        # TODO: pass file_finder callback to inject into Plotter constructors
         plotter_args = plotter_config.get("args", {})
-        plotter = Plotter.from_dynamic_import(plotter_class, external_package_path=package_path, **plotter_args)
+        plotter = Plotter.from_dynamic_import(
+            plotter_class,
+            file_finder,
+            external_package_path=package_path,
+            **plotter_args
+        )
         plotters.append(plotter)
 
     return plotters

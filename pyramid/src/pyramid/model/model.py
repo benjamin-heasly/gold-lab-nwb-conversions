@@ -3,6 +3,7 @@ from importlib import import_module
 from typing import Any, Self
 from inspect import signature
 
+from pyramid.file_finder import FileFinder
 
 class DynamicImport():
     """Utility for creating class instances from a dynamically imported module and class.
@@ -10,9 +11,14 @@ class DynamicImport():
     Document optional file_finder, injected by context, or None
     """
 
-    # TODO: accept a file_finder callback
     @classmethod
-    def from_dynamic_import(cls, import_spec: str, external_package_path: str = None, **kwargs) -> Self:
+    def from_dynamic_import(
+        cls,
+        import_spec: str,
+        file_finder: FileFinder,
+        external_package_path: str = None,
+        **kwargs
+    ) -> Self:
         """Create a class instance from a dynamically imported module and class.
 
         The given import_spec should be of the form "package.subpackage.module.ClassName".
@@ -35,18 +41,21 @@ class DynamicImport():
             original_sys_path = sys.path
             if external_package_path:
                 sys.path = original_sys_path.copy()
-                sys.path.append(external_package_path)
+                path_to_add = file_finder.find(external_package_path)
+                sys.path.append(path_to_add)
             imported_module = import_module(module_spec, package=None)
         finally:
             sys.path = original_sys_path
 
         class_name = import_spec[last_dot+1:]
         imported_class = getattr(imported_module, class_name)
+
+        # Does the class constructor want to have a "file_finder" helper injected?
         constructor_signature = signature(imported_class)
-        print(constructor_signature.parameters.keys())
-        # TOOD: inspect the constructor to see if it wants an file_finder
-        # TODO: pass in the file_finder along with **kwargs, when wanted
-        instance = imported_class(**kwargs)
+        if "file_finder" in constructor_signature.parameters.keys():
+            instance = imported_class(file_finder=file_finder, **kwargs)
+        else:
+            instance = imported_class(**kwargs)
         return instance
 
 

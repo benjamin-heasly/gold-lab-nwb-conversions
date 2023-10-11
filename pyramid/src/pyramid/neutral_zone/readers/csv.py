@@ -4,6 +4,7 @@ import logging
 import csv
 import numpy as np
 
+from pyramid.file_finder import FileFinder
 from pyramid.model.model import BufferData
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
@@ -21,10 +22,13 @@ class CsvNumericEventReader(Reader):
         csv_file: str = None,
         result_name: str = "events",
         dialect: str = 'excel',
-        # TODO: accept a file_finder
+        file_finder: FileFinder = None,
         **fmtparams
     ) -> None:
-        self.csv_file = csv_file
+        if file_finder:
+            self.csv_file = file_finder.find(csv_file)
+        else:
+            self.csv_file = csv_file
         self.result_name = result_name
         self.dialect = dialect
         self.fmtparams = fmtparams
@@ -112,10 +116,13 @@ class CsvSignalReader(Reader):
         lines_per_chunk: int = 10,
         result_name: str = "samples",
         dialect: str = 'excel',
-        # TODO: accept a file_finder
+        file_finder: FileFinder = None,
         **fmtparams
     ) -> None:
-        self.csv_file = csv_file
+        if file_finder:
+            self.csv_file = file_finder.find(csv_file)
+        else:
+            self.csv_file = csv_file
         self.sample_frequency = sample_frequency
         self.next_sample_time = next_sample_time
         self.lines_per_chunk = lines_per_chunk

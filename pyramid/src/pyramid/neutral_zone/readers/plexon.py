@@ -4,8 +4,9 @@ from typing import ContextManager, Self, Any
 from pathlib import Path
 
 import numpy as np
-from pyramid.model.model import BufferData
 
+from pyramid.file_finder import FileFinder
+from pyramid.model.model import BufferData
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.readers.readers import Reader
@@ -169,9 +170,7 @@ class PlexonPlxRawReader(ContextManager):
         self.frequency_per_slow_channel = None
 
     def __enter__(self) -> Self:
-        # TODO: expect plx_file was already fully resolved
-        plx_file = Path(self.plx_file).expanduser().as_posix()
-        self.plx_stream = open(plx_file, 'br')
+        self.plx_stream = open(self.plx_file, 'br')
 
         self.global_header = self.consume_type_as_dict(GlobalHeader)
 
@@ -375,7 +374,8 @@ class PlexonPlxReader(Reader):
 
     def __init__(
         self,
-        plx_file: str = None,
+        plx_file: str,
+        file_finder: FileFinder,
         spikes: str | dict[str, str] = "all",
         events: str | dict[str, str] = "all",
         signals: str | dict[str, str] = "all",
@@ -383,12 +383,12 @@ class PlexonPlxReader(Reader):
         spikes_prefix: str = "spike_",
         events_prefix: str = "event_",
         signals_prefix: str = "signal_"
-        # TODO: accept a file_finder
     ) -> None:
         """Create a new PlexonPlxReader.
 
         Args:
             plx_file:           Path to the Plexon .plx file to read from.
+            file_finder         Utility to find() files in the conigured Pyramid configured search path.
             spikes:             Dict of spike channel raw names to aliases, for which channels to keep.
                                 Or, use spikes="all" to keep all channels with default names.
             events:             Dict of event channel raw names to aliases, for which channels to keep.
@@ -406,7 +406,7 @@ class PlexonPlxReader(Reader):
             events_prefix:      Default prefix for event channels when events="all", to avoid naming collisions.
             signals_prefix:     Default prefix for signals channels when signals="all", to avoid naming collisions.
         """
-        self.plx_file = plx_file
+        self.plx_file = file_finder.find(plx_file)
         self.spikes = spikes
         self.events = events
         self.signals = signals

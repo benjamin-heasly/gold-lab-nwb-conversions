@@ -5,6 +5,7 @@ from pytest import fixture, raises
 import cProfile
 import pstats
 
+from pyramid.file_finder import FileFinder
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.readers.plexon import PlexonPlxReader
@@ -18,7 +19,7 @@ def fixture_path(request):
 
 def test_default_to_all_channels(fixture_path):
     plx_file = Path(fixture_path, "plexon", "opx141ch1to3analogOnly003.plx")
-    with PlexonPlxReader(plx_file) as reader:
+    with PlexonPlxReader(plx_file, FileFinder()) as reader:
         initial = reader.get_initial()
 
     assert reader.raw_reader.plx_stream is None
@@ -47,7 +48,7 @@ def test_default_to_all_channels(fixture_path):
 
 def test_read_whole_plx_file_one_block_at_a_time(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
-    with PlexonPlxReader(plx_file, seconds_per_read=0) as reader:
+    with PlexonPlxReader(plx_file, FileFinder(), seconds_per_read=0) as reader:
 
         # The first result should be the "Start" event.
         next = reader.read_next()
@@ -160,7 +161,7 @@ def test_read_whole_plx_file_several_seconds_at_a_time(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
 
     # Read through the file roughly 4 seconds at a time.
-    with PlexonPlxReader(plx_file, seconds_per_read=4.0) as reader:
+    with PlexonPlxReader(plx_file, FileFinder(), seconds_per_read=4.0) as reader:
         # The first result should contain the "Start" event.
         next = reader.read_next()
         assert reader.raw_reader.block_count == 12692
@@ -193,7 +194,7 @@ def test_read_whole_plx_file_several_seconds_at_a_time(fixture_path):
 # hatch run test:cov -k test_profile_read_whole_plx_file -s
 def test_profile_read_whole_plx_file(fixture_path):
     plx_file = Path(fixture_path, "plexon", "16sp_lfp_with_2coords.plx")
-    with PlexonPlxReader(plx_file) as reader:
+    with PlexonPlxReader(plx_file, FileFinder()) as reader:
         with cProfile.Profile() as profiler:
             while True:
                 try:
@@ -216,7 +217,14 @@ def test_read_whole_plx_file_aliased_channels_only(fixture_path):
     expected_names = {*spikes.values(), *events.values(), *signals.values()}
 
     # Read through the file roughly 4 seconds at a time.
-    with PlexonPlxReader(plx_file, spikes=spikes, events=events, signals=signals, seconds_per_read=4.0) as reader:
+    with PlexonPlxReader(
+        plx_file,
+        FileFinder(),
+        spikes=spikes,
+        events=events,
+        signals=signals,
+        seconds_per_read=4.0
+    ) as reader:
 
         next = reader.read_next()
         assert reader.raw_reader.block_count == 12692

@@ -2,6 +2,7 @@ from typing import Any
 from numpy import bool_
 import csv
 
+from pyramid.file_finder import FileFinder
 from pyramid.trials.trials import Trial, TrialEnhancer, TrialExpression
 
 
@@ -56,6 +57,8 @@ class PairedCodesEnhancer(TrialEnhancer):
 
     The .csv may contain additional columns, which will be ignored (eg a "comment" column).
 
+    file_finder is a utility to find() files in the conigured Pyramid configured search path.
+
     value_index is which event value to look for, in the NumericEventList
     (default is 0, the first value for each event).
 
@@ -70,13 +73,14 @@ class PairedCodesEnhancer(TrialEnhancer):
         buffer_name: str,
         # TODO: allow string or list of strings for rules_csv
         rules_csv: str,
+        file_finder: FileFinder,
         value_index: int = 0,
         rule_types: list[str] = ["id", "value"],
         dialect: str = 'excel',
         **fmtparams
     ) -> None:
         self.buffer_name = buffer_name
-        self.rules_csv = rules_csv
+        self.rules_csv = file_finder.find(rules_csv)
         self.value_index = value_index
         self.rule_types = rule_types
         self.dialect = dialect
@@ -137,6 +141,8 @@ class EventTimesEnhancer(TrialEnhancer):
 
     The .csv may contain additional columns, which will be ignored (eg a "comment" column).
 
+    file_finder is a utility to find() files in the conigured Pyramid configured search path.
+
     value_index is which event value to look for, in the NumericEventList
     (default is 0, the first value for each event).
 
@@ -149,15 +155,15 @@ class EventTimesEnhancer(TrialEnhancer):
     def __init__(
         self,
         buffer_name: str,
-        # TODO: allow string or list of strings for rules_csv
         rules_csv: str,
+        file_finder: FileFinder,
         value_index: int = 0,
         rule_types: list[str] = ["time"],
         dialect: str = 'excel',
         **fmtparams
     ) -> None:
         self.buffer_name = buffer_name
-        self.rules_csv = rules_csv
+        self.rules_csv = file_finder.find(rules_csv)
         self.value_index = value_index
         self.rule_types = rule_types
         self.dialect = dialect

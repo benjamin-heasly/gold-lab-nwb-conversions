@@ -1,5 +1,6 @@
 import numpy as np
 
+from pyramid.file_finder import FileFinder
 from pyramid.model.events import NumericEventList
 from pyramid.model.signals import SignalChunk
 from pyramid.neutral_zone.transformers.transformers import Transformer
@@ -9,21 +10,33 @@ from pyramid.neutral_zone.transformers.standard_transformers import OffsetThenGa
 def test_installed_transformer_dynamic_import():
     # Import a transformer that was installed in the usual way (eg by pip) along with pyramid itself.
     import_spec = "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain"
-    transformer = Transformer.from_dynamic_import(import_spec)
+    transformer = Transformer.from_dynamic_import(import_spec, FileFinder())
     assert isinstance(transformer, Transformer)
     assert isinstance(transformer, OffsetThenGain)
 
 
 def test_offset_then_gain_dynamic_imports_with_kwargs():
     offset_then_gain_spec = "pyramid.neutral_zone.transformers.standard_transformers.OffsetThenGain"
-    offset_then_gain = Transformer.from_dynamic_import(offset_then_gain_spec, offset=10, gain=-2, ignore="ignore me")
+    offset_then_gain = Transformer.from_dynamic_import(
+        offset_then_gain_spec,
+        FileFinder(),
+        offset=10,
+        gain=-2,
+        ignore="ignore me"
+    )
     assert offset_then_gain.offset == 10
     assert offset_then_gain.gain == -2
 
 
 def test_filter_range_dynamic_imports_with_kwargs():
     filter_range_spec = "pyramid.neutral_zone.transformers.standard_transformers.FilterRange"
-    filter_range = Transformer.from_dynamic_import(filter_range_spec, min=-100, max=55, ignore="ignore me")
+    filter_range = Transformer.from_dynamic_import(
+        filter_range_spec,
+        FileFinder(),
+        min=-100,
+        max=55,
+        ignore="ignore me"
+    )
     assert filter_range.min == -100
     assert filter_range.max == 55
 

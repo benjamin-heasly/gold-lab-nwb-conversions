@@ -7,6 +7,7 @@ from pytest import fixture
 
 import matplotlib.pyplot as plt
 
+from pyramid.file_finder import FileFinder
 from pyramid.trials.trials import Trial
 from pyramid.plotters.plotters import Plotter, PlotFigureController, get_figure_position, set_figure_position, looks_like_tkinter
 from pyramid.plotters.standard_plotters import NumericEventsPlotter, SignalChunksPlotter
@@ -21,14 +22,14 @@ def tests_path(request):
 def test_installed_plotter_dynamic_import():
     # Import a plotter that was installed in the usual way (eg by pip) along with pyramid itself.
     import_spec = "pyramid.plotters.standard_plotters.NumericEventsPlotter"
-    plotter = Plotter.from_dynamic_import(import_spec)
+    plotter = Plotter.from_dynamic_import(import_spec, FileFinder())
     assert isinstance(plotter, Plotter)
     assert isinstance(plotter, NumericEventsPlotter)
 
 
 def test_another_installed_plotter_dynamic_import():
     import_spec = "pyramid.plotters.standard_plotters.SignalChunksPlotter"
-    plotter = Plotter.from_dynamic_import(import_spec)
+    plotter = Plotter.from_dynamic_import(import_spec, FileFinder())
     assert isinstance(plotter, Plotter)
     assert isinstance(plotter, SignalChunksPlotter)
 
@@ -37,14 +38,22 @@ def test_external_plotter_dynamic_import(tests_path):
     # Import a plotter from a local file that was not installed in a standard location (eg by pip).
     # We don't want to litter the sys.path, so check we cleaned up after importing.
     original_sys_path = sys.path.copy()
-    plotter = Plotter.from_dynamic_import('external_package.plotter_module.ExternalPlotter1', tests_path.as_posix())
+    plotter = Plotter.from_dynamic_import(
+        'external_package.plotter_module.ExternalPlotter1',
+        FileFinder(),
+        tests_path.as_posix()
+    )
     assert isinstance(plotter, Plotter)
     assert sys.path == original_sys_path
 
 
 def test_another_external_plotter_dynamic_import(tests_path):
     original_sys_path = sys.path.copy()
-    plotter = Plotter.from_dynamic_import('external_package.plotter_module.ExternalPlotter2', tests_path.as_posix())
+    plotter = Plotter.from_dynamic_import(
+        'external_package.plotter_module.ExternalPlotter2',
+        FileFinder(),
+        tests_path.as_posix()
+    )
     assert isinstance(plotter, Plotter)
     assert sys.path == original_sys_path
 
