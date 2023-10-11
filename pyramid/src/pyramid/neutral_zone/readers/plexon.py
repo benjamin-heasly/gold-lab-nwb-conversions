@@ -169,6 +169,7 @@ class PlexonPlxRawReader(ContextManager):
         self.frequency_per_slow_channel = None
 
     def __enter__(self) -> Self:
+        # TODO: expect plx_file was already fully resolved
         plx_file = Path(self.plx_file).expanduser().as_posix()
         self.plx_stream = open(plx_file, 'br')
 
@@ -382,6 +383,7 @@ class PlexonPlxReader(Reader):
         spikes_prefix: str = "spike_",
         events_prefix: str = "event_",
         signals_prefix: str = "signal_"
+        # TODO: accept a file_finder
     ) -> None:
         """Create a new PlexonPlxReader.
 

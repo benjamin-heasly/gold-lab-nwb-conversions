@@ -68,6 +68,7 @@ class PairedCodesEnhancer(TrialEnhancer):
     def __init__(
         self,
         buffer_name: str,
+        # TODO: allow string or list of strings for rules_csv
         rules_csv: str,
         value_index: int = 0,
         rule_types: list[str] = ["id", "value"],
@@ -82,6 +83,7 @@ class PairedCodesEnhancer(TrialEnhancer):
         self.fmtparams = fmtparams
 
         rules = {}
+        # TODO: iterate list of rules_csvs and override as they come
         with open(self.rules_csv, mode='r', newline='') as f:
             csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
             for row in csv_reader:
@@ -147,6 +149,7 @@ class EventTimesEnhancer(TrialEnhancer):
     def __init__(
         self,
         buffer_name: str,
+        # TODO: allow string or list of strings for rules_csv
         rules_csv: str,
         value_index: int = 0,
         rule_types: list[str] = ["time"],
@@ -161,6 +164,7 @@ class EventTimesEnhancer(TrialEnhancer):
         self.fmtparams = fmtparams
 
         rules = {}
+        # TODO: iterate list of rules_csvs and override as they come
         with open(self.rules_csv, mode='r', newline='') as f:
             csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
             for row in csv_reader:

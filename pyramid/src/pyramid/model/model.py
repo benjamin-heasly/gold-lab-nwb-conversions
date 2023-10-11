@@ -1,11 +1,16 @@
 import sys
 from importlib import import_module
 from typing import Any, Self
+from inspect import signature
 
 
 class DynamicImport():
-    """Utility for creating class instances from a dynamically imported module and class."""
+    """Utility for creating class instances from a dynamically imported module and class.
 
+    Document optional file_finder, injected by context, or None
+    """
+
+    # TODO: accept a file_finder callback
     @classmethod
     def from_dynamic_import(cls, import_spec: str, external_package_path: str = None, **kwargs) -> Self:
         """Create a class instance from a dynamically imported module and class.
@@ -37,6 +42,10 @@ class DynamicImport():
 
         class_name = import_spec[last_dot+1:]
         imported_class = getattr(imported_module, class_name)
+        constructor_signature = signature(imported_class)
+        print(constructor_signature.parameters.keys())
+        # TOOD: inspect the constructor to see if it wants an file_finder
+        # TODO: pass in the file_finder along with **kwargs, when wanted
         instance = imported_class(**kwargs)
         return instance
 

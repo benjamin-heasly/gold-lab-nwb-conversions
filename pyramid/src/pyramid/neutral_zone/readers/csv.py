@@ -21,6 +21,7 @@ class CsvNumericEventReader(Reader):
         csv_file: str = None,
         result_name: str = "events",
         dialect: str = 'excel',
+        # TODO: accept a file_finder
         **fmtparams
     ) -> None:
         self.csv_file = csv_file
@@ -111,6 +112,7 @@ class CsvSignalReader(Reader):
         lines_per_chunk: int = 10,
         result_name: str = "samples",
         dialect: str = 'excel',
+        # TODO: accept a file_finder
         **fmtparams
     ) -> None:
         self.csv_file = csv_file

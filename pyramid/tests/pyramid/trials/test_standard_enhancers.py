@@ -75,6 +75,7 @@ def test_paired_codes_enhancer(tmp_path):
     }
     assert trial.enhancement_categories == expected_categories
 
+# TODO: test_paired_codes_enhancer with multiple rules csv and overrides
 
 def test_event_times_enhancer(tmp_path):
     # Write out a .csv file with rules in it.
@@ -131,6 +132,7 @@ def test_event_times_enhancer(tmp_path):
     }
     assert trial.enhancement_categories == expected_categories
 
+# TODO: test_event_times_enhancer with multiple rules csv and overrides
 
 def test_expression_enhancer(tmp_path):
     enhancer = ExpressionEnhancer(

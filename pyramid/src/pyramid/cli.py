@@ -50,6 +50,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         type=str,
                         default=None,
                         help="Name of a YAML where Pyramid can record and restore plot figure window positions")
+    # TODO: argument for file search path, default to ~/pyramid.
     parser.add_argument("--version", "-v",
                         action="version",
                         version=version_string)

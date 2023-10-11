@@ -296,3 +296,5 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         plot_figure_controller=expected_plot_figure_controller
     )
     assert context == expected_context
+
+# TODO: test cases for resolving file-like strings WRT context's search pat

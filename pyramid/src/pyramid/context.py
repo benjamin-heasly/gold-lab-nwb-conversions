@@ -28,6 +28,7 @@ class PyramidContext():
     trial_extractor: TrialExtractor
     sync_registry: ReaderSyncRegistry
     plot_figure_controller: PlotFigureController
+    # TODO: accept a file search path.
 
     @classmethod
     def from_yaml_and_reader_overrides(
@@ -39,6 +40,7 @@ class PyramidContext():
         plot_positions_yaml: str = None
     ) -> Self:
         """Load a context the way it comes from the CLI, with a YAML files etc."""
+        # TODO: resolve experiment_yaml WRT search path
         with open(experiment_yaml) as f:
             experiment_config = yaml.safe_load(f)
 
@@ -54,6 +56,7 @@ class PyramidContext():
                 reader_config["args"] = reader_args
 
         if subject_yaml:
+            # TODO: resolve subject_yaml WRT search path
             with open(subject_yaml) as f:
                 subject_config = yaml.safe_load(f)
         else:
@@ -90,6 +93,7 @@ class PyramidContext():
         plotters = configure_plotters(experiment_config.get("plotters", []))
         subject = subject_config.get("subject", {})
         experiment = experiment_config.get("experiment", {})
+        # TODO: resolve plot_positions_yaml WRT search path
         plot_figure_controller = PlotFigureController(
             plotters=plotters,
             experiment_info=experiment,
@@ -109,6 +113,13 @@ class PyramidContext():
             plot_figure_controller=plot_figure_controller
         )
 
+    # TODO: method to resolve file-like strings WRT a search path.
+    # not a string -> return as-is
+    # Path is_absoulte() -> return with user expanded
+    # starts with . or .. -> return with user expanded
+    # exists with search path prepended and user expanded -> return with search path prepended and user expanded
+    # otherwise -> return with user expanded
+
     def run_without_plots(self, trial_file: str) -> None:
         """Run without plots as fast as the data allow.
 
@@ -116,6 +127,7 @@ class PyramidContext():
         It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
         run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
         """
+        # TODO: resolve trial_file WRT search path
         with ExitStack() as stack:
             # All these "context managers" will clean up automatically when the "with" exits.
             writer = stack.enter_context(TrialFile.for_file_suffix(trial_file))
@@ -159,6 +171,7 @@ class PyramidContext():
         It seemed nicer to have separate code paths, as opposed to lots of conditionals in one uber-function.
         run_without_plots() should run without touching any GUI code, avoiding potential host graphics config issues.
         """
+        # TODO: resolve trial_file WRT search path
         with ExitStack() as stack:
             # All these "context managers" will clean up automatically when the "with" exits.
             writer = stack.enter_context(TrialFile.for_file_suffix(trial_file))
@@ -322,7 +335,9 @@ def configure_readers(
         # Instantiate the reader by dynamic import.
         reader_class = reader_config["class"]
         logging.info(f"  {reader_class}")
+        # TODO: resolve package_path WRT search path
         package_path = reader_config.get("package_path", None)
+        # TODO: pass file_finder callback to inject into Reader constructors
         reader_args = reader_config.get("args", {})
         simulate_delay = allow_simulate_delay and reader_config.get("simulate_delay", False)
         reader = Reader.from_dynamic_import(reader_class, external_package_path=package_path, **reader_args)
@@ -345,7 +360,9 @@ def configure_readers(
             for transformer_config in transformers_config:
                 transformer_class = transformer_config["class"]
                 logging.info(f"  {transformer_class}")
+                # TODO: resolve package_path WRT search path
                 package_path = transformer_config.get("package_path", None)
+                # TODO: pass file_finder callback to inject into Transformer constructors
                 transformer_args = transformer_config.get("args", {})
                 transformer = Transformer.from_dynamic_import(
                     transformer_class,
@@ -431,7 +448,9 @@ def configure_trials(
     logging.info(f"Using {len(enhancers_config)} per-trial enhancers.")
     for enhancer_config in enhancers_config:
         enhancer_class = enhancer_config["class"]
+        # TODO: resolve package_path WRT search path
         package_path = enhancer_config.get("package_path", None)
+        # TODO: pass file_finder callback to inject into TrialEnhancer constructors
         enhancer_args = enhancer_config.get("args", {})
         enhancer = TrialEnhancer.from_dynamic_import(
             enhancer_class,
@@ -472,7 +491,9 @@ def configure_plotters(plotters_config: list[dict[str, str]]) -> list[Plotter]:
     for plotter_config in plotters_config:
         plotter_class = plotter_config["class"]
         logging.info(f"  {plotter_class}")
+        # TODO: resolve package_path WRT search path
         package_path = plotter_config.get("package_path", None)
+        # TODO: pass file_finder callback to inject into Plotter constructors
         plotter_args = plotter_config.get("args", {})
         plotter = Plotter.from_dynamic_import(plotter_class, external_package_path=package_path, **plotter_args)
         plotters.append(plotter)
