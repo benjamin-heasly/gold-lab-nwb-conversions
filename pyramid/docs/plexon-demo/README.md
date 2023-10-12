@@ -27,11 +27,17 @@ To start with, we can generate an overview graph of the experiment configuration
 ```
 cd gold-lab-nwb-conversions/pyramid/docs/plexon-demo
 
-pyramid graph --graph-file demo_experiment.png --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx
+pyramid graph --graph-file images/demo_experiment.png --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx --search-path ./config
 ```
 
-`demo_experiment.png`
-![Graph of Pyramid Reader and Trial configuration for a Plexon file.](demo_experiment.png "Overview of a Plexon experiment")
+`images/demo_experiment.png`
+![Graph of Pyramid Reader and Trial configuration for a Plexon file.](images/demo_experiment.png "Overview of a Plexon experiment")
+
+Note the `--search-path ./config` at the end of the command.
+This lets Pyramid look in the nearby `./config` folder for files mentioned in `demo_experiment.yaml`, which helps us organize the demo.
+
+The `--search-path` can point to any folder or list of folders on your machine, so it could help organize various shared and lab-specific code and config.
+The default search path is in the user's home folder, `~/pyramd`.
 
 ## experiment YAML
 
@@ -203,27 +209,27 @@ plotters:
 #### BasicInfoPlotter
 The [BasicInfoPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L35) shows Pyramid's overall progress through the Plexon file along with static metadata about the experiment and subject.  It also has a `Quit` button -- _wow!_
 
-![Pyramid BasicInfoPlotter with static and progress info and Quit button.](BasicInfoPlotter.png "Pyramid BasicInfoPlotter")
+![Pyramid BasicInfoPlotter with static and progress info and Quit button.](images/BasicInfoPlotter.png "Pyramid BasicInfoPlotter")
 
 #### SignalChunksPlotter
 The [SignalChunksPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L188) shows gaze signal traces over time, aligned to the zero-time for each trial.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
-![Pyramid SignalChunksPlotter with gaze signal data.](SignalChunksPlotter.png "Pyramid SignalChunksPlotter")
+![Pyramid SignalChunksPlotter with gaze signal data.](images/SignalChunksPlotter.png "Pyramid SignalChunksPlotter")
 
 #### NumericEventsPlotter
 The [NumericEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L100) shows event times and raw numeric values for the `ecodes` buffer which came from the original Plexon `Strobed` channel.  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
-![Pyramid NumericEventsPlotter for ecode event times and raw numeric values.](NumericEventsPlotter_ecodes.png "Pyramid NumericEventsPlotter for ecodes")
+![Pyramid NumericEventsPlotter for ecode event times and raw numeric values.](images/NumericEventsPlotter_ecodes.png "Pyramid NumericEventsPlotter for ecodes")
 
 #### SpikeEventsPlotter
 The [SpikeEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L483) shows spike event times from all Plexon spike channels.  Spikes are grouped and color-coded by integer channel number and fractionally offset by unit number.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
 
-![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
+![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](images/SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
 
 #### EnhancementTimesPlotter
 The [EnhancementTimesPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L278) shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [ecode-rules.csv](ecode-rules.csv) and custom enhancements created from [custom_enhancers.py](custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
-![Pyramid EnhancementTimesPlotter for named events of interest within each trial.](EnhancementTimesPlotter.png "Pyramid EnhancementTimesPlotter")
+![Pyramid EnhancementTimesPlotter for named events of interest within each trial.](images/EnhancementTimesPlotter.png "Pyramid EnhancementTimesPlotter")
 
 #### EnhancementXYPlotter
 The [EnhancementXYPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L367) shows 2D/XY values of interest from each trial.  Specific values to plot are declared by name:
@@ -233,7 +239,7 @@ The [EnhancementXYPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conve
 
 The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
-![Pyramid EnhancementXYPlotter for 2D/XY values from each trial.](EnhancementXYPlotter.png "Pyramid EnhancementXYPlotter")
+![Pyramid EnhancementXYPlotter for 2D/XY values from each trial.](images/EnhancementXYPlotter.png "Pyramid EnhancementXYPlotter")
 
 
 ## running it
@@ -241,7 +247,7 @@ The most recent trial is in full color, on top of 10 recent trials which are sma
 Here's how to run Pyramid in `gui` mode, which is how the plots shown above were created.
 
 ```
-pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx
+pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx --search-path ./config
 ```
 
 This should open up a few figure windows, similar to the images above.
@@ -256,7 +262,7 @@ To exit Pyramid, you can:
 If you're only interested in the trial file and not the gui, you can run Pyramid in `convert` mode.
 
 ```
-pyramid convert --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx
+pyramid convert --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx --search-path ./config
 ```
 
 This won't plot anything, and will convert the Plexon file to a trial file as fast as it can.
@@ -266,7 +272,7 @@ This won't plot anything, and will convert the Plexon file to a trial file as fa
 In case you get tired of rearranging plot figure windows, you can pass a `plot-positions` YAML file to Pyramid.
 
 ```
-pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx --plot-positions plot_positions.yaml
+pyramid gui --trial-file demo_experiment.hdf5 --experiment demo_experiment.yaml --readers plexon_reader.plx_file=~/data/MrM/Raw/MM_2022_08_05_REC.plx --plot-positions plot_positions.yaml --search-path ./config
 ```
 
 When a `plot-positions` YAML file is passed in, Pyramid will record and restore figure positions as follows:
