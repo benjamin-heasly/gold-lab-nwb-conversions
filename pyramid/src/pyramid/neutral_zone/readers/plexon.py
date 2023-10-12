@@ -415,7 +415,7 @@ class PlexonPlxReader(Reader):
         self.events_prefix = events_prefix
         self.signals_prefix = signals_prefix
 
-        self.raw_reader = PlexonPlxRawReader(plx_file)
+        self.raw_reader = PlexonPlxRawReader(self.plx_file)
         self.spike_channel_names = None
         self.event_channel_names = None
         self.signal_channel_names = None
