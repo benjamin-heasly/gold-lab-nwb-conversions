@@ -113,11 +113,11 @@ To delimit trials in time, Pyramid will look at the `delimiter` buffer.  Events 
 
 To build each trial Pyramid will use two standard, rule-based enhancers and two custom code enhancers.  All of the enchancers will add some name-value pairs to each trial, indicating things like events of interest, trial scores, saccades, etc.
 
- - A standard, rule-based [PairedCodesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L39) will look for numeric events that encode property-value pairs for each trial.  The experiment-specific names and encodings for these are declared in a table, [ecode-rules.csv](ecode-rules.csv).
- - A standard, rule-based [EventTimesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L122) will look for named events of interest and record any occurrence times within each trial.  The experiment-specific names and code values for these are declared in the same table, [ecode-rules.csv](ecode-rules.csv).
+ - A standard, rule-based [PairedCodesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L39) will look for numeric events that encode property-value pairs for each trial.  The names and encodings for these are declared in two tables, [config/main-ecode-rules.csv](config/main-ecode-rules.csv) and [config/special-ecode-rules.csv](config/special-ecode-rules.csv).
+ - A standard, rule-based [EventTimesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L122) will look for named events of interest and record any occurrence times within each trial.  The names and encodings for these are declared in the same two tables, [config/main-ecode-rules.csv](config/main-ecode-rules.csv) and [config/special-ecode-rules.csv](config/special-ecode-rules.csv).
  - A standard [ExpressionEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/trials/standard_enhancers.py#L189) will evaluate a given expression against each trial and add the result to each trial as 'actual_task', which will drive conditional enhancements below.
- - A custom [SaccadesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L149) will examine the `gaze_x` and `gaze_y` AD signals for each trial and extract saccades.  Each saccade will be a dictionary of saccade parameters like `t_start`, `x_end`, `y_end`, etc.  The custom Python code for this is here in this folder, in [custom_enhancers.py](custom_enhancers.py).  This will only run for trials `when` the value of `actual_task` is true, and at least one `fp_off` time is present.
- - Another [CustomEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L25) will examine all of the trial data and enchancements above and compute experiment-specific labels, scores, etc.  The Python code for this is in the same file, [custom_enhancers.py](custom_enhancers.py).  This will only run for trials `when` the value of `actual_task` is true.
+ - A custom [SaccadesEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L149) will examine the `gaze_x` and `gaze_y` AD signals for each trial and extract saccades.  Each saccade will be a dictionary of saccade parameters like `t_start`, `x_end`, `y_end`, etc.  The custom Python code for this is here in this folder, in [config/custom_enhancers.py](config/custom_enhancers.py).  This will only run for trials `when` the value of `actual_task` is true, and at least one `fp_off` time is present.
+ - Another [CustomEnhancer](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/docs/plexon-demo/custom_enhancers.py#L25) will examine all of the trial data and enchancements above and compute experiment-specific labels, scores, etc.  The Python code for this is in the same file, [config/custom_enhancers.py](config/custom_enhancers.py).  This will only run for trials `when` the value of `actual_task` is true.
 
 ```
 trials:
@@ -131,12 +131,12 @@ trials:
     - class: pyramid.trials.standard_enhancers.PairedCodesEnhancer
       args:
         buffer_name: ecodes
-        rules_csv: ecode-rules.csv
+        rules_csv: [main-ecode-rules.csv, special-ecode-rules.csv]
       # Standard enchancers come along with the Pyramid code.
     - class: pyramid.trials.standard_enhancers.EventTimesEnhancer
       args:
         buffer_name: ecodes
-        rules_csv: ecode-rules.csv
+        rules_csv: [main-ecode-rules.csv, special-ecode-rules.csv]
       # Standard enchancers come along with the Pyramid code.
     - class: pyramid.trials.standard_enhancers.ExpressionEnhancer
       args:
@@ -227,7 +227,7 @@ The [SpikeEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-convers
 ![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](images/SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
 
 #### EnhancementTimesPlotter
-The [EnhancementTimesPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L278) shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [ecode-rules.csv](ecode-rules.csv) and custom enhancements created from [custom_enhancers.py](custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
+The [EnhancementTimesPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L278) shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [config/main-ecode-rules.csv](config/main-ecode-rules.csv) and [config/special-ecode-rules.csv](config/special-ecode-rules.csv) and custom enhancements created from [config/custom_enhancers.py](config/custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
 
 ![Pyramid EnhancementTimesPlotter for named events of interest within each trial.](images/EnhancementTimesPlotter.png "Pyramid EnhancementTimesPlotter")
 

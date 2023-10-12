@@ -42,8 +42,8 @@ class PairedCodesEnhancer(TrialEnhancer):
 
     buffer_name is the name of a buffer of NumericEventList.
 
-    rules_csv is a .csv file where each row contains a rule for how to extract a property from the
-    named buffer.  The .csv must have the following columns:
+    rules_csv is one or more .csv files where each row contains a rule for how to extract a property from the
+    named buffer.  Each .csv must have the following columns:
 
         - "type": Used to select relevant rows of the .csv, and also the trial enhancement category to
                   use for each property.  By defalt only types "id" and "value" will be used.
@@ -55,9 +55,10 @@ class PairedCodesEnhancer(TrialEnhancer):
         - "base": the base value to subtract from the property's value events, for example 7000
         - "scale": how to scale each event value after subtracting its base, for example 0.1
 
-    The .csv may contain additional columns, which will be ignored (eg a "comment" column).
+    Each .csv may contain additional columns, which will be ignored (eg a "comment" column).
 
     file_finder is a utility to find() files in the conigured Pyramid configured search path.
+    Pyramid will automatically create and pass in the file_finder for you.
 
     value_index is which event value to look for, in the NumericEventList
     (default is 0, the first value for each event).
@@ -71,8 +72,7 @@ class PairedCodesEnhancer(TrialEnhancer):
     def __init__(
         self,
         buffer_name: str,
-        # TODO: allow string or list of strings for rules_csv
-        rules_csv: str,
+        rules_csv: str | list[str],
         file_finder: FileFinder,
         value_index: int = 0,
         rule_types: list[str] = ["id", "value"],
@@ -80,27 +80,30 @@ class PairedCodesEnhancer(TrialEnhancer):
         **fmtparams
     ) -> None:
         self.buffer_name = buffer_name
-        self.rules_csv = file_finder.find(rules_csv)
+        if isinstance(rules_csv, list):
+            self.rules_csv = [file_finder.find(file) for file in rules_csv]
+        else:
+            self.rules_csv = [file_finder.find(rules_csv)]
         self.value_index = value_index
         self.rule_types = rule_types
         self.dialect = dialect
         self.fmtparams = fmtparams
 
         rules = {}
-        # TODO: iterate list of rules_csvs and override as they come
-        with open(self.rules_csv, mode='r', newline='') as f:
-            csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
-            for row in csv_reader:
-                if row['type'] in self.rule_types:
-                    value = float(row['value'])
-                    rules[value] = {
-                        'type': row['type'],
-                        'name': row['name'],
-                        'base': float(row['base']),
-                        'min': float(row['min']),
-                        'max': float(row['max']),
-                        'scale': float(row['scale']),
-                    }
+        for rules_csv in self.rules_csv:
+            with open(rules_csv, mode='r', newline='') as f:
+                csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
+                for row in csv_reader:
+                    if row['type'] in self.rule_types:
+                        value = float(row['value'])
+                        rules[value] = {
+                            'type': row['type'],
+                            'name': row['name'],
+                            'base': float(row['base']),
+                            'min': float(row['min']),
+                            'max': float(row['max']),
+                            'scale': float(row['scale']),
+                        }
         self.rules = rules
 
     def enhance(
@@ -130,8 +133,8 @@ class EventTimesEnhancer(TrialEnhancer):
 
     buffer_name is the name of a buffer of NumericEventList.
 
-    rules_csv is a .csv file where each row contains a rule for how to extract events from the
-    named buffer.  The .csv must have the following columns:
+    rules_csv is one or more .csv files where each row contains a rule for how to extract events from the
+    named buffer.  Each .csv must have the following columns:
 
         - "type": Used to select relevant rows of the .csv, and also the trial enhancement category to
                   use for each property.  By defalt only the type "time" will be used.
@@ -139,9 +142,10 @@ class EventTimesEnhancer(TrialEnhancer):
         - "value": a numeric value that represents a property, for example 1010
         - "name": the string name to use for the property, for example "fp_on"
 
-    The .csv may contain additional columns, which will be ignored (eg a "comment" column).
+    Each .csv may contain additional columns, which will be ignored (eg a "comment" column).
 
     file_finder is a utility to find() files in the conigured Pyramid configured search path.
+    Pyramid will automatically create and pass in the file_finder for you.
 
     value_index is which event value to look for, in the NumericEventList
     (default is 0, the first value for each event).
@@ -155,7 +159,7 @@ class EventTimesEnhancer(TrialEnhancer):
     def __init__(
         self,
         buffer_name: str,
-        rules_csv: str,
+        rules_csv: str | list[str],
         file_finder: FileFinder,
         value_index: int = 0,
         rule_types: list[str] = ["time"],
@@ -163,23 +167,26 @@ class EventTimesEnhancer(TrialEnhancer):
         **fmtparams
     ) -> None:
         self.buffer_name = buffer_name
-        self.rules_csv = file_finder.find(rules_csv)
+        if isinstance(rules_csv, list):
+            self.rules_csv = [file_finder.find(file) for file in rules_csv]
+        else:
+            self.rules_csv = [file_finder.find(rules_csv)]
         self.value_index = value_index
         self.rule_types = rule_types
         self.dialect = dialect
         self.fmtparams = fmtparams
 
         rules = {}
-        # TODO: iterate list of rules_csvs and override as they come
-        with open(self.rules_csv, mode='r', newline='') as f:
-            csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
-            for row in csv_reader:
-                if row['type'] in self.rule_types:
-                    value = float(row['value'])
-                    rules[value] = {
-                        'type': row['type'],
-                        'name': row['name'],
-                    }
+        for rules_csv in self.rules_csv:
+            with open(rules_csv, mode='r', newline='') as f:
+                csv_reader = csv.DictReader(f, dialect=self.dialect, **self.fmtparams)
+                for row in csv_reader:
+                    if row['type'] in self.rule_types:
+                        value = float(row['value'])
+                        rules[value] = {
+                            'type': row['type'],
+                            'name': row['name'],
+                        }
         self.rules = rules
 
     def enhance(

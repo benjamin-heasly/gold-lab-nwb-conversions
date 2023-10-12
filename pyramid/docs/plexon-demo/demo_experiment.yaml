@@ -52,12 +52,12 @@ trials:
     - class: pyramid.trials.standard_enhancers.PairedCodesEnhancer
       args:
         buffer_name: ecodes
-        rules_csv: ecode-rules.csv
+        rules_csv: [main-ecode-rules.csv, special-ecode-rules.csv]
       # Standard enchancers come along with the Pyramid code.
     - class: pyramid.trials.standard_enhancers.EventTimesEnhancer
       args:
         buffer_name: ecodes
-        rules_csv: ecode-rules.csv
+        rules_csv: [main-ecode-rules.csv, special-ecode-rules.csv]
       # Standard enchancers come along with the Pyramid code.
     - class: pyramid.trials.standard_enhancers.ExpressionEnhancer
       args:

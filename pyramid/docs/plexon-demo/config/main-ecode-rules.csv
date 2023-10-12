@@ -13,9 +13,6 @@ time,4906,online_error,,,,,
 time,4907,online_ncerr,,,,,
 time,4919,targ_acq,,,,,
 time,4926,online_brfix,,,,,
-time,4930,sample_on,,,,,792 uses these three
-time,4931,targ1_off,,,,,"792 uses these three, code dropped when MSAC target turns off"
-time,4932,choices_on,,,,,792 uses these three
 id,8017,trial_id,7000,6000,8000,1,
 id,8033,task_id,7000,6000,8000,1,
 value,8001,fp_x,7000,6000,8000,0.1,

@@ -77,7 +77,42 @@ def test_paired_codes_enhancer(tmp_path):
     }
     assert trial.enhancement_categories == expected_categories
 
-# TODO: test_paired_codes_enhancer with multiple rules csv and overrides
+
+def test_paired_codes_enhancer_multiple_csvs(tmp_path):
+    # Write some .csv files with overlapping / overriding rules in them.
+    rules_1_csv = Path(tmp_path, "rules_1.csv")
+    with open(rules_1_csv, 'w') as f:
+        f.write('type,value,name,base,min,max,scale,comment\n')
+        f.write('id,42,foo,3000,2000,4000,0.25,this is just a comment\n')
+        f.write('id,43,bar,3000,2000,4000,0.25,this is just a comment\n')
+        f.write('value,44,baz,3000,2000,4000,0.25,this is just a comment\n')
+    rules_2_csv = Path(tmp_path, "rules_2.csv")
+    with open(rules_2_csv, 'w') as f:
+        f.write('type,value,name,base,min,max,scale,comment\n')
+        f.write('value,44,baz,3000,2000,4000,0.25,this is just a comment\n')
+        f.write('value,45,quux,3000,2000,4000,0.025,this is just a comment\n')
+    rules_3_csv = Path(tmp_path, "rules_3.csv")
+    with open(rules_3_csv, 'w') as f:
+        f.write('type,value,name,base,min,max,scale,comment\n')
+        f.write('id,43,bar_2,3000,2000,4000,0.25,this is just a comment\n')
+        f.write('value,45,quux_2,3000,2000,4000,0.025,this is just a comment\n')
+
+    enhancer = PairedCodesEnhancer(
+        buffer_name="propcodes",
+        rules_csv=[rules_1_csv, rules_2_csv, rules_3_csv],
+        file_finder=FileFinder()
+    )
+
+    # Only the "id" and "value" rows should be kept.
+    # Expect the union of the first two csvs, with partial overrides from the last csv.
+    expected_rules = {
+        42: {'type': 'id', 'name': 'foo', 'base': 3000, 'min': 2000, 'max': 4000, 'scale': 0.25},
+        43: {'type': 'id', 'name': 'bar_2', 'base': 3000, 'min': 2000, 'max': 4000, 'scale': 0.25},
+        44: {'type': 'value', 'name': 'baz', 'base': 3000, 'min': 2000, 'max': 4000, 'scale': 0.25},
+        45: {'type': 'value', 'name': 'quux_2', 'base': 3000, 'min': 2000, 'max': 4000, 'scale': 0.025}
+    }
+    assert enhancer.rules == expected_rules
+
 
 def test_event_times_enhancer(tmp_path):
     # Write out a .csv file with rules in it.
@@ -135,7 +170,40 @@ def test_event_times_enhancer(tmp_path):
     }
     assert trial.enhancement_categories == expected_categories
 
-# TODO: test_event_times_enhancer with multiple rules csv and overrides
+
+def test_event_times_enhancer_multiple_csvs(tmp_path):
+    # Write some .csv files with overlapping / overriding rules in them.
+    rules_1_csv = Path(tmp_path, "rules_1.csv")
+    with open(rules_1_csv, 'w') as f:
+        f.write('type,value,name,comment\n')
+        f.write('time,42,foo,this is just a comment\n')
+        f.write('time,43,bar,this is just a comment\n')
+    rules_2_csv = Path(tmp_path, "rules_2.csv")
+    with open(rules_2_csv, 'w') as f:
+        f.write('type,value,name,comment\n')
+        f.write('time,43,bar,this is just a comment\n')
+        f.write('time,44,baz,this is just a comment\n')
+    rules_3_csv = Path(tmp_path, "rules_3.csv")
+    with open(rules_3_csv, 'w') as f:
+        f.write('type,value,name,comment\n')
+        f.write('time,42,foo_2,this is just a comment\n')
+        f.write('time,44,baz_2,this is just a comment\n')
+
+    enhancer = EventTimesEnhancer(
+        buffer_name="events",
+        rules_csv=[rules_1_csv, rules_2_csv, rules_3_csv],
+        file_finder=FileFinder()
+    )
+
+    # Only the "time" rows should be kept.
+    # Expect the union of the first two csvs, with partial overrides from the last csv.
+    expected_rules = {
+        42: {'type': 'time', 'name': 'foo_2'},
+        43: {'type': 'time', 'name': 'bar'},
+        44: {'type': 'time', 'name': 'baz_2'}
+    }
+    assert enhancer.rules == expected_rules
+
 
 def test_expression_enhancer(tmp_path):
     enhancer = ExpressionEnhancer(
