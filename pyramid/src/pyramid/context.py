@@ -80,7 +80,7 @@ class PyramidContext():
         subject_config: dict[str, Any],
         allow_simulate_delay: bool = False,
         plot_positions_yaml: str = None,
-        file_finder: FileFinder = None
+        file_finder: FileFinder = FileFinder()
     ) -> Self:
         """Load a context after things like YAML files are already read into memory."""
         (readers, named_buffers, reader_routers, reader_sync_registry) = configure_readers(
@@ -325,7 +325,7 @@ class PyramidContext():
 def configure_readers(
     readers_config: dict[str, dict],
     allow_simulate_delay: bool = False,
-    file_finder: FileFinder = None
+    file_finder: FileFinder = FileFinder()
 ) -> tuple[dict[str, Reader], dict[str, Buffer], dict[str, ReaderRouter]]:
     """Load the "readers:" section of an experiment YAML file."""
 
@@ -428,7 +428,7 @@ def configure_readers(
 def configure_trials(
     trials_config: dict[str, Any],
     named_buffers: dict[str, Buffer],
-    file_finder: FileFinder = None
+    file_finder: FileFinder = FileFinder()
 ) -> tuple[TrialDelimiter, TrialExtractor, str]:
     """Load the "trials:" section of an experiment YAML file."""
 
@@ -489,7 +489,7 @@ def configure_trials(
 
 def configure_plotters(
     plotters_config: list[dict[str, str]],
-    file_finder: FileFinder = None
+    file_finder: FileFinder = FileFinder()
 ) -> list[Plotter]:
     """Load the "plotters:" section of an experiment YAML file."""
 

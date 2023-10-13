@@ -75,7 +75,7 @@ def test_configure_readers():
     (readers, named_buffers, reader_routers, sync_registry) = configure_readers(readers_config, allow_simulate_delay)
 
     expected_readers = {
-        "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", "start")),
+        "start_reader": DelaySimulatorReader(CsvNumericEventReader("default.csv", result_name="start")),
         "wrt_reader": CsvNumericEventReader(result_name="wrt"),
         "foo_reader": CsvNumericEventReader(result_name="foo"),
         "bar_reader": CsvNumericEventReader(result_name="bar"),
@@ -214,7 +214,7 @@ def test_from_yaml_and_reader_overrides(fixture_path):
         expected_experiment = yaml.safe_load(f)
 
     expected_readers = {
-        "start_reader": DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, "start")),
+        "start_reader": DelaySimulatorReader(CsvNumericEventReader(delimiter_csv, result_name="start")),
         "wrt_reader": CsvNumericEventReader(result_name="wrt"),
         "foo_reader": CsvNumericEventReader(result_name="foo"),
         "bar_reader": CsvNumericEventReader(result_name="bar"),

@@ -20,15 +20,12 @@ class CsvNumericEventReader(Reader):
     def __init__(
         self,
         csv_file: str = None,
+        file_finder: FileFinder = FileFinder(),
         result_name: str = "events",
         dialect: str = 'excel',
-        file_finder: FileFinder = None,
         **fmtparams
     ) -> None:
-        if file_finder:
-            self.csv_file = file_finder.find(csv_file)
-        else:
-            self.csv_file = csv_file
+        self.csv_file = file_finder.find(csv_file)
         self.result_name = result_name
         self.dialect = dialect
         self.fmtparams = fmtparams
@@ -111,18 +108,15 @@ class CsvSignalReader(Reader):
     def __init__(
         self,
         csv_file: str = None,
+        file_finder: FileFinder = FileFinder(),
         sample_frequency: float = 1.0,
         next_sample_time: float = 0.0,
         lines_per_chunk: int = 10,
         result_name: str = "samples",
         dialect: str = 'excel',
-        file_finder: FileFinder = None,
         **fmtparams
     ) -> None:
-        if file_finder:
-            self.csv_file = file_finder.find(csv_file)
-        else:
-            self.csv_file = csv_file
+        self.csv_file = file_finder.find(csv_file)
         self.sample_frequency = sample_frequency
         self.next_sample_time = next_sample_time
         self.lines_per_chunk = lines_per_chunk

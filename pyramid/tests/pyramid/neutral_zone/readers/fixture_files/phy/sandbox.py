@@ -33,8 +33,12 @@ spike_times_file_name = "spike_times.npy"
 spike_clusters_file_name = "spike_clusters.npy"
 numpy_memmap_mode = "r"
 rows_per_read = 100
-filter = 'Amplitude > 10000'
-filter_compiled = compile(filter, '<string>', 'eval')
+filter = 'Amplitude > 5000'
+
+if filter is None:
+    filter_compiled = None
+else:
+    filter_compiled = compile(filter, '<string>', 'eval')
 
 cluster_info = {}
 cluster_info_files = params_py.parent.glob(cluster_file_glob)
@@ -56,6 +60,21 @@ for cluster_info_file in cluster_info_files:
 
 print(cluster_info)
 
+if filter_compiled is None:
+    clusters_to_keep = None
+else:
+    clusters_to_keep = []
+    for cluster_id, info in cluster_info.items():
+        try:
+            result = eval(filter_compiled, {}, info)
+            keep = bool(result)
+        except Exception as err:
+            keep = False
+        if keep:
+            clusters_to_keep.append(cluster_id)
+
+print(clusters_to_keep)
+
 spike_times_npy = Path(params_py.parent, spike_times_file_name)
 spike_times = np.load(spike_times_npy, mmap_mode=numpy_memmap_mode)
 
@@ -70,17 +89,13 @@ while current_row < row_count:
 
     times = spike_times[current_row:until_row] / sample_rate
     clusters = spike_clusters[current_row:until_row]
-    if filter_compiled is None:
+    if clusters_to_keep is None:
         selector = np.ones(shape=clusters.shape, dtype=np.bool_)
     else:
-        selector = np.zeros(shape=clusters.shape, dtype=np.bool_)
-        for index in range(clusters.size):
-            cluster = clusters[index, 0]
-            info = cluster_info.get(cluster, None)
-            try:
-                selector[index, 0] = eval(filter_compiled, {}, info)
-            except Exception as err:
-                selector[index, 0] = False
+        selector = np.in1d(clusters, clusters_to_keep)
+
+    selected_times = times[selector]
+    selected_clusters = clusters[selector]
 
     spike_count += selector.sum()
     current_row += rows_per_read

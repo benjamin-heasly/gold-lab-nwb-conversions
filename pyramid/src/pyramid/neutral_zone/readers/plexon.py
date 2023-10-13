@@ -388,7 +388,7 @@ class PlexonPlxReader(Reader):
 
         Args:
             plx_file:           Path to the Plexon .plx file to read from.
-            file_finder         Utility to find() files in the conigured Pyramid configured search path.
+            file_finder:        Utility to find() files in the conigured Pyramid configured search path.
                                 Pyramid will automatically create and pass in the file_finder for you.
             spikes:             Dict of spike channel raw names to aliases, for which channels to keep.
                                 Or, use spikes="all" to keep all channels with default names.
