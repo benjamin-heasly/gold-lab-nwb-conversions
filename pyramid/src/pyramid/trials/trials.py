@@ -207,14 +207,14 @@ class TrialExpression():
         expression: str,
         default_value: Any = None
     ) -> None:
-        self.expression = expression
+        self.compiled_expression = compile(expression, '<string>', 'eval')
         self.default_value = default_value
 
     def __eq__(self, other: object) -> bool:
         """Compare field-wise, to support use of this class in tests."""
         if isinstance(other, self.__class__):
             return (
-                self.expression == other.expression
+                self.compiled_expression == other.compiled_expression
                 and self.default_value == other.default_value
             )
         else:  # pragma: no cover
@@ -223,9 +223,9 @@ class TrialExpression():
     def evaluate(self, trial: Trial) -> Any:
         try:
             # Evaluate the expression with free variables bound to trial enhancements.
-            return eval(self.expression, {}, trial.enhancements)
+            return eval(self.compiled_expression, {}, trial.enhancements)
         except:
-            logging.error(f"Error evaluating TrialExpression: {self.expression}", exc_info=True)
+            logging.error(f"Error evaluating TrialExpression: {self.compiled_expression}", exc_info=True)
             logging.warning(f"Returning TrialExpression default value: {self.default_value}")
             return self.default_value
 
