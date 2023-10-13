@@ -180,7 +180,7 @@ class PhyClusterEventReader(Reader):
 
         if selected_times.size > 0:
             # [time, cluster_id]
-            event_data = np.concatenate([selected_times, selected_clusters])
+            event_data = np.concatenate([selected_times, selected_clusters], axis=1)
             return {
                 self.result_name: NumericEventList(event_data)
             }
