@@ -22,7 +22,7 @@ class PhyClusterEventReader(Reader):
         spike_times_name: str = "spike_times.npy",
         spike_clusters_name: str = "spike_clusters.npy",
         cluster_glob: str = "cluster_*",
-        cluster_delimiter="\t",
+        cluster_delimiters= {'.tsv': '\t', '.csv': ','},
         cluster_id_column="cluster_id",
         cluster_filter: str = None,
         result_name: str = "spikes",
@@ -44,8 +44,8 @@ class PhyClusterEventReader(Reader):
                                     Default is "spike_clusters.npy".
             cluster_glob:           File "glob" pattern matching CSV/TSV files in same dir as params_file.
                                     Default is "cluster_*".
-            cluster_delimiter:      Delimiter to use when parsing CSV/TSV cluster files.
-                                    Default is None to choose by .tsv/.csv file name.
+            cluster_delimiters:     Dictionary of CSV/TSV file extensions to delimiter characters.
+                                    Default is {'.tsv': '\t', '.csv': ','}.
             cluster_id_column:      Column name in CSV/TSV cluster files that contains the int cluster id.
                                     Default is "cluster_id".
             cluster_filter:         String Python expression used to filter spikes by cluster info.
@@ -72,7 +72,7 @@ class PhyClusterEventReader(Reader):
         self.spike_clusters_file = Path(phy_folder, spike_clusters_name)
 
         self.custer_files = phy_folder.glob(cluster_glob)
-        self.cluster_delimiter = cluster_delimiter
+        self.cluster_delimiters = cluster_delimiters
         self.cluster_id_column = cluster_id_column
         self.cluster_filter = cluster_filter
 
@@ -101,7 +101,7 @@ class PhyClusterEventReader(Reader):
                 if name.strip() == self.sample_rate_param_name:
                     self.sample_rate = float(value.strip())
 
-        if self.sample_rate is None:
+        if self.sample_rate is None:  # pragma: no cover
             raise ValueError(f"Params file {self.params_file} has no entry for {self.sample_rate_param_name}.")
 
         # Parse cluster info files and decide which clusters to keep.
@@ -112,14 +112,7 @@ class PhyClusterEventReader(Reader):
                 print(cluster_file)
                 # See https://docs.python.org/3/library/csv.html#id3 for why this has newline=''
                 with open(cluster_file, mode='r', newline='') as f:
-                    if self.cluster_delimiter:
-                        delimiter = self.cluster_delimiter
-                    else:
-                        if cluster_file.suffix.lower() == ".tsv":
-                            delimiter = "\t"
-                        else:
-                            delimiter = ","
-
+                    delimiter = self.cluster_delimiters.get(cluster_file.suffix.lower(), ',')
                     csv_reader = csv.DictReader(f, delimiter=delimiter, dialect=self.csv_dialect, **self.csv_fmtparams)
                     for row in csv_reader:
                         cluster_id = int(row[self.cluster_id_column])
