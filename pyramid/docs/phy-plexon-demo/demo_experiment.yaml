@@ -13,6 +13,7 @@ readers:
   plexon_reader:
     class: pyramid.neutral_zone.readers.plexon.PlexonPlxReader
     args:
+      # Override plx_file on cli with: --readers plexon_reader.plx_file=my_real_file.plx
       plx_file: my_file.plx
       signals: {}
       spikes: all
@@ -24,6 +25,7 @@ readers:
   phy_reader:
     class: pyramid.neutral_zone.readers.phy.PhyClusterEventReader
     args:
+      # Override params_file on cli with: --readers phy_reader.params_file=my_real_params.py
       params_file: my_params.py
       result_name: phy_clusters
       cluster_filter: KSLabel=='good'

@@ -4,24 +4,27 @@ Here's a demo / example of Pyramid with spike sorting output from [Phy](https://
 
 ## overview
 
-This demo assumes some data files from the [Gold Lab](https://www.med.upenn.edu/goldlab/): a Plexon `.plx` file
-and corresponding folder of sorting output from Phy.
+This demo assumes some data files from the [Gold Lab](https://www.med.upenn.edu/goldlab/):
+
+ - a Plexon `.plx` file
+ - a corresponding folder of sorting output from Phy
+
 The pipeline used to get from raw Plexon to sorted Phy output is not included here, and neither are the data files!
 So, this demo is most relevant for members of the Gold Lab.
 
-It might still be useful to others, as an example of how to configure Pyramid with Phy data.
-This demo will refer to data at the following locations:
+This might still be useful to others, as an example of how to configure Pyramid with Phy data.
+This demo will refer to data at the following locations, which you should change for your own setup:
 
 ```
 # Plexon
 ~/data/MrM/Raw/MM_2023_08_25B_Rec_V-ProRec.plx
 
-# Phy params.py, plus other data files in the same folder
+# Phy params.py (plus other data files in the same folder)
 ~/data/MrM/Kilosort/MM_2023_08_25B_Rec_V-ProRec/MM_2023_08_25B_Rec_V-ProRec/phy/params.py
 ```
 
-Pyramid will read Plexon event data to partition the data into trials.
-It will display both Plexon and Phy spike data in each trial.
+Pyramid will read Plexon event data to partition the timeline into trials.
+It will display both Plexon and Phy spike data for each trial.
 
 ### experiment configuration graph
 
@@ -36,42 +39,89 @@ pyramid graph --graph-file images/demo_experiment.png --experiment demo_experime
 `images/demo_experiment.png`
 ![Graph of Pyramid Reader and Trial configuration for a Plexon file.](images/demo_experiment.png "Overview of a Plexon experiment")
 
-Note the `--search-path ./config` at the end of the command.
-This lets Pyramid look in the nearby `./config` folder for files mentioned in `demo_experiment.yaml`, which helps us organize the demo.
-
-The `--search-path` can point to any folder or list of folders on your machine, so it could help organize various shared and lab-specific code and config.
-The default search path is in the user's home folder, `~/pyramd`.
-
 ## experiment YAML
 
 The experiment YAML file [demo_experiment.yaml](demo_experiment.yaml) tells Pyramid how to read, process, and plot the data in our Plexon file.  Here are some highlights.
 
 ### readers: ###
 
-The `readers:` section tells Pyramid to read a Plexon file, and which event, spike, and AD signal channels to take:
+The `readers:` section tells Pyramid to read a Plexon file, and which events and spikes to keep:
 
- - For `spikes` it will take `all` of the channels present in the file.
- - For `events` it will take only the `Strobed` channel and give it the name `ecodes`.  It will also make a separate copy the `ecodes` buffer, named `delimiter`.
- - For AD `signals` it will take only the channels named `X50` and `Y51` and give these the names `gaze_x` and `gaze_y`.  It will apply a gain of 10 to each signal to scale the voltage data into degrees visual angle.
-
+ - For `spikes` it will take `all` of the channels present in the file.  Each spike channel will go to its own pyramid buffer, automatically named with a `plexon_` prefix.
+ - For `events` it will take only the `Strobed` channel and give it the name `delimiter`.
+ - It won't keep any AD signal channels.
 
 ```
 readers:
+  plexon_reader:
+    class: pyramid.neutral_zone.readers.plexon.PlexonPlxReader
+    args:
+      # Override plx_file on cli with: --readers plexon_reader.plx_file=my_real_file.plx
+      plx_file: my_file.plx
+      signals: {}
+      spikes: all
+      spikes_prefix: plexon_
+      events:
+        Strobed: delimiter
+    # For gui demo, wait between trial delimiting events.
+    simulate_delay: True
+  phy_reader:
+    class: pyramid.neutral_zone.readers.phy.PhyClusterEventReader
+    args:
+      # Override params_file on cli with: --readers phy_reader.params_file=my_real_params.py
+      params_file: my_params.py
+      result_name: phy_clusters
+      cluster_filter: KSLabel=='good'
 ```
+
+The `readers:` section also tells Pyramid to read a folder Phy files and to put the spike events into a Pyramid buffer named `phy_clusters`.
+It also tells Pyramid to filter the clusters to only those that have a `KSLabel` property equal to `'good'`.
+Phy supports one or more `cluster_*` CSV or TSV files to provide properties for each cluster.
+Pyramid reads these CSV and TSV files to build up a dictionary of info about each cluster.
+These in turn allow Pyramid to filter Phy clusters based on Python string expressions like `KSLabel=='good'`, in the Phy reader `cluster_filter` arg.
+In these expressions each CSV or TSV column name is available as a local variable, and Pyramid only keeps clusters where the expression evaluates to `True` or something [truthy](https://docs.python.org/3/library/stdtypes.html#truth-value-testing).
 
 ### plotters: ###
 
-The plotters section declares several plotters that Pyramid will show in figure windows and update as each trial arrives.
-Descriptions and shots below!
+The plotters section declares a few plotters that Pyramid will show in figure windows and update as each trial arrives.
 
 ```
 plotters:
+    # Plot basic info about conversion process, plus a "Quit" button.
+  - class: pyramid.plotters.standard_plotters.BasicInfoPlotter
+    # Plot Plexon spike events as raster with trials on the y-axis.
+    # Plexon spike events have two values (following the timestamp): [channel, unit].
+    # "value_index: 1" and "value_selection: 1" mean index to the unit column and select only where unit==1.
+    # This way, we only plot spikes that have been sorted to unit 1.
+  - class: pyramid.plotters.standard_plotters.SpikeEventsPlotter
+    args:
+      xmin: -1.0
+      xmax: 5.0
+      match_pattern: plexon_sig.*
+      value_index: 1
+      value_selection: 1
+    # Plot Phy spike events as raster with trials on the y-axis.
+    # Phy spike events have one value (following the timestamp): [cluster_id].
+    # For now, we just plot them all.
+  - class: pyramid.plotters.standard_plotters.SpikeEventsPlotter
+    args:
+      xmin: -1.0
+      xmax: 5.0
+      match_pattern: phy_clusters
 ```
 
-#### SpikeEventsPlotter
-The [SpikeEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L483) shows spike event times from all Plexon spike channels.  Spikes are grouped and color-coded by integer channel number and fractionally offset by unit number.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
+The first, [BasicInfoPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L35), shows Pyramid's overall progress parsing trials, and has a Quit button.
 
-![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](images/SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
+Two [SpikeEventPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L486)s.  The first shows Plexon spikes from all channels, with the trial number on the vertical axis.  Only spikes assigned to Plexon unit 1 are shown.  The plexon channels are color-coded in the legend.
+
+![Pyramid SpikeEventsPlotter for Plexon spikes.](images/plexon-spike-events.png "Pyramid Plexon SpikeEventsPlotter")
+
+The second SpikeEventPlotter shows spikes from Phy.  All clusters are shown, with the trial number on the vertical axis.
+
+![Pyramid SpikeEventsPlotter for Phy spikes.](images/phy-spike-events.png "Pyramid PhySpikeEventsPlotter")
+
+So far, the Plexon and Phy spike events don't seem to correspond.
+This might just be a bad choice of sample data.
 
 ## running it
 

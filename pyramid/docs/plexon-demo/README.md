@@ -222,9 +222,9 @@ The [NumericEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conve
 ![Pyramid NumericEventsPlotter for ecode event times and raw numeric values.](images/NumericEventsPlotter_ecodes.png "Pyramid NumericEventsPlotter for ecodes")
 
 #### SpikeEventsPlotter
-The [SpikeEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L483) shows spike event times from all Plexon spike channels.  Spikes are grouped and color-coded by integer channel number and fractionally offset by unit number.  The most recent trial is in full color, on top of 10 recent trials which are partially transparent.
+The [SpikeEventsPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L486) shows spike event times from all Plexon spike channels, with trial number on the vertical axis.  Only spikes assigned to Plexon unit 1 are shown and the Plexon channels are color-coded in the legend.
 
-![Pyramid SpikeEventsPlotter for spike event times and channel and unit values.](images/SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
+![Pyramid SpikeEventsPlotter for spike event times over trials.](images/SpikeEventsPlotter.png "Pyramid SpikeEventsPlotter")
 
 #### EnhancementTimesPlotter
 The [EnhancementTimesPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L278) shows the names and times for events of interest within each trial.  All trial enhancements that were placed into the `time` category are shown, including rule-based enhancements declared in [config/main-ecode-rules.csv](config/main-ecode-rules.csv) and [config/special-ecode-rules.csv](config/special-ecode-rules.csv) and custom enhancements created from [config/custom_enhancers.py](config/custom_enhancers.py).  The most recent trial is in full color, on top of 10 recent trials which are smaller and partially transparent.
