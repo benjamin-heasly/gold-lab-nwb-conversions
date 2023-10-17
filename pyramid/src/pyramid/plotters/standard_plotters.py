@@ -513,9 +513,9 @@ class SpikeEventsPlotter(Plotter):
 
         title = "Spike Events"
         if self.match_pattern:
-            title += f" {self.match_pattern}"
+            title += f" for {self.match_pattern}"
         if self.value_selection is not None:
-            title += f" {self.value_selection}"
+            title += f" where value[{self.value_index}]=={self.value_selection}"
         self.ax.set_title(title)
 
         self.ax.grid(which="major", axis="both")
@@ -542,7 +542,12 @@ class SpikeEventsPlotter(Plotter):
                     selector = values == self.value_selection
                     times = times[selector]
                     trials = trials[selector]
-                self.ax.scatter(times, trials, color=name_to_color(name, alpha=0.5), marker=self.marker, label=name)
+                if times.size > 0:
+                    self.ax.scatter(times, trials, color=name_to_color(name, alpha=0.5), marker=self.marker, label=name)
 
         ymax = np.ceil((trial_number + 1) / 10) * 10
         self.ax.set_ylim(ymin=0, ymax=ymax)
+
+        (artists, labels) = self.ax.get_legend_handles_labels()
+        legend_by_label = dict(zip(labels, artists))
+        self.ax.legend(legend_by_label.values(), legend_by_label.keys())

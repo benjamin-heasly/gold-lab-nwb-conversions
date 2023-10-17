@@ -1,7 +1,6 @@
 from types import TracebackType
 from typing import Self
 from pathlib import Path
-import logging
 import csv
 import numpy as np
 
@@ -26,7 +25,7 @@ class PhyClusterEventReader(Reader):
         cluster_id_column="cluster_id",
         cluster_filter: str = None,
         result_name: str = "spikes",
-        rows_per_read: int = 100,
+        rows_per_read: int = 2000,
         csv_dialect: str = 'excel',
         **csv_fmtparams
     ) -> None:
@@ -57,7 +56,7 @@ class PhyClusterEventReader(Reader):
                                     Default is "spikes".
             rows_per_read:          How many rows of spike_times_name and spike_clusters_name to read per call to read_next().
                                     This reader will read spike and cluster files incrementally to limit memory usage.
-                                    Default is 100 rows.
+                                    Default is 2000 rows.
             csv_dialect:            Python csv module "dialect" to use when reading cluster CSV/TSV files
                                     Default is "excel".
             **csv_fmtparams         Python csv module "fmtparams" kwargs to use when reading cluster CSV/TSV files
@@ -109,7 +108,6 @@ class PhyClusterEventReader(Reader):
             # Read in info about each cluster.
             cluster_info = {}
             for cluster_file in self.custer_files:
-                print(cluster_file)
                 # See https://docs.python.org/3/library/csv.html#id3 for why this has newline=''
                 with open(cluster_file, mode='r', newline='') as f:
                     delimiter = self.cluster_delimiters.get(cluster_file.suffix.lower(), ',')

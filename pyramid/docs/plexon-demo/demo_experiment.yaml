@@ -86,7 +86,7 @@ plotters:
       xmin: -1.0
       xmax: 5.0
       match_pattern: ecodes
-    # Plot spike data with channels and units on the y-axis.
+    # Plot spike data as raster with trials on the y-axis.
   - class: pyramid.plotters.standard_plotters.SpikeEventsPlotter
     args:
       xmin: -1.0
