@@ -41,13 +41,13 @@ pyramid graph --graph-file images/demo_experiment.png --experiment demo_experime
 
 ## experiment YAML
 
-The experiment YAML file [demo_experiment.yaml](demo_experiment.yaml) tells Pyramid how to read, process, and plot the data in our Plexon file.  Here are some highlights.
+The experiment YAML file [demo_experiment.yaml](demo_experiment.yaml) tells Pyramid how to read, process, and plot the data in our Phy an Plexon files.  Here are some highlights.
 
 ### readers: ###
 
 The `readers:` section tells Pyramid to read a Plexon file, and which events and spikes to keep:
 
- - For `spikes` it will take `all` of the channels present in the file.  Each spike channel will go to its own pyramid buffer, automatically named with a `plexon_` prefix.
+ - For `spikes` it will take `all` of the channels present in the file.  Each spike channel will go to its own Pyramid buffer, automatically named with a `plexon_` prefix.
  - For `events` it will take only the `Strobed` channel and give it the name `delimiter`.
  - It won't keep any AD signal channels.
 
@@ -74,12 +74,15 @@ readers:
       cluster_filter: KSLabel=='good'
 ```
 
-The `readers:` section also tells Pyramid to read a folder Phy files and to put the spike events into a Pyramid buffer named `phy_clusters`.
-It also tells Pyramid to filter the clusters to only those that have a `KSLabel` property equal to `'good'`.
-Phy supports one or more `cluster_*` CSV or TSV files to provide properties for each cluster.
-Pyramid reads these CSV and TSV files to build up a dictionary of info about each cluster.
-These in turn allow Pyramid to filter Phy clusters based on Python string expressions like `KSLabel=='good'`, in the Phy reader `cluster_filter` arg.
-In these expressions each CSV or TSV column name is available as a local variable, and Pyramid only keeps clusters where the expression evaluates to `True` or something [truthy](https://docs.python.org/3/library/stdtypes.html#truth-value-testing).
+The `readers:` section also tells Pyramid to read a folder of Phy files and to put those spike events into a Pyramid buffer named `phy_clusters`.
+Futhermore, it tells Pyramid to filter the clusters and only keep those that have a `KSLabel` property equal to `'good'`.
+
+Pyramid supports cluster filtering by reading Phy's `cluster_*` CSV or TSV files, and building up a dictionary of info about each cluster.
+The CSV or TSV column headers become local variables, accessible to Python string expressions passed to the Phy reader as its `cluster_filter` arg.
+Pyramid will only keep clusters for which the given `cluster_filter` evaluates to `True` or [truthy](https://docs.python.org/3/library/stdtypes.html#truth-value-testing).
+
+In this example, with `cluster_filter` given as `KSLabel=='good'`, Pyramid will only keep Phy clusters that have the value `good` in the `KSLabel` column.
+This is intented to align well with the Phy [Cluster view](https://phy.readthedocs.io/en/latest/visualization/).
 
 ### plotters: ###
 
@@ -110,18 +113,21 @@ plotters:
       match_pattern: phy_clusters
 ```
 
-The first, [BasicInfoPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L35), shows Pyramid's overall progress parsing trials, and has a Quit button.
+The first plot, a [BasicInfoPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L35), shows Pyramid's overall progress parsing trials, and has a Quit button.
 
-Two [SpikeEventPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L486)s.  The first shows Plexon spikes from all channels, with the trial number on the vertical axis.  Only spikes assigned to Plexon unit 1 are shown.  The plexon channels are color-coded in the legend.
+Two [SpikeEventPlotter](https://github.com/benjamin-heasly/gold-lab-nwb-conversions/blob/main/pyramid/src/pyramid/plotters/standard_plotters.py#L486)s show spikes as rasters, with the trial number on the vertical axis.
+
+The first SpikeEventPlotter shows Plexon spikes from all channels.  Only spikes assigned to Plexon unit 1 are shown.  The plexon channels are color-coded in the legend.
 
 ![Pyramid SpikeEventsPlotter for Plexon spikes.](images/plexon-spike-events.png "Pyramid Plexon SpikeEventsPlotter")
 
-The second SpikeEventPlotter shows spikes from Phy.  All clusters are shown, with the trial number on the vertical axis.
+The second SpikeEventPlotter shows spikes from Phy.  All clusters are shown together.
 
 ![Pyramid SpikeEventsPlotter for Phy spikes.](images/phy-spike-events.png "Pyramid PhySpikeEventsPlotter")
 
 So far, the Plexon and Phy spike events don't seem to correspond.
 This might just be a bad choice of sample data.
+It would be cool to find a nicer-looking example!
 
 ## running it
 
