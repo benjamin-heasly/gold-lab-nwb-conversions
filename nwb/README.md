@@ -1,4 +1,7 @@
 # Neurodata Without Borders
+
+NOTE: This repo is no longer used. For Gold Lab pipeline config, see Lab_Pipelines. For the Pyramid project, see pyramid.
+
 Scripts and metadata for converting Plexon and other data files into [NWB](https://pynwb.readthedocs.io/en/stable/) files.
 
 It also contains some README instructions for how to run this stuff.
