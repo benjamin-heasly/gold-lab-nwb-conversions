@@ -1,5 +1,7 @@
 # Pyramid
 
+NOTE: This repo is no longer used. For Gold Lab pipeline config, see Lab_Pipelines. For the Pyramid project, see pyramid.
+
 This folder contains a Python project called Pyramid.
 "Pyramid" is a pun on "Python" and "FIRA" (the Gold Lab's long-standing Matlab analysis tools).
 Pyramid is intended as a successor to FIRA.
