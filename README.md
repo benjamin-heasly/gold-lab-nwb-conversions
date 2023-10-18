@@ -1,4 +1,7 @@
 # gold-lab-nwb-conversions
+
+**NOTE:** This repo is no longer used.  For Gold Lab pipeline config, see [Lab_Pipelines](https://github.com/TheGoldLab/Lab_Pipelines).  For the Pyramid project, see [pyramid](https://github.com/benjamin-heasly/pyramid).
+
 Scripts and pipeline definitions for ecephys, sorting, and behavior conversions to nwb
 
 # Conda environment setup
